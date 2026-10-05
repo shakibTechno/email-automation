@@ -35,11 +35,11 @@ import { useSequence, useSequenceStats, useSequenceEnrollments, useSequenceMutat
 import { format } from 'date-fns';
 
 const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-green-100 text-green-700',
-  completed: 'bg-blue-100 text-blue-700',
-  cancelled: 'bg-gray-100 text-gray-600',
-  unsubscribed: 'bg-red-100 text-red-600',
-  paused: 'bg-yellow-100 text-yellow-700',
+  active: 'bg-success/[.14] text-success',
+  completed: 'bg-info/[.14] text-info',
+  cancelled: 'bg-secondary text-muted-foreground',
+  unsubscribed: 'bg-destructive/[.14] text-destructive',
+  paused: 'bg-warning/[.14] text-warning',
 };
 
 export default function SequenceDetailPage() {
@@ -53,7 +53,7 @@ export default function SequenceDetailPage() {
   const { activate, pause } = useSequenceMutations();
 
   if (isLoading || !sequence) {
-    return <div className="p-6 text-gray-500">Loading...</div>;
+    return <div className="p-6 text-muted-foreground">Loading...</div>;
   }
 
   const seqStatus = sequence.status;
@@ -69,12 +69,12 @@ export default function SequenceDetailPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold">{sequence.name}</h1>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[seqStatus] || 'bg-gray-100 text-gray-600'}`}>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[seqStatus] || 'bg-secondary text-muted-foreground'}`}>
                 {seqStatus.charAt(0).toUpperCase() + seqStatus.slice(1)}
               </span>
             </div>
             {sequence.description && (
-              <p className="text-sm text-gray-500 mt-1">{sequence.description}</p>
+              <p className="text-sm text-muted-foreground mt-1">{sequence.description}</p>
             )}
           </div>
         </div>
@@ -85,7 +85,7 @@ export default function SequenceDetailPage() {
               Pause
             </Button>
           ) : (seqStatus === 'draft' || seqStatus === 'paused') ? (
-            <Button onClick={() => activate.mutate(id!)} className="bg-green-600 hover:bg-green-700">
+            <Button onClick={() => activate.mutate(id!)} className="bg-success hover:bg-success/90">
               <Play className="h-4 w-4 mr-2" />
               Activate
             </Button>
@@ -102,7 +102,7 @@ export default function SequenceDetailPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center gap-2 text-gray-500 text-sm mb-1">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
                 <Users className="h-4 w-4" />
                 Active Enrolled
               </div>
@@ -111,7 +111,7 @@ export default function SequenceDetailPage() {
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center gap-2 text-gray-500 text-sm mb-1">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
                 <CheckCircle className="h-4 w-4" />
                 Completed
               </div>
@@ -120,7 +120,7 @@ export default function SequenceDetailPage() {
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center gap-2 text-gray-500 text-sm mb-1">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
                 <TrendingUp className="h-4 w-4" />
                 Completion Rate
               </div>
@@ -129,7 +129,7 @@ export default function SequenceDetailPage() {
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center gap-2 text-gray-500 text-sm mb-1">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
                 <Mail className="h-4 w-4" />
                 Total Steps
               </div>
@@ -145,7 +145,7 @@ export default function SequenceDetailPage() {
           <h2 className="text-lg font-semibold">Sequence Steps</h2>
           {sequence.steps.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center text-gray-400 text-sm">
+              <CardContent className="py-8 text-center text-subtle-foreground text-sm">
                 No steps configured yet.
                 <br />
                 <Button size="sm" variant="link" onClick={() => navigate(`/sequences/${id}/edit`)}>
@@ -161,16 +161,16 @@ export default function SequenceDetailPage() {
                   <Card key={step.id} className="border">
                     <CardContent className="py-3 px-4">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-400 font-semibold uppercase">Step {idx + 1}</span>
+                        <span className="text-xs text-subtle-foreground font-semibold uppercase">Step {idx + 1}</span>
                         {(step.delay_days > 0 || step.delay_hours > 0) && (
-                          <span className="text-xs text-blue-600">
+                          <span className="text-xs text-brand">
                             +{step.delay_days > 0 ? `${step.delay_days}d ` : ''}{step.delay_hours > 0 ? `${step.delay_hours}h` : ''}
                           </span>
                         )}
                       </div>
                       <p className="text-sm font-medium truncate">{step.subject}</p>
                       {stepStat && stepStat.sent > 0 && (
-                        <div className="flex gap-3 mt-2 text-xs text-gray-500">
+                        <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
                           <span>{stepStat.sent} sent</span>
                           <span>{stepStat.open_rate}% opened</span>
                           <span>{stepStat.click_rate}% clicked</span>
@@ -204,7 +204,7 @@ export default function SequenceDetailPage() {
 
           {enrollments.length === 0 ? (
             <Card>
-              <CardContent className="py-10 text-center text-gray-400 text-sm">
+              <CardContent className="py-10 text-center text-subtle-foreground text-sm">
                 No contacts enrolled{enrollmentStatus ? ` with status "${enrollmentStatus}"` : ''} yet.
               </CardContent>
             </Card>
@@ -225,19 +225,19 @@ export default function SequenceDetailPage() {
                     <TableRow key={enrollment.id}>
                       <TableCell>
                         <div className="font-medium text-sm">{enrollment.contact_name}</div>
-                        <div className="text-xs text-gray-500">{enrollment.contact_email}</div>
+                        <div className="text-xs text-muted-foreground">{enrollment.contact_email}</div>
                       </TableCell>
                       <TableCell>
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[enrollment.status] || ''}`}>
                           {enrollment.status.charAt(0).toUpperCase() + enrollment.status.slice(1)}
                         </span>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600">
+                      <TableCell className="text-sm text-muted-foreground">
                         {enrollment.status === 'completed'
                           ? 'Done'
                           : `Step ${enrollment.current_step_position + 1}`}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500">
+                      <TableCell className="text-sm text-muted-foreground">
                         {enrollment.next_send_at
                           ? format(new Date(enrollment.next_send_at), 'MMM d, h:mm a')
                           : '—'}
@@ -252,7 +252,7 @@ export default function SequenceDetailPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                className="text-red-600"
+                                className="text-destructive"
                                 onClick={async () => {
                                   const { sequencesApi } = await import('@/api/sequences');
                                   await sequencesApi.cancelEnrollment(enrollment.id);

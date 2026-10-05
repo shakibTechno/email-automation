@@ -48,8 +48,8 @@ import type { SegmentListItem, SegmentType } from '@/types/segment';
 
 function SegmentTypeBadge({ type }: { type: SegmentType }) {
   const variants: Record<SegmentType, { label: string; className: string }> = {
-    dynamic: { label: 'Dynamic', className: 'bg-blue-100 text-blue-800' },
-    static: { label: 'Static', className: 'bg-gray-100 text-gray-800' },
+    dynamic: { label: 'Dynamic', className: 'bg-info/[.14] text-info' },
+    static: { label: 'Static', className: 'bg-secondary text-muted-foreground' },
   };
 
   const { label, className } = variants[type];

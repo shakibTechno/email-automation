@@ -70,7 +70,7 @@ export const ContactTable = ({
     <div className="border rounded-lg overflow-hidden bg-white">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-secondary/50 border-b">
             <tr>
               <th className="w-12 px-4 py-3">
                 <Checkbox
@@ -79,7 +79,7 @@ export const ContactTable = ({
                 />
               </th>
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-secondary"
                 onClick={() => onSort?.('email')}
               >
                 <div className="flex items-center gap-1">
@@ -88,7 +88,7 @@ export const ContactTable = ({
                 </div>
               </th>
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-secondary"
                 onClick={() => onSort?.('first_name')}
               >
                 <div className="flex items-center gap-1">
@@ -96,11 +96,11 @@ export const ContactTable = ({
                   <SortIcon field="first_name" />
                 </div>
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Company
               </th>
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-secondary"
                 onClick={() => onSort?.('is_subscribed')}
               >
                 <div className="flex items-center gap-1">
@@ -109,7 +109,7 @@ export const ContactTable = ({
                 </div>
               </th>
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-secondary"
                 onClick={() => onSort?.('lead_score')}
               >
                 <div className="flex items-center gap-1">
@@ -117,14 +117,14 @@ export const ContactTable = ({
                   <SortIcon field="lead_score" />
                 </div>
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Assigned To
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Tags
               </th>
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-secondary"
                 onClick={() => onSort?.('created_at')}
               >
                 <div className="flex items-center gap-1">
@@ -149,7 +149,7 @@ export const ContactTable = ({
                 return (
                   <tr
                     key={contact.id}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="hover:bg-secondary/50 cursor-pointer"
                     onClick={() => navigate(`/contacts/${contact.id}`)}
                   >
                     <td
@@ -165,7 +165,7 @@ export const ContactTable = ({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-gray-400" />
+                        <Mail className="h-4 w-4 text-subtle-foreground" />
                         <span className="text-sm font-medium">{contact.email}</span>
                       </div>
                     </td>
@@ -174,7 +174,7 @@ export const ContactTable = ({
                         ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim()
                         : '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
                       {contact.company || '-'}
                     </td>
                     <td className="px-4 py-3">
@@ -190,7 +190,7 @@ export const ContactTable = ({
                         {engagement.label} ({contact.lead_score})
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
                       {contact.assigned_to_name ?? '—'}
                     </td>
                     <td className="px-4 py-3">
@@ -211,7 +211,7 @@ export const ContactTable = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
                       {formatDate(contact.created_at)}
                     </td>
                     <td

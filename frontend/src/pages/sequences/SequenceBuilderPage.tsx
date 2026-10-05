@@ -145,7 +145,7 @@ export default function SequenceBuilderPage() {
   const steps = sequence?.steps || [];
 
   if (isEdit && isLoading) {
-    return <div className="p-6 text-gray-500">Loading...</div>;
+    return <div className="p-6 text-muted-foreground">Loading...</div>;
   }
 
   return (
@@ -217,7 +217,7 @@ export default function SequenceBuilderPage() {
               />
               <div>
                 <p className="text-sm font-medium">Allow Re-enrollment</p>
-                <p className="text-xs text-gray-500">Contacts who completed can enroll again</p>
+                <p className="text-xs text-muted-foreground">Contacts who completed can enroll again</p>
               </div>
             </div>
           </div>
@@ -251,8 +251,8 @@ export default function SequenceBuilderPage() {
           <CardContent>
             {steps.length === 0 ? (
               <div className="text-center py-10 border-2 border-dashed rounded-lg">
-                <Mail className="h-10 w-10 mx-auto text-gray-300 mb-3" />
-                <p className="text-sm text-gray-500">No steps yet. Add your first email step.</p>
+                <Mail className="h-10 w-10 mx-auto text-subtle-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">No steps yet. Add your first email step.</p>
                 <Button size="sm" className="mt-3" onClick={openNewStep}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Step
@@ -263,28 +263,28 @@ export default function SequenceBuilderPage() {
                 {steps.map((step, idx) => (
                   <div
                     key={step.id}
-                    className="flex items-start gap-3 p-4 border rounded-lg bg-white hover:border-blue-200 transition-colors"
+                    className="flex items-start gap-3 p-4 border rounded-lg bg-white hover:border-info/[.30] transition-colors"
                   >
-                    <GripVertical className="h-5 w-5 text-gray-300 mt-0.5 flex-shrink-0" />
+                    <GripVertical className="h-5 w-5 text-subtle-foreground mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-gray-400 uppercase">
+                        <span className="text-xs font-semibold text-subtle-foreground uppercase">
                           Step {idx + 1}
                         </span>
                         {step.delay_days > 0 || step.delay_hours > 0 ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs text-brand bg-info/[.10] px-2 py-0.5 rounded-full">
                             <Clock className="h-3 w-3" />
                             Wait {step.delay_days > 0 ? `${step.delay_days}d ` : ''}{step.delay_hours > 0 ? `${step.delay_hours}h` : ''}
                           </span>
                         ) : (
-                          <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                          <span className="text-xs text-success bg-success/[.10] px-2 py-0.5 rounded-full">
                             Immediate
                           </span>
                         )}
                       </div>
-                      <p className="font-medium text-gray-900 mt-1 truncate">{step.subject}</p>
+                      <p className="font-medium text-foreground mt-1 truncate">{step.subject}</p>
                       {step.template_name && (
-                        <p className="text-xs text-gray-500">Template: {step.template_name}</p>
+                        <p className="text-xs text-muted-foreground">Template: {step.template_name}</p>
                       )}
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
@@ -294,7 +294,7 @@ export default function SequenceBuilderPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-red-500 hover:text-red-600"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
                         onClick={() => handleDeleteStep(step.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -361,7 +361,7 @@ export default function SequenceBuilderPage() {
                 />
               </div>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Delay is from the previous step (or enrollment time for the first step).
             </p>
           </div>

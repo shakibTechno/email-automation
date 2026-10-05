@@ -3,9 +3,9 @@ import { cn } from '@/lib/utils';
 import { DealStatus } from '@/types/crm';
 
 const statusConfig: Record<DealStatus, { label: string; className: string }> = {
-  open: { label: 'Open', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  won: { label: 'Won', className: 'bg-green-50 text-green-700 border-green-200' },
-  lost: { label: 'Lost', className: 'bg-red-50 text-red-700 border-red-200' },
+  open: { label: 'Open', className: 'bg-info/[.10] text-brand border-info/[.30]' },
+  won: { label: 'Won', className: 'bg-success/[.10] text-success border-success/[.30]' },
+  lost: { label: 'Lost', className: 'bg-destructive/[.10] text-destructive border-destructive/[.30]' },
 };
 
 interface DealStatusBadgeProps {

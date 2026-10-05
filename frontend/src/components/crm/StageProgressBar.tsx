@@ -21,7 +21,7 @@ export const StageProgressBar = ({ stages, currentStageId }: StageProgressBarPro
               <div
                 className={cn(
                   'h-2 rounded-full transition-colors',
-                  isPast ? 'bg-primary' : isCurrent ? 'bg-primary' : 'bg-gray-200'
+                  isPast ? 'bg-primary' : isCurrent ? 'bg-primary' : 'bg-secondary'
                 )}
                 style={isPast || isCurrent ? { backgroundColor: stage.color } : undefined}
               />

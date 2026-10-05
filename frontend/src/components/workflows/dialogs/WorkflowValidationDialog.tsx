@@ -35,7 +35,7 @@ export default function WorkflowValidationDialog({
         <div className="py-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info" />
             </div>
           ) : validation ? (
             <div className="space-y-4">
@@ -43,14 +43,14 @@ export default function WorkflowValidationDialog({
               <div
                 className={`flex items-center gap-3 p-4 rounded-lg ${
                   validation.is_valid
-                    ? 'bg-green-50 text-green-800'
-                    : 'bg-red-50 text-red-800'
+                    ? 'bg-success/[.10] text-success'
+                    : 'bg-destructive/[.10] text-destructive'
                 }`}
               >
                 {validation.is_valid ? (
-                  <CheckCircle className="h-6 w-6 text-green-600" />
+                  <CheckCircle className="h-6 w-6 text-success" />
                 ) : (
-                  <XCircle className="h-6 w-6 text-red-600" />
+                  <XCircle className="h-6 w-6 text-destructive" />
                 )}
                 <div>
                   <p className="font-medium">
@@ -71,12 +71,12 @@ export default function WorkflowValidationDialog({
               {/* Errors */}
               {validation.errors.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700">Issues:</p>
+                  <p className="text-sm font-medium text-foreground">Issues:</p>
                   <ul className="space-y-2">
                     {validation.errors.map((error, index) => (
                       <li
                         key={index}
-                        className="flex items-start gap-2 text-sm text-red-700"
+                        className="flex items-start gap-2 text-sm text-destructive"
                       >
                         <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                         {error}
@@ -87,7 +87,7 @@ export default function WorkflowValidationDialog({
               )}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-4">
+            <p className="text-muted-foreground text-center py-4">
               No validation data available
             </p>
           )}

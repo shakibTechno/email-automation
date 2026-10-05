@@ -31,13 +31,13 @@ export function PaymentMethodCard({
   return (
     <Card className={cn(
       method.is_default && 'border-primary',
-      method.is_expired && 'border-red-300 bg-red-50/50',
+      method.is_expired && 'border-destructive/[.40] bg-destructive/[.10]/50',
     )}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
-              <CreditCard className="h-5 w-5 text-gray-600" />
+            <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
+              <CreditCard className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -78,7 +78,7 @@ export function PaymentMethodCard({
               size="icon"
               onClick={() => onDelete(method.id)}
               disabled={isDeleting}
-              className="text-red-500 hover:text-red-700"
+              className="text-destructive hover:text-destructive"
             >
               <Trash2 className="h-4 w-4" />
             </Button>

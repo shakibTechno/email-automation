@@ -2,50 +2,95 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================
+   Cadence design tokens.
+
+   Light is the default; `.dark` on <html> is the opt-in override.
+
+   The brand lime exists as two tokens, and they are NOT interchangeable:
+     --brand       readable ink lime — text, icons, chart strokes, thin borders
+     --brand-fill  solid brand chip  — button fills, bars, avatars, progress
+   In dark they converge on the same neon value. In light they must not:
+   #CDF527 is illegible as text on white, so --brand darkens to an olive lime
+   while --brand-fill stays bright for solid surfaces.
+   ========================================================================== */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* surfaces */
+    --background: 80 24% 95%;
+    --foreground: 86 30% 7%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 86 30% 7%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    --popover-foreground: 86 30% 7%;
+    --sidebar: 77 25% 92%;
+
+    /* brand */
+    --primary: 71 81% 49%;
+    --primary-foreground: 82 33% 9%;
+    --brand: 80 92% 28%;
+    --brand-fill: 71 81% 49%;
+    --brand-ink: 82 33% 9%;
+    --brand-dim: 80 92% 28%;
+
+    /* neutrals */
+    --secondary: 77 35% 90%;
+    --secondary-foreground: 86 30% 7%;
+    --muted: 77 35% 90%;
+    --muted-foreground: 93 13% 34%;
+    --subtle-foreground: 93 9% 50%;
+    --accent: 77 35% 90%;
+    --accent-foreground: 86 30% 7%;
+
+    /* semantic — separate from the brand accent */
+    --destructive: 8 52% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 80 92% 28%;
+    --warning: 40 81% 33%;
+    --info: 212 61% 44%;
+
+    /* lines & focus */
+    --border: 76 10% 87%;
+    --input: 76 10% 87%;
+    --ring: 80 92% 28%;
+
+    --radius: 0.875rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --background: 90 20% 4%;
+    --foreground: 84 27% 91%;
+    --card: 87 23% 8%;
+    --card-foreground: 84 27% 91%;
+    --popover: 87 23% 8%;
+    --popover-foreground: 84 27% 91%;
+    --sidebar: 96 19% 5%;
+
+    --primary: 72 91% 56%;
+    --primary-foreground: 90 20% 4%;
+    --brand: 72 91% 56%;
+    --brand-fill: 72 91% 56%;
+    --brand-ink: 90 20% 4%;
+    --brand-dim: 72 91% 56%;
+
+    --secondary: 87 25% 12%;
+    --secondary-foreground: 84 27% 91%;
+    --muted: 87 25% 12%;
+    --muted-foreground: 90 11% 60%;
+    --subtle-foreground: 90 9% 45%;
+    --accent: 87 25% 12%;
+    --accent-foreground: 84 27% 91%;
+
+    --destructive: 6 84% 68%;
+    --destructive-foreground: 90 20% 4%;
+    --success: 72 91% 56%;
+    --warning: 40 72% 58%;
+    --info: 212 72% 67%;
+
+    --border: 82 11% 14%;
+    --input: 82 11% 14%;
+    --ring: 72 91% 56%;
   }
 }
 
@@ -53,7 +98,99 @@
   * {
     @apply border-border;
   }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* The console reads as a dense data surface, so headings stay tight. */
+  h1, h2, h3, h4 {
+    @apply tracking-tight;
+    text-wrap: balance;
+  }
+
+  /* Figures that line up in columns must not jitter between rows. */
+  .tabular, td, th, .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / .4); }
+}
+
+@layer components {
+  /* ---- shell ------------------------------------------------------------ */
+  /* The lime wash bleeding from the top edge is the signature of the design;
+     it sits on the app ground, never on a card. */
+  .app-ground {
+    background:
+      radial-gradient(1100px 420px at 60% -8%, hsl(var(--brand-dim) / .13), transparent 62%),
+      hsl(var(--background));
+  }
+
+  .panel {
+    @apply rounded-[var(--radius)] border bg-card;
+  }
+
+  /* ---- labels ----------------------------------------------------------- */
+  .eyebrow {
+    @apply font-mono text-[9.5px] font-medium uppercase tracking-[0.16em];
+    color: hsl(var(--subtle-foreground));
+  }
+
+  .stat-label {
+    @apply text-[11.5px] font-medium;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .stat-value {
+    @apply text-[25px] font-bold tracking-[-0.03em] mt-1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .delta {
+    @apply font-mono text-[10.5px] mt-1 flex items-center gap-1.5;
+    color: hsl(var(--subtle-foreground));
+  }
+  .delta-up   { color: hsl(var(--success)); }
+  .delta-down { color: hsl(var(--destructive)); }
+
+  /* ---- charts ----------------------------------------------------------- */
+  /* The featured chart card carries a glow under the curve. */
+  .chart-hero {
+    background:
+      radial-gradient(620px 240px at 50% 112%, hsl(var(--brand-dim) / .22), transparent 68%),
+      hsl(var(--card));
+  }
+
+  .bar-track {
+    @apply h-1.5 w-full overflow-hidden rounded-full;
+    background: hsl(var(--secondary));
+  }
+  .bar-fill {
+    @apply h-full rounded-full;
+    background: hsl(var(--brand-fill));
+  }
+
+  .tick-row { @apply flex items-end gap-0.5; }
+  .tick-row > i {
+    @apply flex-1 block rounded-[1px];
+    background: hsl(var(--brand-fill));
+    opacity: .85;
   }
 }

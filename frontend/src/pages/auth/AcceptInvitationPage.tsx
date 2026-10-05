@@ -40,7 +40,7 @@ export function AcceptInvitationPage() {
 
   if (!token) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-secondary/50">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <p className="text-center text-destructive">
@@ -53,7 +53,7 @@ export function AcceptInvitationPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <div className="flex items-center justify-center min-h-screen bg-secondary/50">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Join Your Team</CardTitle>

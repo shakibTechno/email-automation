@@ -50,9 +50,9 @@ const PROVIDER_LABELS: Record<EmailProvider, string> = {
 };
 
 const DOMAIN_STATUS_CONFIG = {
-  pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: RefreshCw },
-  verified: { label: 'Verified', color: 'bg-green-100 text-green-700', icon: CheckCircle2 },
-  failed: { label: 'Failed', color: 'bg-red-100 text-red-700', icon: XCircle },
+  pending: { label: 'Pending', color: 'bg-warning/[.14] text-warning', icon: RefreshCw },
+  verified: { label: 'Verified', color: 'bg-success/[.14] text-success', icon: CheckCircle2 },
+  failed: { label: 'Failed', color: 'bg-destructive/[.14] text-destructive', icon: XCircle },
 };
 
 function SectionCard({
@@ -84,7 +84,7 @@ function CopyButton({ value }: { value: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
-      className="text-blue-500 hover:text-blue-700 flex items-center gap-1 text-xs"
+      className="text-brand hover:text-brand flex items-center gap-1 text-xs"
     >
       <Copy className="h-3 w-3" />
       {copied ? 'Copied!' : 'Copy'}
@@ -223,7 +223,7 @@ export function EmailTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-subtle-foreground" />
       </div>
     );
   }
@@ -233,11 +233,11 @@ export function EmailTab() {
 
       {/* Threshold pause alert */}
       {config?.sending_paused_due_to_threshold && (
-        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 p-4 bg-destructive/[.10] border border-destructive/[.30] rounded-lg">
+          <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="font-medium text-red-800">Sending paused</p>
-            <p className="text-sm text-red-600 mt-0.5">
+            <p className="font-medium text-destructive">Sending paused</p>
+            <p className="text-sm text-destructive mt-0.5">
               Bounce or complaint rate exceeded the configured threshold. Review your list quality
               before resuming.
             </p>
@@ -245,7 +245,7 @@ export function EmailTab() {
           <Button
             size="sm"
             variant="outline"
-            className="border-red-300 text-red-700 hover:bg-red-100 flex-shrink-0"
+            className="border-destructive/[.40] text-destructive hover:bg-destructive/[.14] flex-shrink-0"
             onClick={() => resumeSending.mutateAsync()}
           >
             Resume Sending
@@ -277,7 +277,7 @@ export function EmailTab() {
             />
           </div>
           <div className="col-span-2">
-            <Label>Reply-To Email <span className="text-gray-400 font-normal">(optional)</span></Label>
+            <Label>Reply-To Email <span className="text-subtle-foreground font-normal">(optional)</span></Label>
             <Input
               type="email"
               value={identity.reply_to_email}
@@ -315,7 +315,7 @@ export function EmailTab() {
           </div>
 
           {provider === 'platform_default' && (
-            <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
+            <p className="text-sm text-muted-foreground bg-secondary/50 p-3 rounded-lg">
               Emails are sent through the platform's shared SMTP server. For production use, configure
               your own provider for better deliverability and branding.
             </p>
@@ -351,7 +351,7 @@ export function EmailTab() {
                 <Label>
                   Password{' '}
                   {config?.smtp_password_set && (
-                    <span className="text-xs text-gray-400 font-normal">(saved — leave blank to keep)</span>
+                    <span className="text-xs text-subtle-foreground font-normal">(saved — leave blank to keep)</span>
                   )}
                 </Label>
                 <Input
@@ -385,7 +385,7 @@ export function EmailTab() {
                 <Label>
                   API Key{' '}
                   {config?.api_key_set && (
-                    <span className="text-xs text-gray-400 font-normal">(saved — leave blank to keep)</span>
+                    <span className="text-xs text-subtle-foreground font-normal">(saved — leave blank to keep)</span>
                   )}
                 </Label>
                 <Input
@@ -413,7 +413,7 @@ export function EmailTab() {
               <div>
                 <Label>
                   SMTP Credentials{' '}
-                  <span className="text-xs text-gray-400 font-normal">(format: SMTP_USER::SMTP_PASS)</span>
+                  <span className="text-xs text-subtle-foreground font-normal">(format: SMTP_USER::SMTP_PASS)</span>
                 </Label>
                 <Input
                   type="password"
@@ -442,7 +442,7 @@ export function EmailTab() {
             {/* Test email */}
             <div className="flex items-end gap-2">
               <div>
-                <Label className="text-xs text-gray-500">Send test email to</Label>
+                <Label className="text-xs text-muted-foreground">Send test email to</Label>
                 <Input
                   type="email"
                   value={testEmail}
@@ -492,7 +492,7 @@ export function EmailTab() {
           </div>
 
           {domains.length === 0 ? (
-            <div className="text-center py-8 border-2 border-dashed rounded-lg text-gray-400 text-sm">
+            <div className="text-center py-8 border-2 border-dashed rounded-lg text-subtle-foreground text-sm">
               <Globe className="h-8 w-8 mx-auto mb-2 opacity-50" />
               No domains added yet. Add a domain to set up SPF/DKIM authentication.
             </div>
@@ -504,7 +504,7 @@ export function EmailTab() {
                 return (
                   <Collapsible key={d.id}>
                     <div className="border rounded-lg overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
+                      <div className="flex items-center justify-between px-4 py-3 bg-secondary/50">
                         <div className="flex items-center gap-3">
                           <span className="font-medium text-sm">{d.domain}</span>
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${sc.color}`}>
@@ -532,7 +532,7 @@ export function EmailTab() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-red-500 hover:text-red-600"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
                             onClick={() => handleDeleteDomain(d.id)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -545,25 +545,25 @@ export function EmailTab() {
                           {/* SPF */}
                           <div>
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">SPF Record (TXT)</span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">SPF Record (TXT)</span>
                               <CopyButton value={d.spf_record} />
                             </div>
-                            <p className="text-xs text-gray-400 mb-1">Add to: <code className="bg-gray-100 px-1 rounded">{d.domain}</code></p>
-                            <code className="block text-xs bg-gray-100 rounded p-2 break-all">{d.spf_record || '—'}</code>
+                            <p className="text-xs text-subtle-foreground mb-1">Add to: <code className="bg-secondary px-1 rounded">{d.domain}</code></p>
+                            <code className="block text-xs bg-secondary rounded p-2 break-all">{d.spf_record || '—'}</code>
                           </div>
                           {/* DKIM */}
                           <div>
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">DKIM Record (TXT)</span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">DKIM Record (TXT)</span>
                               <CopyButton value={d.dkim_record_value} />
                             </div>
-                            <p className="text-xs text-gray-400 mb-1">
-                              Add to: <code className="bg-gray-100 px-1 rounded">{d.dkim_record_name || `${d.dkim_selector}._domainkey.${d.domain}`}</code>
+                            <p className="text-xs text-subtle-foreground mb-1">
+                              Add to: <code className="bg-secondary px-1 rounded">{d.dkim_record_name || `${d.dkim_selector}._domainkey.${d.domain}`}</code>
                             </p>
-                            <code className="block text-xs bg-gray-100 rounded p-2 break-all">{d.dkim_record_value || '—'}</code>
+                            <code className="block text-xs bg-secondary rounded p-2 break-all">{d.dkim_record_value || '—'}</code>
                           </div>
                           {d.last_check_error && (
-                            <p className="text-xs text-red-500">{d.last_check_error}</p>
+                            <p className="text-xs text-destructive">{d.last_check_error}</p>
                           )}
                         </div>
                       </CollapsibleContent>
@@ -583,17 +583,17 @@ export function EmailTab() {
       >
         <div className="space-y-4">
           <div>
-            <Label>Physical Mailing Address <span className="text-red-500">*</span></Label>
+            <Label>Physical Mailing Address <span className="text-destructive">*</span></Label>
             <Textarea
               value={compliance.physical_address}
               onChange={(e) => setCompliance({ ...compliance, physical_address: e.target.value })}
               placeholder="123 Main St, City, State 12345, USA"
               rows={2}
             />
-            <p className="text-xs text-gray-400 mt-1">Required by CAN-SPAM. Appended to every email.</p>
+            <p className="text-xs text-subtle-foreground mt-1">Required by CAN-SPAM. Appended to every email.</p>
           </div>
           <div>
-            <Label>Email Footer Text <span className="text-gray-400 font-normal">(optional)</span></Label>
+            <Label>Email Footer Text <span className="text-subtle-foreground font-normal">(optional)</span></Label>
             <Textarea
               value={compliance.email_footer_text}
               onChange={(e) => setCompliance({ ...compliance, email_footer_text: e.target.value })}
@@ -602,7 +602,7 @@ export function EmailTab() {
             />
           </div>
           <div>
-            <Label>Custom Unsubscribe Redirect URL <span className="text-gray-400 font-normal">(optional)</span></Label>
+            <Label>Custom Unsubscribe Redirect URL <span className="text-subtle-foreground font-normal">(optional)</span></Label>
             <Input
               type="url"
               value={compliance.unsubscribe_redirect_url}
@@ -633,7 +633,7 @@ export function EmailTab() {
                 value={limits.daily_send_limit}
                 onChange={(e) => setLimits({ ...limits, daily_send_limit: parseInt(e.target.value) || 0 })}
               />
-              <p className="text-xs text-gray-400 mt-1">0 = unlimited</p>
+              <p className="text-xs text-subtle-foreground mt-1">0 = unlimited</p>
             </div>
             <div>
               <Label>Hourly Send Limit</Label>
@@ -643,14 +643,14 @@ export function EmailTab() {
                 value={limits.hourly_send_limit}
                 onChange={(e) => setLimits({ ...limits, hourly_send_limit: parseInt(e.target.value) || 0 })}
               />
-              <p className="text-xs text-gray-400 mt-1">0 = unlimited</p>
+              <p className="text-xs text-subtle-foreground mt-1">0 = unlimited</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-2 border-t">
             <div>
               <Label className="flex items-center gap-1">
-                <Shield className="h-3 w-3 text-orange-500" />
+                <Shield className="h-3 w-3 text-warning" />
                 Bounce Rate Threshold (%)
               </Label>
               <Input
@@ -661,11 +661,11 @@ export function EmailTab() {
                 value={limits.bounce_threshold_pct}
                 onChange={(e) => setLimits({ ...limits, bounce_threshold_pct: e.target.value })}
               />
-              <p className="text-xs text-gray-400 mt-1">Auto-pauses sending if exceeded</p>
+              <p className="text-xs text-subtle-foreground mt-1">Auto-pauses sending if exceeded</p>
             </div>
             <div>
               <Label className="flex items-center gap-1">
-                <Shield className="h-3 w-3 text-red-500" />
+                <Shield className="h-3 w-3 text-destructive" />
                 Complaint Rate Threshold (%)
               </Label>
               <Input
@@ -676,10 +676,10 @@ export function EmailTab() {
                 value={limits.complaint_threshold_pct}
                 onChange={(e) => setLimits({ ...limits, complaint_threshold_pct: e.target.value })}
               />
-              <p className="text-xs text-gray-400 mt-1">Auto-pauses sending if exceeded</p>
+              <p className="text-xs text-subtle-foreground mt-1">Auto-pauses sending if exceeded</p>
             </div>
           </div>
-          <p className="text-xs text-gray-400 bg-amber-50 border border-amber-100 rounded p-2">
+          <p className="text-xs text-subtle-foreground bg-warning/[.10] border border-warning/[.20] rounded p-2">
             Industry standards: keep bounce rate below 2% and complaint rate below 0.08% to maintain good deliverability.
           </p>
 

@@ -27,17 +27,17 @@ const TYPE_CONFIG: Record<
   NotificationType,
   { icon: React.ElementType; color: string; path?: (data: Record<string, string>) => string }
 > = {
-  campaign_sent:                { icon: Mail,          color: 'text-green-600',  path: (d) => d.campaign_id ? `/campaigns/${d.campaign_id}` : '/campaigns' },
-  campaign_failed:              { icon: AlertTriangle,  color: 'text-red-600',    path: (d) => d.campaign_id ? `/campaigns/${d.campaign_id}` : '/campaigns' },
-  ab_test_winner_needed:        { icon: Trophy,         color: 'text-amber-600',  path: (d) => d.campaign_id ? `/campaigns/${d.campaign_id}` : '/campaigns' },
-  ab_test_completed:            { icon: FlaskConical,   color: 'text-blue-600',   path: (d) => d.campaign_id ? `/campaigns/${d.campaign_id}` : '/campaigns' },
-  form_submission:              { icon: FileText,       color: 'text-purple-600', path: (d) => d.form_id ? `/forms/${d.form_id}` : '/forms' },
-  workflow_failed:              { icon: Zap,            color: 'text-red-600',    path: (d) => d.workflow_id ? `/workflows/${d.workflow_id}` : '/workflows' },
-  billing_trial_expiring:       { icon: Clock,          color: 'text-amber-600',  path: () => '/settings?tab=billing' },
-  billing_payment_failed:       { icon: CreditCard,     color: 'text-red-600',    path: () => '/settings?tab=billing' },
-  billing_subscription_renewed: { icon: CreditCard,     color: 'text-green-600',  path: () => '/settings?tab=billing' },
-  team_member_joined:           { icon: UserPlus,       color: 'text-blue-600',   path: () => '/settings?tab=team' },
-  lead_score_threshold:         { icon: Zap,            color: 'text-orange-600', path: () => '/contacts' },
+  campaign_sent:                { icon: Mail,          color: 'text-success',  path: (d) => d.campaign_id ? `/campaigns/${d.campaign_id}` : '/campaigns' },
+  campaign_failed:              { icon: AlertTriangle,  color: 'text-destructive',    path: (d) => d.campaign_id ? `/campaigns/${d.campaign_id}` : '/campaigns' },
+  ab_test_winner_needed:        { icon: Trophy,         color: 'text-warning',  path: (d) => d.campaign_id ? `/campaigns/${d.campaign_id}` : '/campaigns' },
+  ab_test_completed:            { icon: FlaskConical,   color: 'text-brand',   path: (d) => d.campaign_id ? `/campaigns/${d.campaign_id}` : '/campaigns' },
+  form_submission:              { icon: FileText,       color: 'text-info', path: (d) => d.form_id ? `/forms/${d.form_id}` : '/forms' },
+  workflow_failed:              { icon: Zap,            color: 'text-destructive',    path: (d) => d.workflow_id ? `/workflows/${d.workflow_id}` : '/workflows' },
+  billing_trial_expiring:       { icon: Clock,          color: 'text-warning',  path: () => '/settings?tab=billing' },
+  billing_payment_failed:       { icon: CreditCard,     color: 'text-destructive',    path: () => '/settings?tab=billing' },
+  billing_subscription_renewed: { icon: CreditCard,     color: 'text-success',  path: () => '/settings?tab=billing' },
+  team_member_joined:           { icon: UserPlus,       color: 'text-brand',   path: () => '/settings?tab=team' },
+  lead_score_threshold:         { icon: Zap,            color: 'text-warning', path: () => '/contacts' },
 };
 
 interface NotificationItemProps {
@@ -47,7 +47,7 @@ interface NotificationItemProps {
 }
 
 const NotificationItem = ({ notification, onRead, onNavigate }: NotificationItemProps) => {
-  const config = TYPE_CONFIG[notification.notification_type] ?? { icon: Bell, color: 'text-gray-500' };
+  const config = TYPE_CONFIG[notification.notification_type] ?? { icon: Bell, color: 'text-muted-foreground' };
   const Icon = config.icon;
   const path = config.path?.(notification.data);
 
@@ -101,7 +101,7 @@ export const NotificationBell = () => {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white leading-none">
+            <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white leading-none">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}

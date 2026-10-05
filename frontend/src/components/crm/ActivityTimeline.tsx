@@ -4,11 +4,11 @@ import { cn } from '@/lib/utils';
 import { ActivityListItem, ActivityType } from '@/types/crm';
 
 const typeConfig: Record<ActivityType, { icon: React.ElementType; color: string }> = {
-  call: { icon: Phone, color: 'bg-blue-100 text-blue-600' },
-  email: { icon: Mail, color: 'bg-purple-100 text-purple-600' },
-  meeting: { icon: Video, color: 'bg-green-100 text-green-600' },
-  task: { icon: CheckSquare, color: 'bg-yellow-100 text-yellow-600' },
-  note: { icon: StickyNote, color: 'bg-gray-100 text-gray-600' },
+  call: { icon: Phone, color: 'bg-info/[.14] text-info' },
+  email: { icon: Mail, color: 'bg-info/[.14] text-info' },
+  meeting: { icon: Video, color: 'bg-success/[.14] text-success' },
+  task: { icon: CheckSquare, color: 'bg-warning/[.14] text-warning' },
+  note: { icon: StickyNote, color: 'bg-secondary text-muted-foreground' },
 };
 
 const timeAgo = (dateStr: string) => {
@@ -48,7 +48,7 @@ export const ActivityTimeline = ({
         <p className="text-sm text-muted-foreground">No activities yet.</p>
       ) : (
         <div className="relative">
-          <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-200" />
+          <div className="absolute left-4 top-0 bottom-0 w-px bg-secondary" />
 
           <div className="space-y-4">
             {activities.map((activity) => {
@@ -81,7 +81,7 @@ export const ActivityTimeline = ({
                         {!activity.is_completed && onComplete && (
                           <button
                             onClick={() => onComplete(activity.id)}
-                            className="text-muted-foreground hover:text-green-600 transition-colors"
+                            className="text-muted-foreground hover:text-success transition-colors"
                             title="Mark as completed"
                           >
                             <Check className="h-4 w-4" />

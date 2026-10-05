@@ -49,7 +49,7 @@ export function BillingOverviewTab() {
               )}
             </div>
             {overview.is_trialing && overview.trial_days_remaining > 0 && (
-              <p className="text-sm text-yellow-600">
+              <p className="text-sm text-warning">
                 Trial: {overview.trial_days_remaining} days remaining
               </p>
             )}

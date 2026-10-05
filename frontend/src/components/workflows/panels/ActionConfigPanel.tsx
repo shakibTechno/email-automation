@@ -104,7 +104,7 @@ export default function ActionConfigPanel({
           onChange={(e) => onChange({ ...config, subject: e.target.value })}
           placeholder="Override template subject"
         />
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Leave blank to use the template's subject
         </p>
       </div>
@@ -137,7 +137,7 @@ export default function ActionConfigPanel({
             ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           {nodeType === 'action_add_tag'
             ? 'This tag will be added to the contact'
             : 'This tag will be removed from the contact'}
@@ -228,7 +228,7 @@ export default function ActionConfigPanel({
         </Select>
       </div>
 
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-muted-foreground">
         The workflow will pause for{' '}
         {(config.duration as number) || 1} {(config.unit as string) || 'hours'}{' '}
         before continuing
@@ -284,7 +284,7 @@ export default function ActionConfigPanel({
         />
       </div>
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         Contact data will be automatically included in the request payload
       </p>
     </div>
@@ -292,12 +292,12 @@ export default function ActionConfigPanel({
 
   const renderGoalConfig = () => (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-muted-foreground">
         When the workflow reaches this node, it will mark the goal as reached
         for the contact. This is useful for tracking conversion goals.
       </p>
-      <div className="bg-purple-50 p-3 rounded-lg">
-        <p className="text-sm text-purple-700">
+      <div className="bg-info/[.10] p-3 rounded-lg">
+        <p className="text-sm text-info">
           Goal nodes do not have additional configuration. They simply mark the
           workflow goal as achieved.
         </p>
@@ -392,13 +392,13 @@ export default function ActionConfigPanel({
             onChange={(e) => onChange({ ...config, value: e.target.value })}
             placeholder="Enter user UUID"
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             The UUID of the team member to assign the deal to
           </p>
         </div>
       )}
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         Updates the deal that triggered this workflow. Only available when triggered by a deal trigger.
       </p>
     </div>
@@ -436,7 +436,7 @@ export default function ActionConfigPanel({
           onChange={(e) => onLabelChange(e.target.value)}
           placeholder="Enter a custom label"
         />
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Optional: Give this node a descriptive name
         </p>
       </div>

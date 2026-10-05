@@ -77,7 +77,7 @@ export function PlanCard({ plan, interval, isCurrentPlan, onSelect, isLoading }:
     <Card className={cn(
       'relative flex flex-col',
       plan.is_popular && 'border-primary shadow-lg ring-1 ring-primary',
-      isCurrentPlan && 'border-green-500 bg-green-50/50'
+      isCurrentPlan && 'border-success bg-success/[.10]/50'
     )}>
       {plan.is_popular && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -113,7 +113,7 @@ export function PlanCard({ plan, interval, isCurrentPlan, onSelect, isLoading }:
         <ul className="space-y-2">
           {features.map((feature) => (
             <li key={feature} className="flex items-start gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+              <Check className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
               <span>{feature}</span>
             </li>
           ))}

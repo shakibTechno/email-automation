@@ -125,7 +125,7 @@ export default function ConditionConfigPanel({
 
         {rules.length === 0 ? (
           <div className="text-center py-6 border border-dashed rounded-lg">
-            <p className="text-sm text-gray-500 mb-3">No conditions added</p>
+            <p className="text-sm text-muted-foreground mb-3">No conditions added</p>
             <Button variant="outline" size="sm" onClick={addRule}>
               <Plus className="h-4 w-4 mr-2" />
               Add Condition
@@ -136,10 +136,10 @@ export default function ConditionConfigPanel({
             {rules.map((rule, index) => (
               <div
                 key={index}
-                className="p-3 border rounded-lg bg-gray-50 space-y-3"
+                className="p-3 border rounded-lg bg-secondary/50 space-y-3"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-500">
+                  <span className="text-xs font-medium text-muted-foreground">
                     Condition {index + 1}
                   </span>
                   <Button
@@ -148,7 +148,7 @@ export default function ConditionConfigPanel({
                     className="h-6 w-6"
                     onClick={() => removeRule(index)}
                   >
-                    <Trash2 className="h-3 w-3 text-red-500" />
+                    <Trash2 className="h-3 w-3 text-destructive" />
                   </Button>
                 </div>
 
@@ -212,15 +212,15 @@ export default function ConditionConfigPanel({
       </div>
 
       {/* Branch explanation */}
-      <div className="bg-amber-50 p-3 rounded-lg space-y-2">
-        <p className="text-sm font-medium text-amber-800">Branch Behavior</p>
-        <div className="text-xs text-amber-700 space-y-1">
+      <div className="bg-warning/[.10] p-3 rounded-lg space-y-2">
+        <p className="text-sm font-medium text-warning">Branch Behavior</p>
+        <div className="text-xs text-warning space-y-1">
           <p>
-            <span className="inline-block w-3 h-3 bg-green-500 rounded-full mr-2"></span>
+            <span className="inline-block w-3 h-3 bg-success rounded-full mr-2"></span>
             <strong>True branch:</strong> Conditions match
           </p>
           <p>
-            <span className="inline-block w-3 h-3 bg-red-500 rounded-full mr-2"></span>
+            <span className="inline-block w-3 h-3 bg-destructive rounded-full mr-2"></span>
             <strong>False branch:</strong> Conditions don't match
           </p>
         </div>

@@ -10,10 +10,10 @@ interface Props {
 }
 
 const LEVEL_STYLES: Record<string, string> = {
-  high: 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200',
-  medium: 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200',
-  low: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200',
-  none: 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200',
+  high: 'bg-destructive/[.14] text-destructive border-destructive/[.30] hover:bg-destructive/[.30]',
+  medium: 'bg-warning/[.14] text-warning border-warning/[.30] hover:bg-warning/[.30]',
+  low: 'bg-info/[.14] text-info border-info/[.30] hover:bg-info/[.30]',
+  none: 'bg-secondary text-muted-foreground border-border hover:bg-secondary',
 };
 
 const LEVEL_LABELS: Record<string, string> = {

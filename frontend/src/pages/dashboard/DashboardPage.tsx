@@ -43,11 +43,11 @@ const StatCard = ({
   color?: 'blue' | 'green' | 'purple' | 'orange' | 'pink';
 }) => {
   const colorClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    purple: 'bg-purple-100 text-purple-600',
-    orange: 'bg-orange-100 text-orange-600',
-    pink: 'bg-pink-100 text-pink-600',
+    blue: 'bg-info/[.14] text-info',
+    green: 'bg-success/[.14] text-success',
+    purple: 'bg-info/[.14] text-info',
+    orange: 'bg-warning/[.14] text-warning',
+    pink: 'bg-info/[.14] text-info',
   };
 
   return (
@@ -61,7 +61,7 @@ const StatCard = ({
               <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
             )}
             {trend && (
-              <p className={`text-sm mt-2 flex items-center gap-1 ${trend.value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-sm mt-2 flex items-center gap-1 ${trend.value >= 0 ? 'text-success' : 'text-destructive'}`}>
                 <TrendingUp className={`h-4 w-4 ${trend.value < 0 ? 'rotate-180' : ''}`} />
                 {trend.value >= 0 ? '+' : ''}{trend.value}% {trend.label}
               </p>
@@ -115,11 +115,11 @@ const MiniChart = ({ data, height = 60 }: { data: number[]; height?: number }) =
 // Campaign Status Badge
 const StatusBadge = ({ status }: { status: string }) => {
   const statusClasses: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-700',
-    scheduled: 'bg-blue-100 text-blue-700',
-    sending: 'bg-yellow-100 text-yellow-700',
-    sent: 'bg-green-100 text-green-700',
-    failed: 'bg-red-100 text-red-700',
+    draft: 'bg-secondary text-muted-foreground',
+    scheduled: 'bg-info/[.14] text-info',
+    sending: 'bg-warning/[.14] text-warning',
+    sent: 'bg-success/[.14] text-success',
+    failed: 'bg-destructive/[.14] text-destructive',
   };
 
   return (
@@ -258,23 +258,23 @@ export const DashboardPage = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <Send className="h-6 w-6 mx-auto mb-2 text-blue-600" />
+              <div className="text-center p-4 bg-secondary/50 rounded-lg">
+                <Send className="h-6 w-6 mx-auto mb-2 text-brand" />
                 <p className="text-2xl font-bold">{campaignStats?.emails_sent.toLocaleString() || 0}</p>
                 <p className="text-sm text-muted-foreground">Emails Sent</p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <Mail className="h-6 w-6 mx-auto mb-2 text-green-600" />
+              <div className="text-center p-4 bg-secondary/50 rounded-lg">
+                <Mail className="h-6 w-6 mx-auto mb-2 text-success" />
                 <p className="text-2xl font-bold">{campaignStats?.emails_delivered.toLocaleString() || 0}</p>
                 <p className="text-sm text-muted-foreground">Delivered</p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <Eye className="h-6 w-6 mx-auto mb-2 text-purple-600" />
+              <div className="text-center p-4 bg-secondary/50 rounded-lg">
+                <Eye className="h-6 w-6 mx-auto mb-2 text-info" />
                 <p className="text-2xl font-bold">{campaignStats?.open_rate || 0}%</p>
                 <p className="text-sm text-muted-foreground">Open Rate</p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <MousePointer className="h-6 w-6 mx-auto mb-2 text-orange-600" />
+              <div className="text-center p-4 bg-secondary/50 rounded-lg">
+                <MousePointer className="h-6 w-6 mx-auto mb-2 text-warning" />
                 <p className="text-2xl font-bold">{campaignStats?.click_rate || 0}%</p>
                 <p className="text-sm text-muted-foreground">Click Rate</p>
               </div>
@@ -407,12 +407,12 @@ export const DashboardPage = () => {
               {recentCampaigns.map((campaign) => (
                 <div
                   key={campaign.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                  className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg hover:bg-secondary cursor-pointer transition-colors"
                   onClick={() => navigate(`/campaigns/${campaign.id}`)}
                 >
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-white rounded-lg shadow-sm">
-                      <Mail className="h-5 w-5 text-blue-600" />
+                      <Mail className="h-5 w-5 text-brand" />
                     </div>
                     <div>
                       <p className="font-medium">{campaign.name}</p>

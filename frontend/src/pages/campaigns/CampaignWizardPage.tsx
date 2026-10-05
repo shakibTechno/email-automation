@@ -452,7 +452,7 @@ export const CampaignWizardPage = () => {
                 </div>
               ) : templates.length === 0 ? (
                 <div className="text-center py-8">
-                  <Mail className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <Mail className="h-12 w-12 text-subtle-foreground mx-auto mb-3" />
                   <p className="text-muted-foreground">No templates available.</p>
                   <Button
                     variant="outline"
@@ -474,7 +474,7 @@ export const CampaignWizardPage = () => {
                       )}
                       onClick={() => setSelectedTemplateId(template.id)}
                     >
-                      <div className="h-32 bg-gray-100 flex items-center justify-center border-b">
+                      <div className="h-32 bg-secondary flex items-center justify-center border-b">
                         {template.thumbnail_url ? (
                           <img
                             src={template.thumbnail_url}
@@ -482,7 +482,7 @@ export const CampaignWizardPage = () => {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <Mail className="h-10 w-10 text-gray-300" />
+                          <Mail className="h-10 w-10 text-subtle-foreground" />
                         )}
                       </div>
                       <div className="p-3">

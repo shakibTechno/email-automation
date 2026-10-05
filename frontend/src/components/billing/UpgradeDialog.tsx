@@ -57,9 +57,9 @@ export function UpgradeDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isUpgrade ? (
-              <ArrowUp className="h-5 w-5 text-green-500" />
+              <ArrowUp className="h-5 w-5 text-success" />
             ) : (
-              <ArrowDown className="h-5 w-5 text-yellow-500" />
+              <ArrowDown className="h-5 w-5 text-warning" />
             )}
             {isUpgrade ? 'Upgrade' : 'Downgrade'} to {plan.name}
           </DialogTitle>
@@ -71,7 +71,7 @@ export function UpgradeDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg">
             <div>
               <p className="font-semibold text-lg">${monthlyPrice.toFixed(2)}/mo</p>
               {annual && (
@@ -91,7 +91,7 @@ export function UpgradeDialog({
           </div>
 
           {annual && (
-            <p className="text-sm text-green-600 text-center">
+            <p className="text-sm text-success text-center">
               Save ${((parseFloat(plan.price) * 12) - parseFloat(plan.annual_price)).toFixed(0)}/year with annual billing
             </p>
           )}

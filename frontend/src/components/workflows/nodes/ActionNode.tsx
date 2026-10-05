@@ -64,7 +64,7 @@ function ActionNode(props: NodeProps<ActionNodeData>) {
           </span>
         ) : null;
       case 'action_goal':
-        return <span className="text-purple-600">Mark goal reached</span>;
+        return <span className="text-info">Mark goal reached</span>;
       case 'action_update_deal':
         return config.field ? (
           <span>

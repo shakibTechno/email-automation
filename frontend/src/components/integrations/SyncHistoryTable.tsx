@@ -17,17 +17,17 @@ const STATUS_CONFIG: Record<SyncLogStatus, { label: string; variant: 'default' |
   running: {
     label: 'Running',
     variant: 'default',
-    className: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+    className: 'bg-info/[.14] text-info hover:bg-info/[.14]',
   },
   completed: {
     label: 'Completed',
     variant: 'default',
-    className: 'bg-green-100 text-green-800 hover:bg-green-100',
+    className: 'bg-success/[.14] text-success hover:bg-success/[.14]',
   },
   partial: {
     label: 'Partial',
     variant: 'default',
-    className: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
+    className: 'bg-warning/[.14] text-warning hover:bg-warning/[.14]',
   },
   failed: {
     label: 'Failed',

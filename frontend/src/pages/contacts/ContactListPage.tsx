@@ -172,7 +172,7 @@ export const ContactListPage = () => {
       </div>
 
       {selectedIds.length > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="flex items-center gap-4 p-4 bg-info/[.10] rounded-lg border border-info/[.30]">
           <span className="text-sm font-medium">
             {selectedIds.length} contact(s) selected
           </span>

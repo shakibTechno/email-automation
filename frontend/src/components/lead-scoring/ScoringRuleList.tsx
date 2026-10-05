@@ -20,7 +20,7 @@ function PointsBadge({ points }: { points: number }) {
   return (
     <Badge
       variant="outline"
-      className={positive ? 'text-green-700 border-green-300 bg-green-50' : 'text-red-700 border-red-300 bg-red-50'}
+      className={positive ? 'text-success border-success/[.40] bg-success/[.10]' : 'text-destructive border-destructive/[.40] bg-destructive/[.10]'}
     >
       {positive ? '+' : ''}{points}
     </Badge>

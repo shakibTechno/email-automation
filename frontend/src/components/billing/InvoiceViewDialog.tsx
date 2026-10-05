@@ -18,11 +18,11 @@ interface InvoiceViewDialogProps {
 }
 
 const STATUS_COLOR: Record<InvoiceStatus, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  open: 'bg-blue-100 text-blue-700',
-  paid: 'bg-green-100 text-green-700',
-  void: 'bg-red-100 text-red-700',
-  uncollectible: 'bg-red-100 text-red-700',
+  draft: 'bg-secondary text-muted-foreground',
+  open: 'bg-info/[.14] text-info',
+  paid: 'bg-success/[.14] text-success',
+  void: 'bg-destructive/[.14] text-destructive',
+  uncollectible: 'bg-destructive/[.14] text-destructive',
 };
 
 export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDialogProps) {

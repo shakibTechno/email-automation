@@ -38,7 +38,7 @@ export function CancelDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-red-600">
+          <DialogTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-5 w-5" />
             Cancel Subscription
           </DialogTitle>
@@ -48,8 +48,8 @@ export function CancelDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="rounded-md bg-yellow-50 border border-yellow-200 p-4">
-            <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+          <div className="rounded-md bg-warning/[.10] border border-warning/[.30] p-4">
+            <ul className="text-sm text-warning space-y-1 list-disc list-inside">
               <li>Your subscription will remain active until the end of the current billing period</li>
               {periodEnd && (
                 <li>Access expires on {new Date(periodEnd).toLocaleDateString()}</li>

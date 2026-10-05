@@ -31,17 +31,17 @@ function BaseNode({
   sourceHandles,
 }: BaseNodeProps) {
   const categoryStyles = {
-    trigger: 'border-blue-500 bg-blue-50',
-    action: 'border-green-500 bg-green-50',
-    condition: 'border-amber-500 bg-amber-50',
-    goal: 'border-purple-500 bg-purple-50',
+    trigger: 'border-info bg-info/[.10]',
+    action: 'border-success bg-success/[.10]',
+    condition: 'border-warning bg-warning/[.10]',
+    goal: 'border-info bg-info/[.10]',
   };
 
   const categoryLabelStyles = {
-    trigger: 'bg-blue-500',
-    action: 'bg-green-500',
-    condition: 'bg-amber-500',
-    goal: 'bg-purple-500',
+    trigger: 'bg-primary',
+    action: 'bg-success',
+    condition: 'bg-warning',
+    goal: 'bg-info',
   };
 
   const isConfigured = data.isConfigured !== false;
@@ -51,7 +51,7 @@ function BaseNode({
       className={cn(
         'relative min-w-[200px] rounded-lg border-2 shadow-md transition-shadow',
         categoryStyles[category],
-        selected && 'ring-2 ring-offset-2 ring-blue-500',
+        selected && 'ring-2 ring-offset-2 ring-brand',
         !isConfigured && 'border-dashed opacity-80'
       )}
     >
@@ -75,15 +75,15 @@ function BaseNode({
           >
             {icon}
           </div>
-          <span className="font-medium text-gray-900 text-sm">{data.label}</span>
+          <span className="font-medium text-foreground text-sm">{data.label}</span>
         </div>
 
         {/* Configuration preview */}
-        {children && <div className="text-xs text-gray-600 mt-2">{children}</div>}
+        {children && <div className="text-xs text-muted-foreground mt-2">{children}</div>}
 
         {/* Unconfigured warning */}
         {!isConfigured && (
-          <div className="text-xs text-amber-600 mt-2 italic">
+          <div className="text-xs text-warning mt-2 italic">
             Click to configure
           </div>
         )}
@@ -94,7 +94,7 @@ function BaseNode({
         <Handle
           type="target"
           position={Position.Top}
-          className="!h-3 !w-3 !bg-gray-400 !border-2 !border-white"
+          className="!h-3 !w-3 !bg-muted-foreground !border-2 !border-white"
         />
       )}
 
@@ -103,7 +103,7 @@ function BaseNode({
         <Handle
           type="source"
           position={Position.Bottom}
-          className="!h-3 !w-3 !bg-gray-400 !border-2 !border-white"
+          className="!h-3 !w-3 !bg-muted-foreground !border-2 !border-white"
         />
       )}
 
@@ -116,7 +116,7 @@ function BaseNode({
           id={handle.id}
           className={cn(
             '!h-3 !w-3 !border-2 !border-white',
-            handle.id === 'true' ? '!bg-green-500' : '!bg-red-500'
+            handle.id === 'true' ? '!bg-success' : '!bg-destructive'
           )}
           style={{
             left: handle.id === 'true' ? '30%' : '70%',

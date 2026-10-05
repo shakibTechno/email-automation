@@ -39,32 +39,32 @@ export function DemoCheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen app-ground flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         {/* Demo banner */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6 text-center">
-          <p className="text-amber-800 text-sm font-medium">
+        <div className="bg-warning/[.10] border border-warning/[.30] rounded-lg px-4 py-3 mb-6 text-center">
+          <p className="text-warning text-sm font-medium">
             Demo Mode — Stripe is not configured. This simulates the checkout experience.
           </p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Header */}
-          <div className="bg-slate-900 text-white px-8 py-6">
+          <div className="bg-foreground text-white px-8 py-6">
             <div className="flex items-center justify-between">
               <button
                 onClick={handleCancel}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-subtle-foreground hover:text-white transition-colors"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
               <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-slate-400" />
-                <span className="text-sm text-slate-400">Secure Checkout</span>
+                <Lock className="h-4 w-4 text-subtle-foreground" />
+                <span className="text-sm text-subtle-foreground">Secure Checkout</span>
               </div>
             </div>
             <div className="mt-6">
-              <p className="text-slate-400 text-sm">Subscribe to</p>
+              <p className="text-subtle-foreground text-sm">Subscribe to</p>
               <h1 className="text-2xl font-bold mt-1">{planName}</h1>
               <p className="text-3xl font-bold mt-2">{displayPrice}</p>
             </div>
@@ -73,7 +73,7 @@ export function DemoCheckoutPage() {
           {/* Form */}
           <div className="px-8 py-6 space-y-5">
             <div>
-              <Label htmlFor="email" className="text-sm font-medium text-slate-700">
+              <Label htmlFor="email" className="text-sm font-medium text-foreground">
                 Email
               </Label>
               <Input
@@ -86,7 +86,7 @@ export function DemoCheckoutPage() {
             </div>
 
             <div>
-              <Label htmlFor="card" className="text-sm font-medium text-slate-700">
+              <Label htmlFor="card" className="text-sm font-medium text-foreground">
                 Card information
               </Label>
               <div className="mt-1.5 space-y-2">
@@ -98,7 +98,7 @@ export function DemoCheckoutPage() {
                     className="pr-16"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
-                    <CreditCard className="h-5 w-5 text-slate-400" />
+                    <CreditCard className="h-5 w-5 text-subtle-foreground" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -109,7 +109,7 @@ export function DemoCheckoutPage() {
             </div>
 
             <div>
-              <Label htmlFor="name" className="text-sm font-medium text-slate-700">
+              <Label htmlFor="name" className="text-sm font-medium text-foreground">
                 Name on card
               </Label>
               <Input
@@ -121,9 +121,9 @@ export function DemoCheckoutPage() {
             </div>
 
             {/* Order summary */}
-            <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+            <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-600">{planName} ({interval === 'year' ? 'Annual' : 'Monthly'})</span>
+                <span className="text-muted-foreground">{planName} ({interval === 'year' ? 'Annual' : 'Monthly'})</span>
                 <span className="font-medium">{displayPrice}</span>
               </div>
               <div className="border-t pt-2 flex justify-between font-semibold">
@@ -148,7 +148,7 @@ export function DemoCheckoutPage() {
               )}
             </Button>
 
-            <p className="text-xs text-center text-slate-400">
+            <p className="text-xs text-center text-subtle-foreground">
               This is a demo checkout. No real payment will be processed.
             </p>
           </div>

@@ -18,12 +18,12 @@ interface TemplateCardProps {
 }
 
 const categoryColors: Record<string, string> = {
-  marketing: 'bg-blue-100 text-blue-800',
-  transactional: 'bg-green-100 text-green-800',
-  newsletter: 'bg-purple-100 text-purple-800',
-  welcome: 'bg-yellow-100 text-yellow-800',
-  notification: 'bg-orange-100 text-orange-800',
-  custom: 'bg-gray-100 text-gray-800',
+  marketing: 'bg-info/[.14] text-info',
+  transactional: 'bg-success/[.14] text-success',
+  newsletter: 'bg-info/[.14] text-info',
+  welcome: 'bg-warning/[.14] text-warning',
+  notification: 'bg-warning/[.14] text-warning',
+  custom: 'bg-secondary text-muted-foreground',
 };
 
 export const TemplateCard = ({
@@ -42,7 +42,7 @@ export const TemplateCard = ({
     <Card className="group overflow-hidden hover:shadow-md transition-shadow">
       {/* Thumbnail / Placeholder */}
       <div
-        className="h-40 bg-gray-100 flex items-center justify-center cursor-pointer border-b"
+        className="h-40 bg-secondary flex items-center justify-center cursor-pointer border-b"
         onClick={() => navigate(`/templates/${template.id}/edit`)}
       >
         {template.thumbnail_url ? (
@@ -52,7 +52,7 @@ export const TemplateCard = ({
             className="w-full h-full object-cover"
           />
         ) : (
-          <Mail className="h-12 w-12 text-gray-300" />
+          <Mail className="h-12 w-12 text-subtle-foreground" />
         )}
       </div>
 

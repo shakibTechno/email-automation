@@ -55,8 +55,8 @@ export function LandingPageAnalyticsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="rounded-lg bg-blue-100 p-3">
-                  <Eye className="h-6 w-6 text-blue-600" />
+                <div className="rounded-lg bg-info/[.14] p-3">
+                  <Eye className="h-6 w-6 text-brand" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Views</p>
@@ -66,8 +66,8 @@ export function LandingPageAnalyticsPage() {
             </Card>
             <Card>
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="rounded-lg bg-green-100 p-3">
-                  <UserCheck className="h-6 w-6 text-green-600" />
+                <div className="rounded-lg bg-success/[.14] p-3">
+                  <UserCheck className="h-6 w-6 text-success" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Unique Visitors</p>

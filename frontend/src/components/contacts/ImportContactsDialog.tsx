@@ -299,13 +299,13 @@ export function ImportContactsDialog({ open, onClose }: Props) {
         {step === 'results' && result && (
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-center">
-                <div className="text-2xl font-bold text-green-700">{result.imported}</div>
-                <div className="text-xs text-green-600 mt-0.5">Imported</div>
+              <div className="rounded-lg bg-success/[.10] border border-success/[.30] p-3 text-center">
+                <div className="text-2xl font-bold text-success">{result.imported}</div>
+                <div className="text-xs text-success mt-0.5">Imported</div>
               </div>
-              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-center">
-                <div className="text-2xl font-bold text-blue-700">{result.updated}</div>
-                <div className="text-xs text-blue-600 mt-0.5">Updated</div>
+              <div className="rounded-lg bg-info/[.10] border border-info/[.30] p-3 text-center">
+                <div className="text-2xl font-bold text-brand">{result.updated}</div>
+                <div className="text-xs text-brand mt-0.5">Updated</div>
               </div>
               <div className="rounded-lg bg-muted p-3 text-center">
                 <div className="text-2xl font-bold">{result.skipped}</div>
@@ -314,7 +314,7 @@ export function ImportContactsDialog({ open, onClose }: Props) {
             </div>
 
             {result.errors.length === 0 ? (
-              <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-sm text-success bg-success/[.10] rounded-lg p-3">
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
                 Import completed with no errors.
               </div>

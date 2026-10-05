@@ -29,18 +29,18 @@ export const DealCard = ({ deal }: DealCardProps) => {
     <div
       className={cn(
         "bg-white rounded-lg border p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer",
-        deal.is_rotting ? "border-orange-300 bg-orange-50/40" : "border-gray-200"
+        deal.is_rotting ? "border-warning/[.40] bg-warning/[.10]/40" : "border-border"
       )}
       onClick={() => navigate(`/crm/deals/${deal.id}`)}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
-        <h4 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
+        <h4 className="text-sm font-medium text-foreground line-clamp-2 flex-1">
           {deal.title}
         </h4>
         <div className="flex items-center gap-1 shrink-0">
           {deal.is_rotting && (
             <span title={`No activity for ${deal.days_since_activity} days`}>
-              <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
+              <AlertTriangle className="h-3.5 w-3.5 text-warning" />
             </span>
           )}
           <PriorityBadge priority={deal.priority} dotOnly />
@@ -48,7 +48,7 @@ export const DealCard = ({ deal }: DealCardProps) => {
       </div>
 
       {deal.value > 0 && (
-        <div className="text-sm font-semibold text-gray-900 mb-2">
+        <div className="text-sm font-semibold text-foreground mb-2">
           {formatCurrency(deal.value, deal.currency)}
         </div>
       )}
@@ -60,14 +60,14 @@ export const DealCard = ({ deal }: DealCardProps) => {
       )}
 
       {deal.is_rotting && deal.days_since_activity !== null && (
-        <div className="text-xs text-orange-600 font-medium mb-2">
+        <div className="text-xs text-warning font-medium mb-2">
           No activity for {deal.days_since_activity}d
         </div>
       )}
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         {deal.close_date && (
-          <div className={cn('flex items-center gap-1', isOverdue && 'text-red-500')}>
+          <div className={cn('flex items-center gap-1', isOverdue && 'text-destructive')}>
             <Calendar className="h-3 w-3" />
             <span>{new Date(deal.close_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
           </div>

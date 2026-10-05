@@ -214,7 +214,7 @@ export default function WorkflowBuilderPage() {
   if (isLoading && workflowId) {
     return (
       <div className="h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info" />
       </div>
     );
   }
@@ -266,7 +266,7 @@ export default function WorkflowBuilderPage() {
         </div>
 
         {/* Center - Canvas */}
-        <div className="flex-1 bg-gray-50">
+        <div className="flex-1 bg-secondary/50">
           <WorkflowCanvas
             nodes={nodes}
             edges={edges}

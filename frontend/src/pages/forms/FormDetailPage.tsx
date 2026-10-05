@@ -290,7 +290,7 @@ export const FormDetailPage = () => {
             <>
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
+                  <thead className="bg-secondary/50 border-b">
                     <tr>
                       <th className="text-left px-4 py-2 font-medium text-muted-foreground">
                         Contact
@@ -310,7 +310,7 @@ export const FormDetailPage = () => {
                     {submissions.map((sub) => (
                       <tr
                         key={sub.id}
-                        className="hover:bg-gray-50 cursor-pointer"
+                        className="hover:bg-secondary/50 cursor-pointer"
                         onClick={() => {
                           setSelectedSubmission(sub.id);
                           setSubmissionDialogOpen(true);

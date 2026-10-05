@@ -125,7 +125,7 @@ export const ContactSearchSelect = ({
               <button
                 key={contact.id}
                 type="button"
-                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
+                className="w-full text-left px-3 py-2 text-sm hover:bg-secondary transition-colors"
                 onClick={() => handleSelect(contact)}
               >
                 <div className="font-medium">{name || contact.email}</div>

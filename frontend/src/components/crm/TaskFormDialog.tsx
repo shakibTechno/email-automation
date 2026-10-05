@@ -104,7 +104,7 @@ export const TaskFormDialog = ({
           <div className="space-y-1">
             <Label htmlFor="title">Title *</Label>
             <Input id="title" {...register('title')} placeholder="Task title" />
-            {errors.title && <p className="text-xs text-red-500">{errors.title.message}</p>}
+            {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
           </div>
 
           <div className="space-y-1">

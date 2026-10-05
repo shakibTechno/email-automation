@@ -214,7 +214,7 @@ export const PipelineSettingsPage = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveStage(stage.id)}
-                            className="text-red-500 hover:text-red-600"
+                            className="text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -256,7 +256,7 @@ export const PipelineSettingsPage = () => {
                     type="button"
                     onClick={() => setNewStageColor(color)}
                     className={`h-7 w-7 rounded-full border-2 transition-all ${
-                      newStageColor === color ? 'border-gray-900 scale-110' : 'border-transparent'
+                      newStageColor === color ? 'border-foreground scale-110' : 'border-transparent'
                     }`}
                     style={{ backgroundColor: color }}
                   />

@@ -21,7 +21,7 @@ export const LandingPageStatusBadge = ({ status }: LandingPageStatusBadgeProps) 
       variant={config.variant}
       className={
         status === 'published'
-          ? 'bg-green-100 text-green-800 hover:bg-green-100'
+          ? 'bg-success/[.14] text-success hover:bg-success/[.14]'
           : ''
       }
     >

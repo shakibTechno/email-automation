@@ -18,16 +18,16 @@ export function StatCard({
   color = 'blue',
 }: StatCardProps) {
   const colorClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    purple: 'bg-purple-100 text-purple-600',
-    orange: 'bg-orange-100 text-orange-600',
+    blue: 'bg-info/[.14] text-info',
+    green: 'bg-success/[.14] text-success',
+    purple: 'bg-info/[.14] text-info',
+    orange: 'bg-warning/[.14] text-warning',
   };
 
   const trendColor = {
-    up: 'text-green-600',
-    down: 'text-red-600',
-    flat: 'text-gray-500',
+    up: 'text-success',
+    down: 'text-destructive',
+    flat: 'text-muted-foreground',
   };
 
   const TrendIcon = {

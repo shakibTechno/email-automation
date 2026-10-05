@@ -91,8 +91,8 @@ export const CompanyListPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Companies</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-semibold text-foreground">Companies</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Manage your accounts and company relationships
           </p>
         </div>
@@ -104,7 +104,7 @@ export const CompanyListPage = () => {
 
       {/* Search */}
       <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-subtle-foreground" />
         <Input
           className="pl-9"
           placeholder="Search companies…"
@@ -130,7 +130,7 @@ export const CompanyListPage = () => {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-gray-500">
+                <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                   Loading…
                 </TableCell>
               </TableRow>
@@ -138,8 +138,8 @@ export const CompanyListPage = () => {
               <TableRow>
                 <TableCell colSpan={7}>
                   <div className="flex flex-col items-center justify-center py-12 gap-3">
-                    <Building2 className="h-10 w-10 text-gray-300" />
-                    <p className="text-gray-500 text-sm">
+                    <Building2 className="h-10 w-10 text-subtle-foreground" />
+                    <p className="text-muted-foreground text-sm">
                       {search ? 'No companies match your search.' : 'No companies yet. Create your first one!'}
                     </p>
                   </div>
@@ -149,18 +149,18 @@ export const CompanyListPage = () => {
               companies.map((company) => (
                 <TableRow
                   key={company.id}
-                  className="cursor-pointer hover:bg-gray-50"
+                  className="cursor-pointer hover:bg-secondary/50"
                   onClick={() => navigate(`/crm/companies/${company.id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                        <Building2 className="h-4 w-4 text-indigo-600" />
+                      <div className="h-8 w-8 rounded-full bg-info/[.14] flex items-center justify-center flex-shrink-0">
+                        <Building2 className="h-4 w-4 text-brand" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{company.name}</p>
+                        <p className="font-medium text-foreground">{company.name}</p>
                         {company.domain && (
-                          <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
                             <Globe className="h-3 w-3" />
                             {company.domain}
                           </p>
@@ -174,32 +174,32 @@ export const CompanyListPage = () => {
                         {INDUSTRY_LABELS[company.industry] ?? company.industry}
                       </Badge>
                     ) : (
-                      <span className="text-gray-400 text-sm">—</span>
+                      <span className="text-subtle-foreground text-sm">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-gray-600">
-                    {company.size || <span className="text-gray-400">—</span>}
+                  <TableCell className="text-sm text-muted-foreground">
+                    {company.size || <span className="text-subtle-foreground">—</span>}
                   </TableCell>
                   <TableCell className="text-right">
                     <span className="flex items-center justify-end gap-1 text-sm">
-                      <Users className="h-3.5 w-3.5 text-gray-400" />
+                      <Users className="h-3.5 w-3.5 text-subtle-foreground" />
                       {company.contact_count}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
                     <span className="flex items-center justify-end gap-1 text-sm">
-                      <Briefcase className="h-3.5 w-3.5 text-gray-400" />
+                      <Briefcase className="h-3.5 w-3.5 text-subtle-foreground" />
                       {company.deal_count}
                     </span>
                   </TableCell>
                   <TableCell className="text-right text-sm font-medium">
                     {company.open_deal_value > 0 ? (
-                      <span className="flex items-center justify-end gap-1 text-green-700">
+                      <span className="flex items-center justify-end gap-1 text-success">
                         <TrendingUp className="h-3.5 w-3.5" />
                         ${company.open_deal_value.toLocaleString()}
                       </span>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-subtle-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
@@ -215,7 +215,7 @@ export const CompanyListPage = () => {
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          className="text-red-600"
+                          className="text-destructive"
                           onClick={() => setDeleteTarget(company)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
@@ -261,7 +261,7 @@ export const CompanyListPage = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive hover:bg-destructive/90"
               onClick={handleDelete}
               disabled={isDeleting}
             >

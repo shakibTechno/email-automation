@@ -126,7 +126,7 @@ export const TagManagementPage = () => {
               {tags.map((tag) => (
                 <div
                   key={tag.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50"
                 >
                   <Badge
                     style={{ backgroundColor: getColorHex(tag.color) }}
@@ -184,7 +184,7 @@ export const TagManagementPage = () => {
                     key={opt.value}
                     type="button"
                     className={`w-8 h-8 rounded-full border-2 ${
-                      formData.color === opt.value ? 'border-gray-900' : 'border-transparent'
+                      formData.color === opt.value ? 'border-foreground' : 'border-transparent'
                     }`}
                     style={{ backgroundColor: opt.hex }}
                     onClick={() => setFormData({ ...formData, color: opt.value })}
@@ -235,7 +235,7 @@ export const TagManagementPage = () => {
                     key={opt.value}
                     type="button"
                     className={`w-8 h-8 rounded-full border-2 ${
-                      formData.color === opt.value ? 'border-gray-900' : 'border-transparent'
+                      formData.color === opt.value ? 'border-foreground' : 'border-transparent'
                     }`}
                     style={{ backgroundColor: opt.hex }}
                     onClick={() => setFormData({ ...formData, color: opt.value })}

@@ -3,8 +3,8 @@ import { FormStatus } from '@/types/form';
 import { cn } from '@/lib/utils';
 
 const statusConfig: Record<FormStatus, { label: string; className: string }> = {
-  active: { label: 'Active', className: 'bg-green-100 text-green-800 border-green-200' },
-  inactive: { label: 'Inactive', className: 'bg-gray-100 text-gray-800 border-gray-200' },
+  active: { label: 'Active', className: 'bg-success/[.14] text-success border-success/[.30]' },
+  inactive: { label: 'Inactive', className: 'bg-secondary text-muted-foreground border-border' },
 };
 
 interface FormStatusBadgeProps {

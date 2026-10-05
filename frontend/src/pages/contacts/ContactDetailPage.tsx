@@ -58,18 +58,18 @@ function avatarGradient(id: string) {
 }
 
 const SOURCE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  manual:      { label: 'Manual Entry',  icon: UserCheck,  color: 'text-slate-500' },
-  import:      { label: 'CSV Import',    icon: Upload,     color: 'text-blue-500' },
-  api:         { label: 'API',           icon: Code2,      color: 'text-purple-500' },
-  form:        { label: 'Web Form',      icon: FileText,   color: 'text-emerald-500' },
-  integration: { label: 'Integration',   icon: Plug,       color: 'text-orange-500' },
+  manual:      { label: 'Manual Entry',  icon: UserCheck,  color: 'text-muted-foreground' },
+  import:      { label: 'CSV Import',    icon: Upload,     color: 'text-brand' },
+  api:         { label: 'API',           icon: Code2,      color: 'text-info' },
+  form:        { label: 'Web Form',      icon: FileText,   color: 'text-success' },
+  integration: { label: 'Integration',   icon: Plug,       color: 'text-warning' },
 };
 
 const ENGAGEMENT_META: Record<string, { label: string; color: string; bar: string; desc: string }> = {
-  high:   { label: 'High',   color: 'text-emerald-600', bar: 'bg-emerald-500', desc: 'Very active — opens and clicks regularly' },
-  medium: { label: 'Medium', color: 'text-amber-600',   bar: 'bg-amber-400',  desc: 'Occasionally engaged' },
-  low:    { label: 'Low',    color: 'text-orange-600',  bar: 'bg-orange-400', desc: 'Rarely interacts with emails' },
-  none:   { label: 'None',   color: 'text-slate-400',   bar: 'bg-slate-200',  desc: 'No engagement recorded yet' },
+  high:   { label: 'High',   color: 'text-success', bar: 'bg-success', desc: 'Very active — opens and clicks regularly' },
+  medium: { label: 'Medium', color: 'text-warning',   bar: 'bg-warning',  desc: 'Occasionally engaged' },
+  low:    { label: 'Low',    color: 'text-warning',  bar: 'bg-warning', desc: 'Rarely interacts with emails' },
+  none:   { label: 'None',   color: 'text-subtle-foreground',   bar: 'bg-secondary',  desc: 'No engagement recorded yet' },
 };
 
 const ENGAGEMENT_BAR_WIDTH: Record<string, string> = {
@@ -190,35 +190,35 @@ export const ContactDetailPage = () => {
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 {/* subscription */}
                 {contact.is_subscribed ? (
-                  <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 gap-1">
+                  <Badge variant="outline" className="text-success border-success/[.30] bg-success/[.10] gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Subscribed
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-red-600 border-red-200 bg-red-50 gap-1">
+                  <Badge variant="outline" className="text-destructive border-destructive/[.30] bg-destructive/[.10] gap-1">
                     <UserX className="h-3 w-3" /> Unsubscribed
                   </Badge>
                 )}
 
                 {/* verified */}
                 {contact.is_verified ? (
-                  <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 gap-1">
+                  <Badge variant="outline" className="text-brand border-info/[.30] bg-info/[.10] gap-1">
                     <ShieldCheck className="h-3 w-3" /> Verified
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50 gap-1">
+                  <Badge variant="outline" className="text-muted-foreground border-border bg-secondary/50 gap-1">
                     <ShieldOff className="h-3 w-3" /> Unverified
                   </Badge>
                 )}
 
                 {/* bounced */}
                 {contact.bounced_at && (
-                  <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50 gap-1">
+                  <Badge variant="outline" className="text-warning border-warning/[.30] bg-warning/[.10] gap-1">
                     <AlertTriangle className="h-3 w-3" /> Bounced
                   </Badge>
                 )}
 
                 {/* source */}
-                <Badge variant="outline" className={`border-slate-200 bg-slate-50 gap-1 ${sourceMeta.color}`}>
+                <Badge variant="outline" className={`border-border bg-secondary/50 gap-1 ${sourceMeta.color}`}>
                   <SourceIcon className="h-3 w-3" />
                   {sourceMeta.label}
                 </Badge>
@@ -250,25 +250,25 @@ export const ContactDetailPage = () => {
           <CardContent className="pt-6 space-y-1">
 
             <SectionHeading>Contact Info</SectionHeading>
-            <InfoRow icon={Mail} label="Email" iconClass="text-blue-500">
+            <InfoRow icon={Mail} label="Email" iconClass="text-brand">
               <span className="font-mono text-sm">{contact.email}</span>
             </InfoRow>
             {contact.phone && (
-              <InfoRow icon={Phone} label="Phone" iconClass="text-green-500">
+              <InfoRow icon={Phone} label="Phone" iconClass="text-success">
                 {contact.phone}
               </InfoRow>
             )}
             {contact.company && (
-              <InfoRow icon={Briefcase} label="Company" iconClass="text-purple-500">
+              <InfoRow icon={Briefcase} label="Company" iconClass="text-info">
                 {contact.company}
               </InfoRow>
             )}
             {contact.job_title && (
-              <InfoRow icon={Globe} label="Job Title" iconClass="text-indigo-500">
+              <InfoRow icon={Globe} label="Job Title" iconClass="text-brand">
                 {contact.job_title}
               </InfoRow>
             )}
-            <InfoRow icon={User} label="Assigned To" iconClass="text-blue-500">
+            <InfoRow icon={User} label="Assigned To" iconClass="text-brand">
               {contact.assigned_to_name ?? (
                 <span className="text-muted-foreground italic">Unassigned</span>
               )}
@@ -278,7 +278,7 @@ export const ContactDetailPage = () => {
             <InfoRow icon={Activity} label="Engagement" iconClass={engagementMeta.color}>
               <div className="space-y-1">
                 <div className={`font-semibold ${engagementMeta.color}`}>{engagementMeta.label}</div>
-                <div className="h-1.5 w-32 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-1.5 w-32 rounded-full bg-secondary overflow-hidden">
                   <div className={`h-full rounded-full ${engagementMeta.bar} ${ENGAGEMENT_BAR_WIDTH[contact.engagement_level]} transition-all`} />
                 </div>
                 <div className="text-xs text-muted-foreground">{engagementMeta.desc}</div>
@@ -290,12 +290,12 @@ export const ContactDetailPage = () => {
               {sourceMeta.label}
             </InfoRow>
             {contact.unsubscribed_at && (
-              <InfoRow icon={UserX} label="Unsubscribed" iconClass="text-red-500">
+              <InfoRow icon={UserX} label="Unsubscribed" iconClass="text-destructive">
                 {formatDateTime(contact.unsubscribed_at)}
               </InfoRow>
             )}
             {contact.bounced_at && (
-              <InfoRow icon={AlertTriangle} label="Bounced At" iconClass="text-orange-500">
+              <InfoRow icon={AlertTriangle} label="Bounced At" iconClass="text-warning">
                 {formatDateTime(contact.bounced_at)}
               </InfoRow>
             )}
@@ -323,7 +323,7 @@ export const ContactDetailPage = () => {
               <>
                 <SectionHeading>Custom Fields</SectionHeading>
                 {customEntries.map(([key, value]) => (
-                  <InfoRow key={key} icon={FileText} label={key} iconClass="text-slate-400">
+                  <InfoRow key={key} icon={FileText} label={key} iconClass="text-subtle-foreground">
                     {String(value)}
                   </InfoRow>
                 ))}
@@ -436,7 +436,7 @@ export const ContactDetailPage = () => {
                   {contactDeals.map((deal) => (
                     <div
                       key={deal.id}
-                      className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="flex items-center justify-between p-2 rounded-md hover:bg-secondary/50 cursor-pointer transition-colors"
                       onClick={() => navigate(`/crm/deals/${deal.id}`)}
                     >
                       <div className="min-w-0">

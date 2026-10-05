@@ -7,14 +7,14 @@ interface StatusBadgeProps {
 }
 
 const statusStyles: Record<WorkflowStatus | ExecutionStatus, string> = {
-  draft: 'bg-gray-100 text-gray-800',
-  active: 'bg-green-100 text-green-800',
-  paused: 'bg-yellow-100 text-yellow-800',
-  archived: 'bg-gray-100 text-gray-600',
-  waiting: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
-  cancelled: 'bg-gray-100 text-gray-600',
+  draft: 'bg-secondary text-muted-foreground',
+  active: 'bg-success/[.14] text-success',
+  paused: 'bg-warning/[.14] text-warning',
+  archived: 'bg-secondary text-muted-foreground',
+  waiting: 'bg-info/[.14] text-info',
+  completed: 'bg-success/[.14] text-success',
+  failed: 'bg-destructive/[.14] text-destructive',
+  cancelled: 'bg-secondary text-muted-foreground',
 };
 
 const statusLabels: Record<WorkflowStatus | ExecutionStatus, string> = {

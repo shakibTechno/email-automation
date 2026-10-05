@@ -11,10 +11,10 @@ import { useScoreThresholds, useBulkUpdateThresholds } from '@/hooks/useLeadScor
 import type { ScoreThresholdInput } from '@/types/leadScoring';
 
 const COLOR_OPTIONS = [
-  { value: 'gray',   label: 'Gray',   cls: 'bg-gray-400' },
-  { value: 'blue',   label: 'Blue',   cls: 'bg-blue-400' },
-  { value: 'green',  label: 'Green',  cls: 'bg-green-400' },
-  { value: 'yellow', label: 'Yellow', cls: 'bg-yellow-400' },
+  { value: 'gray',   label: 'Gray',   cls: 'bg-muted-foreground' },
+  { value: 'blue',   label: 'Blue',   cls: 'bg-info' },
+  { value: 'green',  label: 'Green',  cls: 'bg-success' },
+  { value: 'yellow', label: 'Yellow', cls: 'bg-warning' },
   { value: 'orange', label: 'Orange', cls: 'bg-orange-400' },
   { value: 'red',    label: 'Red',    cls: 'bg-red-400' },
   { value: 'purple', label: 'Purple', cls: 'bg-purple-400' },

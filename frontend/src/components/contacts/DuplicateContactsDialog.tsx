@@ -69,7 +69,7 @@ function GroupCard({ group, onMerge }: { group: DuplicateGroup; onMerge: () => v
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="font-medium text-sm truncate">{group.email}</span>
-          <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200 flex-shrink-0">
+          <Badge variant="outline" className="text-xs bg-warning/[.10] text-warning border-warning/[.30] flex-shrink-0">
             {group.count} duplicates
           </Badge>
         </div>
@@ -255,15 +255,15 @@ function MergeView({
         </div>
         <div className="grid grid-cols-3 gap-3 text-sm">
           <div className="text-center">
-            <div className="text-lg font-bold text-amber-600">{summary.maxScore}</div>
+            <div className="text-lg font-bold text-warning">{summary.maxScore}</div>
             <div className="text-xs text-muted-foreground">Lead score (highest)</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-bold text-blue-600">{summary.tagCount}</div>
+            <div className="text-lg font-bold text-brand">{summary.tagCount}</div>
             <div className="text-xs text-muted-foreground">Tags (combined)</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-bold text-emerald-600">{duplicates.length}</div>
+            <div className="text-lg font-bold text-success">{duplicates.length}</div>
             <div className="text-xs text-muted-foreground">Records removed</div>
           </div>
         </div>
@@ -274,9 +274,9 @@ function MergeView({
         )}
       </div>
 
-      <div className="flex items-start gap-2 rounded-md bg-orange-50 border border-orange-200 px-3 py-2">
-        <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
-        <p className="text-xs text-orange-700">
+      <div className="flex items-start gap-2 rounded-md bg-warning/[.10] border border-warning/[.30] px-3 py-2">
+        <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-warning">
           <strong>{primary.first_name || primary.email}</strong> will be kept.{' '}
           {duplicates.length} contact{duplicates.length > 1 ? 's' : ''} will be permanently removed from your list.
         </p>
@@ -331,7 +331,7 @@ function ListView({ onSelectGroup }: { onSelectGroup: (g: DuplicateGroup) => voi
           ))
         ) : data?.total_groups === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <CheckCircle2 className="h-12 w-12 text-emerald-500 mb-3" />
+            <CheckCircle2 className="h-12 w-12 text-success mb-3" />
             <p className="font-medium">No duplicates found</p>
             <p className="text-sm text-muted-foreground mt-1">
               Your contact list is clean — every email address is unique.

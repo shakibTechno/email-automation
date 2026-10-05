@@ -25,25 +25,25 @@ interface Props {
 }
 
 const EVENT_CONFIG: Record<string, { icon: React.ElementType; color: string; label: string }> = {
-  email_sent:          { icon: Mail,               color: 'text-blue-500',   label: 'Email Sent' },
-  email_opened:        { icon: MailOpen,            color: 'text-green-500',  label: 'Email Opened' },
-  email_clicked:       { icon: MousePointerClick,   color: 'text-purple-500', label: 'Link Clicked' },
-  email_bounced:       { icon: AlertCircle,         color: 'text-red-500',    label: 'Email Bounced' },
-  email_unsubscribed:  { icon: UserMinus,           color: 'text-orange-500', label: 'Unsubscribed' },
-  form_submission:     { icon: FileText,            color: 'text-teal-500',   label: 'Form Submitted' },
-  workflow_started:    { icon: GitBranch,           color: 'text-indigo-500', label: 'Workflow Started' },
-  workflow_completed:  { icon: CheckCircle2,        color: 'text-emerald-500',label: 'Workflow Completed' },
-  score_change:        { icon: TrendingUp,          color: 'text-amber-500',  label: 'Score Changed' },
-  crm_call:            { icon: Phone,               color: 'text-sky-500',    label: 'Call' },
-  crm_email:           { icon: Mail,                color: 'text-blue-400',   label: 'Email' },
-  crm_meeting:         { icon: Calendar,            color: 'text-violet-500', label: 'Meeting' },
-  crm_task:            { icon: ClipboardList,       color: 'text-rose-500',   label: 'Task' },
-  crm_note:            { icon: StickyNote,          color: 'text-yellow-500', label: 'Note' },
-  crm_message:         { icon: MessageSquare,       color: 'text-cyan-500',   label: 'Message' },
+  email_sent:          { icon: Mail,               color: 'text-brand',   label: 'Email Sent' },
+  email_opened:        { icon: MailOpen,            color: 'text-success',  label: 'Email Opened' },
+  email_clicked:       { icon: MousePointerClick,   color: 'text-info', label: 'Link Clicked' },
+  email_bounced:       { icon: AlertCircle,         color: 'text-destructive',    label: 'Email Bounced' },
+  email_unsubscribed:  { icon: UserMinus,           color: 'text-warning', label: 'Unsubscribed' },
+  form_submission:     { icon: FileText,            color: 'text-success',   label: 'Form Submitted' },
+  workflow_started:    { icon: GitBranch,           color: 'text-brand', label: 'Workflow Started' },
+  workflow_completed:  { icon: CheckCircle2,        color: 'text-success',label: 'Workflow Completed' },
+  score_change:        { icon: TrendingUp,          color: 'text-warning',  label: 'Score Changed' },
+  crm_call:            { icon: Phone,               color: 'text-info',    label: 'Call' },
+  crm_email:           { icon: Mail,                color: 'text-info',   label: 'Email' },
+  crm_meeting:         { icon: Calendar,            color: 'text-info', label: 'Meeting' },
+  crm_task:            { icon: ClipboardList,       color: 'text-destructive',   label: 'Task' },
+  crm_note:            { icon: StickyNote,          color: 'text-warning', label: 'Note' },
+  crm_message:         { icon: MessageSquare,       color: 'text-info',   label: 'Message' },
 };
 
 function getConfig(type: string) {
-  return EVENT_CONFIG[type] ?? { icon: Calendar, color: 'text-gray-400', label: type };
+  return EVENT_CONFIG[type] ?? { icon: Calendar, color: 'text-subtle-foreground', label: type };
 }
 
 function EventRow({ event }: { event: TimelineEvent }) {

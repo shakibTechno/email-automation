@@ -25,14 +25,14 @@ function ConditionNode(props: NodeProps<ConditionNodeData>) {
 
     return (
       <div className="space-y-1">
-        <span className="text-gray-500">
+        <span className="text-muted-foreground">
           {rules.length} condition{rules.length !== 1 ? 's' : ''} ({logic === 'all' ? 'AND' : 'OR'})
         </span>
         <div className="flex gap-2 text-[10px] mt-1">
-          <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
+          <span className="bg-success/[.14] text-success px-1.5 py-0.5 rounded">
             True
           </span>
-          <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
+          <span className="bg-destructive/[.14] text-destructive px-1.5 py-0.5 rounded">
             False
           </span>
         </div>

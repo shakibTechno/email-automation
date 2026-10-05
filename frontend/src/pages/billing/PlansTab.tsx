@@ -89,7 +89,7 @@ export function PlansTab() {
             onCheckedChange={setAnnual}
           />
           <Label htmlFor="billing-toggle" className="text-sm">
-            Annual <span className="text-green-600 font-medium">(Save ~17%)</span>
+            Annual <span className="text-success font-medium">(Save ~17%)</span>
           </Label>
         </div>
       </div>
@@ -111,7 +111,7 @@ export function PlansTab() {
         <div className="text-center pt-4 border-t">
           <Button
             variant="ghost"
-            className="text-red-500 hover:text-red-700"
+            className="text-destructive hover:text-destructive"
             onClick={() => setShowCancel(true)}
           >
             Cancel Subscription

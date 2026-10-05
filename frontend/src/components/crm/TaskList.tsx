@@ -15,10 +15,10 @@ import { CRMTaskListItem, CreateTaskData, TaskFilters } from '@/types/crm';
 import { cn } from '@/lib/utils';
 
 const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
-  low:    { label: 'Low',    className: 'bg-gray-100 text-gray-700' },
-  medium: { label: 'Medium', className: 'bg-blue-100 text-blue-700' },
-  high:   { label: 'High',   className: 'bg-amber-100 text-amber-700' },
-  urgent: { label: 'Urgent', className: 'bg-red-100 text-red-700' },
+  low:    { label: 'Low',    className: 'bg-secondary text-muted-foreground' },
+  medium: { label: 'Medium', className: 'bg-info/[.14] text-info' },
+  high:   { label: 'High',   className: 'bg-warning/[.14] text-warning' },
+  urgent: { label: 'Urgent', className: 'bg-destructive/[.14] text-destructive' },
 };
 
 
@@ -36,7 +36,7 @@ const TaskItem = ({ task, onComplete, onDelete }: TaskItemProps) => {
     <div
       className={cn(
         'flex items-start gap-3 px-4 py-3 border-b last:border-0',
-        task.is_overdue && !isDone && 'bg-red-50/40',
+        task.is_overdue && !isDone && 'bg-destructive/[.10]/40',
       )}
     >
       <button
@@ -45,7 +45,7 @@ const TaskItem = ({ task, onComplete, onDelete }: TaskItemProps) => {
         disabled={isDone}
       >
         {isDone ? (
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
+          <CheckCircle2 className="h-5 w-5 text-success" />
         ) : (
           <Circle className="h-5 w-5" />
         )}
@@ -63,7 +63,7 @@ const TaskItem = ({ task, onComplete, onDelete }: TaskItemProps) => {
             <span
               className={cn(
                 'flex items-center gap-1 text-xs',
-                task.is_overdue && !isDone ? 'text-red-600 font-medium' : 'text-muted-foreground'
+                task.is_overdue && !isDone ? 'text-destructive font-medium' : 'text-muted-foreground'
               )}
             >
               {task.is_overdue && !isDone
@@ -87,7 +87,7 @@ const TaskItem = ({ task, onComplete, onDelete }: TaskItemProps) => {
       <Button
         variant="ghost"
         size="sm"
-        className="shrink-0 h-7 w-7 p-0 text-muted-foreground hover:text-red-500"
+        className="shrink-0 h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
         onClick={() => onDelete(task.id)}
       >
         <Trash2 className="h-3.5 w-3.5" />

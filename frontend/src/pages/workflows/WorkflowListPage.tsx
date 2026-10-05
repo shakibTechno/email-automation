@@ -75,7 +75,7 @@ export default function WorkflowListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Workflows</h1>
-          <p className="text-gray-500">
+          <p className="text-muted-foreground">
             Automate your marketing with visual workflows
           </p>
         </div>
@@ -88,7 +88,7 @@ export default function WorkflowListPage() {
       {/* Filters */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-subtle-foreground" />
           <Input
             placeholder="Search workflows..."
             value={search}
@@ -113,11 +113,11 @@ export default function WorkflowListPage() {
       {/* Table */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info" />
         </div>
       ) : workflows.length === 0 ? (
         <div className="text-center py-12 border rounded-lg">
-          <p className="text-gray-500 mb-4">No workflows found</p>
+          <p className="text-muted-foreground mb-4">No workflows found</p>
           <Button onClick={() => setShowTemplateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Create your first workflow
@@ -148,7 +148,7 @@ export default function WorkflowListPage() {
                     <div>
                       <p className="font-medium">{workflow.name}</p>
                       {workflow.description && (
-                        <p className="text-sm text-gray-500 truncate max-w-[300px]">
+                        <p className="text-sm text-muted-foreground truncate max-w-[300px]">
                           {workflow.description}
                         </p>
                       )}
@@ -166,7 +166,7 @@ export default function WorkflowListPage() {
                   <TableCell className="text-right">
                     {workflow.contacts_goal_reached}
                   </TableCell>
-                  <TableCell className="text-gray-500">
+                  <TableCell className="text-muted-foreground">
                     {formatDistanceToNow(new Date(workflow.updated_at), {
                       addSuffix: true,
                     })}
@@ -224,7 +224,7 @@ export default function WorkflowListPage() {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          className="text-red-600"
+                          className="text-destructive"
                           onClick={(e) => {
                             e.stopPropagation();
                             setDeleteWorkflow(workflow);
@@ -260,7 +260,7 @@ export default function WorkflowListPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>

@@ -33,10 +33,10 @@ import type { EmailSequenceListItem } from '@/types/sequence';
 import { formatDistanceToNow } from 'date-fns';
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  active: 'bg-green-100 text-green-700',
-  paused: 'bg-yellow-100 text-yellow-700',
-  archived: 'bg-gray-100 text-gray-500',
+  draft: 'bg-secondary text-muted-foreground',
+  active: 'bg-success/[.14] text-success',
+  paused: 'bg-warning/[.14] text-warning',
+  archived: 'bg-secondary text-muted-foreground',
 };
 
 export default function SequenceListPage() {
@@ -57,8 +57,8 @@ export default function SequenceListPage() {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Email Sequences</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-foreground">Email Sequences</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Automate multi-step email series for contacts
           </p>
         </div>
@@ -69,7 +69,7 @@ export default function SequenceListPage() {
       </div>
 
       <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-subtle-foreground" />
         <Input
           placeholder="Search sequences..."
           value={search}
@@ -79,12 +79,12 @@ export default function SequenceListPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-gray-500">Loading...</div>
+        <div className="text-center py-12 text-muted-foreground">Loading...</div>
       ) : sequences.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed rounded-lg">
-          <Mail className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900">No sequences yet</h3>
-          <p className="text-sm text-gray-500 mt-1 mb-4">
+          <Mail className="h-12 w-12 mx-auto text-subtle-foreground mb-4" />
+          <h3 className="text-lg font-medium text-foreground">No sequences yet</h3>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">
             Create a sequence to send automated email series to contacts.
           </p>
           <Button onClick={() => navigate('/sequences/new')}>
@@ -110,16 +110,16 @@ export default function SequenceListPage() {
               {sequences.map((seq) => (
                 <TableRow
                   key={seq.id}
-                  className="cursor-pointer hover:bg-gray-50"
+                  className="cursor-pointer hover:bg-secondary/50"
                   onClick={() => navigate(`/sequences/${seq.id}`)}
                 >
                   <TableCell>
-                    <div className="font-medium text-gray-900">{seq.name}</div>
+                    <div className="font-medium text-foreground">{seq.name}</div>
                     {seq.description && (
-                      <div className="text-xs text-gray-500 truncate max-w-xs">{seq.description}</div>
+                      <div className="text-xs text-muted-foreground truncate max-w-xs">{seq.description}</div>
                     )}
                     {seq.sender_email && (
-                      <div className="text-xs text-gray-400">{seq.sender_name || seq.sender_email}</div>
+                      <div className="text-xs text-subtle-foreground">{seq.sender_name || seq.sender_email}</div>
                     )}
                   </TableCell>
                   <TableCell>
@@ -130,7 +130,7 @@ export default function SequenceListPage() {
                   <TableCell className="text-center">{seq.step_count}</TableCell>
                   <TableCell className="text-center">{seq.enrolled_count}</TableCell>
                   <TableCell className="text-center">{seq.completed_count}</TableCell>
-                  <TableCell className="text-sm text-gray-500">
+                  <TableCell className="text-sm text-muted-foreground">
                     {formatDistanceToNow(new Date(seq.created_at), { addSuffix: true })}
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
@@ -166,7 +166,7 @@ export default function SequenceListPage() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => handleDelete(seq.id)}
-                          className="text-red-600"
+                          className="text-destructive"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete

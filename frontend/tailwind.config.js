@@ -17,15 +17,28 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'Consolas', 'monospace'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        sidebar: "hsl(var(--sidebar))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+        },
+        // The brand lime, split so light mode stays legible:
+        // `brand` is the ink tone (text, icons, strokes),
+        // `brand-fill` is the solid chip (buttons, bars, avatars).
+        brand: {
+          DEFAULT: "hsl(var(--brand))",
+          fill: "hsl(var(--brand-fill))",
+          ink: "hsl(var(--brand-ink))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -35,9 +48,15 @@ export default {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        info: "hsl(var(--info))",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
+        },
+        subtle: {
+          foreground: "hsl(var(--subtle-foreground))",
         },
         accent: {
           DEFAULT: "hsl(var(--accent))",
@@ -54,8 +73,12 @@ export default {
       },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 6px)",
+      },
+      boxShadow: {
+        card: "0 1px 2px rgba(20,30,10,.06)",
+        glow: "0 0 0 3px hsl(var(--brand-dim) / .14)",
       },
       keyframes: {
         "accordion-down": {

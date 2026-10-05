@@ -33,20 +33,20 @@ export const KanbanBoard = ({ columns, onDragEnd, onAddDeal }: KanbanBoardProps)
         {columns.map((column) => (
           <div
             key={column.stage.id}
-            className="flex flex-col bg-gray-50 rounded-lg min-w-[300px] w-[300px] shrink-0"
+            className="flex flex-col bg-secondary/50 rounded-lg min-w-[300px] w-[300px] shrink-0"
           >
             {/* Column header */}
-            <div className="p-3 border-b border-gray-200">
+            <div className="p-3 border-b border-border">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <div
                     className="h-3 w-3 rounded-full"
                     style={{ backgroundColor: column.stage.color }}
                   />
-                  <h3 className="text-sm font-semibold text-gray-900">
+                  <h3 className="text-sm font-semibold text-foreground">
                     {column.stage.name}
                   </h3>
-                  <span className="text-xs text-muted-foreground bg-gray-200 rounded-full px-1.5 py-0.5">
+                  <span className="text-xs text-muted-foreground bg-secondary rounded-full px-1.5 py-0.5">
                     {column.deal_count}
                   </span>
                 </div>
@@ -65,7 +65,7 @@ export const KanbanBoard = ({ columns, onDragEnd, onAddDeal }: KanbanBoardProps)
                   ref={provided.innerRef}
                   {...provided.droppableProps}
                   className={`flex-1 p-2 space-y-2 overflow-y-auto ${
-                    snapshot.isDraggingOver ? 'bg-blue-50/50' : ''
+                    snapshot.isDraggingOver ? 'bg-info/[.10]/50' : ''
                   }`}
                   style={{ minHeight: '100px' }}
                 >
@@ -94,7 +94,7 @@ export const KanbanBoard = ({ columns, onDragEnd, onAddDeal }: KanbanBoardProps)
 
             {/* Add deal footer */}
             {column.stage.stage_type === 'open' && onAddDeal && (
-              <div className="p-2 border-t border-gray-200">
+              <div className="p-2 border-t border-border">
                 <Button
                   variant="ghost"
                   size="sm"

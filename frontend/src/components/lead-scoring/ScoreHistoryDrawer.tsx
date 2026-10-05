@@ -20,7 +20,7 @@ function DeltaBadge({ delta }: { delta: number }) {
   return (
     <span
       className={`inline-flex items-center gap-0.5 font-mono text-xs font-bold ${
-        positive ? 'text-green-600' : 'text-red-600'
+        positive ? 'text-success' : 'text-destructive'
       }`}
     >
       {positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -30,9 +30,9 @@ function DeltaBadge({ delta }: { delta: number }) {
 }
 
 function ReasonIcon({ reason }: { reason: ScoreHistoryEntry['reason'] }) {
-  if (reason === 'manual') return <User className="h-3.5 w-3.5 text-purple-500" />;
-  if (reason === 'recalculation') return <RefreshCw className="h-3.5 w-3.5 text-blue-500" />;
-  return <Settings className="h-3.5 w-3.5 text-orange-500" />;
+  if (reason === 'manual') return <User className="h-3.5 w-3.5 text-info" />;
+  if (reason === 'recalculation') return <RefreshCw className="h-3.5 w-3.5 text-brand" />;
+  return <Settings className="h-3.5 w-3.5 text-warning" />;
 }
 
 export function ScoreHistoryDrawer({ contactId, currentScore, open, onClose }: Props) {

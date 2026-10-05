@@ -183,23 +183,23 @@ export const CampaignDetailPage = () => {
 
       {/* Sending Progress Banner */}
       {campaign.status === 'sending' && (
-        <Card className="p-5 border-yellow-200 bg-yellow-50">
+        <Card className="p-5 border-warning/[.30] bg-warning/[.10]">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-yellow-800 font-semibold">
+            <div className="flex items-center gap-2 text-warning font-semibold">
               <Loader2 className="h-4 w-4 animate-spin" />
               Sending in progress…
             </div>
             {campaign.send_progress && (
-              <span className="text-sm text-yellow-700 font-medium">
+              <span className="text-sm text-warning font-medium">
                 {campaign.send_progress.sent.toLocaleString()} /{' '}
                 {campaign.send_progress.total.toLocaleString()} sent
                 ({campaign.send_progress.percent}%)
               </span>
             )}
           </div>
-          <div className="h-2 w-full rounded-full bg-yellow-200 overflow-hidden">
+          <div className="h-2 w-full rounded-full bg-warning/[.20] overflow-hidden">
             <div
-              className="h-full rounded-full bg-yellow-500 transition-all duration-500"
+              className="h-full rounded-full bg-warning transition-all duration-500"
               style={{ width: `${campaign.send_progress?.percent ?? 0}%` }}
             />
           </div>
@@ -328,7 +328,7 @@ export const CampaignDetailPage = () => {
           </h2>
           <div className="border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-secondary/50 border-b">
                 <tr>
                   <th className="text-left px-4 py-2 font-medium text-muted-foreground">
                     Email

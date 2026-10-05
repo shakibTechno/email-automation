@@ -3,9 +3,9 @@ import { cn } from '@/lib/utils';
 import { DealPriority } from '@/types/crm';
 
 const priorityConfig: Record<DealPriority, { label: string; className: string; dotColor: string }> = {
-  low: { label: 'Low', className: 'bg-gray-50 text-gray-700 border-gray-200', dotColor: 'bg-gray-400' },
-  medium: { label: 'Medium', className: 'bg-yellow-50 text-yellow-700 border-yellow-200', dotColor: 'bg-yellow-400' },
-  high: { label: 'High', className: 'bg-red-50 text-red-700 border-red-200', dotColor: 'bg-red-400' },
+  low: { label: 'Low', className: 'bg-secondary/50 text-foreground border-border', dotColor: 'bg-muted-foreground' },
+  medium: { label: 'Medium', className: 'bg-warning/[.10] text-warning border-warning/[.30]', dotColor: 'bg-warning' },
+  high: { label: 'High', className: 'bg-destructive/[.10] text-destructive border-destructive/[.30]', dotColor: 'bg-destructive' },
 };
 
 interface PriorityBadgeProps {

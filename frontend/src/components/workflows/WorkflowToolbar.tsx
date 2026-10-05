@@ -44,20 +44,20 @@ export default function WorkflowToolbar({
         </Button>
         <div>
           <h1 className="text-lg font-semibold">{workflowName || 'Untitled Workflow'}</h1>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span
               className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                 status === 'active'
-                  ? 'bg-green-100 text-green-800'
+                  ? 'bg-success/[.14] text-success'
                   : status === 'paused'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : 'bg-gray-100 text-gray-800'
+                  ? 'bg-warning/[.14] text-warning'
+                  : 'bg-secondary text-muted-foreground'
               }`}
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
             </span>
             {hasChanges && (
-              <span className="text-amber-600">• Unsaved changes</span>
+              <span className="text-warning">• Unsaved changes</span>
             )}
           </div>
         </div>

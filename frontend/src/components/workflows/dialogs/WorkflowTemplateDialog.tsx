@@ -108,10 +108,10 @@ export default function WorkflowTemplateDialog({
           <div className="overflow-y-auto max-h-[300px] space-y-2 pr-2">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                <Loader2 className="h-6 w-6 animate-spin text-subtle-foreground" />
               </div>
             ) : templates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 No templates available
               </div>
             ) : (
@@ -121,26 +121,26 @@ export default function WorkflowTemplateDialog({
                   onClick={() => setSelectedTemplate(template.id)}
                   className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                     selectedTemplate === template.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-info bg-info/[.10]'
+                      : 'border-border hover:border-border'
                   }`}
                 >
-                  <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                    <FileText className="h-5 w-5 text-gray-500" />
+                  <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-sm">{template.name}</p>
                       {template.is_system && (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                        <span className="text-xs bg-info/[.14] text-info px-1.5 py-0.5 rounded">
                           System
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                       {template.description}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-subtle-foreground mt-1">
                       {categoryLabels[template.category]}
                       {template.usage_count > 0 && (
                         <> &middot; Used {template.usage_count} times</>

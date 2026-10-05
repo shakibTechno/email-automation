@@ -59,8 +59,8 @@ export function ContactAnalyticsPage() {
           {/* Summary stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex items-center gap-4 rounded-lg border p-6">
-              <div className="rounded-lg bg-blue-100 p-3">
-                <Users className="h-6 w-6 text-blue-600" />
+              <div className="rounded-lg bg-info/[.14] p-3">
+                <Users className="h-6 w-6 text-brand" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Contacts</p>

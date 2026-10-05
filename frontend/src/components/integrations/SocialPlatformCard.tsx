@@ -53,14 +53,14 @@ const PLATFORM_CONFIG: Record<SocialPlatform, {
   facebook_lead_ads: {
     name: 'Facebook Lead Ads',
     abbreviation: 'FB',
-    color: 'bg-blue-600',
+    color: 'bg-primary',
     description: 'Automatically import leads from your Facebook Lead Ad campaigns into your contact list.',
     credentialsHelp: 'Find your App ID and App Secret in the Facebook Developers portal under your app settings. The Page ID is found in your Facebook Page\'s About section.',
   },
   linkedin_lead_gen: {
     name: 'LinkedIn Lead Gen Forms',
     abbreviation: 'LI',
-    color: 'bg-blue-700',
+    color: 'bg-primary',
     description: 'Sync leads from LinkedIn Lead Gen Form campaigns directly into your contact list.',
     credentialsHelp: 'Find your App ID (Client ID) and App Secret (Client Secret) in the LinkedIn Developers portal. The Organization ID is in your LinkedIn Company Page admin URL.',
   },
@@ -122,7 +122,7 @@ function CredentialsForm({
         <Key className="h-4 w-4" />
         API Configuration
         {integration.has_credentials && (
-          <Badge variant="outline" className="ml-1 text-xs bg-green-50 text-green-700 border-green-200">
+          <Badge variant="outline" className="ml-1 text-xs bg-success/[.10] text-success border-success/[.30]">
             Configured
           </Badge>
         )}
@@ -329,7 +329,7 @@ export function SocialPlatformCard({
             <CardTitle className="text-base">{config.name}</CardTitle>
             <CardDescription className="text-xs">{config.description}</CardDescription>
           </div>
-          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+          <Badge className="bg-success/[.14] text-success hover:bg-success/[.14]">
             Connected{integration.is_demo ? ' (Demo)' : ''}
           </Badge>
         </div>

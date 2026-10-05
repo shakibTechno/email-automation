@@ -28,10 +28,10 @@ const STATUS_LABELS: Record<ABTest['status'], string> = {
 };
 
 const STATUS_COLORS: Record<ABTest['status'], string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  testing: 'bg-blue-100 text-blue-700',
-  winner_declared: 'bg-amber-100 text-amber-700',
-  completed: 'bg-green-100 text-green-700',
+  draft: 'bg-secondary text-muted-foreground',
+  testing: 'bg-info/[.14] text-info',
+  winner_declared: 'bg-warning/[.14] text-warning',
+  completed: 'bg-success/[.14] text-success',
 };
 
 const TEST_TYPE_LABELS: Record<ABTest['test_type'], string> = {
@@ -113,13 +113,13 @@ export const ABTestPanel = ({ campaignId, abTest }: ABTestPanelProps) => {
                 key={v.variant}
                 className={cn(
                   'border rounded-lg p-4 space-y-3',
-                  winner && 'border-amber-400 bg-amber-50'
+                  winner && 'border-warning bg-warning/[.10]'
                 )}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold">{label}</span>
                   {winner && (
-                    <span className="flex items-center gap-1 text-xs text-amber-700 font-medium">
+                    <span className="flex items-center gap-1 text-xs text-warning font-medium">
                       <Trophy className="h-3 w-3" /> Winner
                     </span>
                   )}
@@ -160,7 +160,7 @@ export const ABTestPanel = ({ campaignId, abTest }: ABTestPanelProps) => {
                           'font-semibold text-base',
                           abTest.winner_criteria === 'open_rate' &&
                             winnerScore(v) >= winnerScore(v.variant === 'a' ? variantB : variantA) &&
-                            'text-green-600'
+                            'text-success'
                         )}
                       >
                         {v.open_rate}%
@@ -173,7 +173,7 @@ export const ABTestPanel = ({ campaignId, abTest }: ABTestPanelProps) => {
                           'font-semibold text-base',
                           abTest.winner_criteria === 'click_rate' &&
                             winnerScore(v) >= winnerScore(v.variant === 'a' ? variantB : variantA) &&
-                            'text-green-600'
+                            'text-success'
                         )}
                       >
                         {v.click_rate}%

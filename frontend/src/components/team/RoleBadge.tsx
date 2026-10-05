@@ -2,10 +2,10 @@ import { Badge } from '@/components/ui/badge';
 import type { UserRole } from '@/types/team';
 
 const roleConfig: Record<UserRole, { label: string; variant: string; className: string }> = {
-  owner: { label: 'Owner', variant: 'default', className: 'bg-purple-100 text-purple-800 hover:bg-purple-100' },
-  admin: { label: 'Admin', variant: 'default', className: 'bg-blue-100 text-blue-800 hover:bg-blue-100' },
-  member: { label: 'Member', variant: 'default', className: 'bg-green-100 text-green-800 hover:bg-green-100' },
-  viewer: { label: 'Viewer', variant: 'default', className: 'bg-gray-100 text-gray-800 hover:bg-gray-100' },
+  owner: { label: 'Owner', variant: 'default', className: 'bg-info/[.14] text-info hover:bg-info/[.14]' },
+  admin: { label: 'Admin', variant: 'default', className: 'bg-info/[.14] text-info hover:bg-info/[.14]' },
+  member: { label: 'Member', variant: 'default', className: 'bg-success/[.14] text-success hover:bg-success/[.14]' },
+  viewer: { label: 'Viewer', variant: 'default', className: 'bg-secondary text-muted-foreground hover:bg-secondary' },
 };
 
 interface RoleBadgeProps {

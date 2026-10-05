@@ -78,7 +78,7 @@ export const ConditionalLogicEditor = ({
     !['is_empty', 'is_not_empty'].includes(operator);
 
   return (
-    <Card className="p-3 space-y-3 bg-gray-50">
+    <Card className="p-3 space-y-3 bg-secondary/50">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Checkbox

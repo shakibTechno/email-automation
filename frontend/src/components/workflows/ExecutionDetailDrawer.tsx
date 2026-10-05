@@ -20,45 +20,45 @@ import { format, formatDistanceToNow } from 'date-fns';
 
 // ── node-type → icon + colours ────────────────────────────────────────────────
 const NODE_UI: Record<string, { icon: React.ElementType; bg: string; fg: string }> = {
-  trigger_form_submission:     { icon: FileText,          bg: 'bg-blue-100',   fg: 'text-blue-600' },
-  trigger_tag_added:           { icon: Tag,               bg: 'bg-blue-100',   fg: 'text-blue-600' },
-  trigger_tag_removed:         { icon: Tag,               bg: 'bg-blue-100',   fg: 'text-blue-600' },
-  trigger_contact_created:     { icon: UserPlus,          bg: 'bg-blue-100',   fg: 'text-blue-600' },
-  trigger_email_opened:        { icon: MailOpen,          bg: 'bg-blue-100',   fg: 'text-blue-600' },
-  trigger_email_clicked:       { icon: MousePointerClick, bg: 'bg-blue-100',   fg: 'text-blue-600' },
-  trigger_date_field:          { icon: Calendar,          bg: 'bg-blue-100',   fg: 'text-blue-600' },
-  trigger_lead_score_threshold:{ icon: TrendingUp,        bg: 'bg-blue-100',   fg: 'text-blue-600' },
-  action_send_email:           { icon: Mail,              bg: 'bg-green-100',  fg: 'text-green-600' },
-  action_add_tag:              { icon: Tag,               bg: 'bg-green-100',  fg: 'text-green-600' },
-  action_remove_tag:           { icon: Tag,               bg: 'bg-green-100',  fg: 'text-green-600' },
-  action_update_contact:       { icon: UserCog,           bg: 'bg-green-100',  fg: 'text-green-600' },
-  action_wait:                 { icon: Clock,             bg: 'bg-green-100',  fg: 'text-green-600' },
-  action_webhook:              { icon: Webhook,           bg: 'bg-green-100',  fg: 'text-green-600' },
-  action_goal:                 { icon: Target,            bg: 'bg-purple-100', fg: 'text-purple-600' },
-  action_update_lead_score:    { icon: TrendingUp,        bg: 'bg-green-100',  fg: 'text-green-600' },
-  condition_if_else:           { icon: GitBranch,         bg: 'bg-amber-100',  fg: 'text-amber-600' },
+  trigger_form_submission:     { icon: FileText,          bg: 'bg-info/[.14]',   fg: 'text-brand' },
+  trigger_tag_added:           { icon: Tag,               bg: 'bg-info/[.14]',   fg: 'text-brand' },
+  trigger_tag_removed:         { icon: Tag,               bg: 'bg-info/[.14]',   fg: 'text-brand' },
+  trigger_contact_created:     { icon: UserPlus,          bg: 'bg-info/[.14]',   fg: 'text-brand' },
+  trigger_email_opened:        { icon: MailOpen,          bg: 'bg-info/[.14]',   fg: 'text-brand' },
+  trigger_email_clicked:       { icon: MousePointerClick, bg: 'bg-info/[.14]',   fg: 'text-brand' },
+  trigger_date_field:          { icon: Calendar,          bg: 'bg-info/[.14]',   fg: 'text-brand' },
+  trigger_lead_score_threshold:{ icon: TrendingUp,        bg: 'bg-info/[.14]',   fg: 'text-brand' },
+  action_send_email:           { icon: Mail,              bg: 'bg-success/[.14]',  fg: 'text-success' },
+  action_add_tag:              { icon: Tag,               bg: 'bg-success/[.14]',  fg: 'text-success' },
+  action_remove_tag:           { icon: Tag,               bg: 'bg-success/[.14]',  fg: 'text-success' },
+  action_update_contact:       { icon: UserCog,           bg: 'bg-success/[.14]',  fg: 'text-success' },
+  action_wait:                 { icon: Clock,             bg: 'bg-success/[.14]',  fg: 'text-success' },
+  action_webhook:              { icon: Webhook,           bg: 'bg-success/[.14]',  fg: 'text-success' },
+  action_goal:                 { icon: Target,            bg: 'bg-info/[.14]', fg: 'text-info' },
+  action_update_lead_score:    { icon: TrendingUp,        bg: 'bg-success/[.14]',  fg: 'text-success' },
+  condition_if_else:           { icon: GitBranch,         bg: 'bg-warning/[.14]',  fg: 'text-warning' },
 };
 
-const FALLBACK_NODE_UI = { icon: AlertCircle, bg: 'bg-slate-100', fg: 'text-slate-500' };
+const FALLBACK_NODE_UI = { icon: AlertCircle, bg: 'bg-secondary', fg: 'text-muted-foreground' };
 function nodeUi(type: string | null) {
   return (type ? NODE_UI[type] : undefined) ?? FALLBACK_NODE_UI;
 }
 
 // ── step status ───────────────────────────────────────────────────────────────
 const STEP_STATUS: Record<string, { label: string; className: string; dot: string }> = {
-  completed: { label: 'Done',    className: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
-  failed:    { label: 'Failed',  className: 'bg-red-100 text-red-700 border-red-200',             dot: 'bg-red-500' },
-  running:   { label: 'Running', className: 'bg-blue-100 text-blue-700 border-blue-200',           dot: 'bg-blue-500 animate-pulse' },
-  pending:   { label: 'Pending', className: 'bg-slate-100 text-slate-600 border-slate-200',        dot: 'bg-slate-300' },
-  skipped:   { label: 'Skipped', className: 'bg-amber-100 text-amber-700 border-amber-200',        dot: 'bg-amber-400' },
+  completed: { label: 'Done',    className: 'bg-success/[.14] text-success border-success/[.30]', dot: 'bg-success' },
+  failed:    { label: 'Failed',  className: 'bg-destructive/[.14] text-destructive border-destructive/[.30]',             dot: 'bg-destructive' },
+  running:   { label: 'Running', className: 'bg-info/[.14] text-info border-info/[.30]',           dot: 'bg-primary animate-pulse' },
+  pending:   { label: 'Pending', className: 'bg-secondary text-muted-foreground border-border',        dot: 'bg-muted-foreground' },
+  skipped:   { label: 'Skipped', className: 'bg-warning/[.14] text-warning border-warning/[.30]',        dot: 'bg-warning' },
 };
 
 const EXEC_STATUS: Record<string, { label: string; className: string }> = {
-  active:    { label: 'Active',     className: 'bg-blue-100 text-blue-700 border-blue-200' },
-  waiting:   { label: 'Waiting',    className: 'bg-amber-100 text-amber-700 border-amber-200' },
-  completed: { label: 'Completed',  className: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  failed:    { label: 'Failed',     className: 'bg-red-100 text-red-700 border-red-200' },
-  cancelled: { label: 'Cancelled',  className: 'bg-slate-100 text-slate-600 border-slate-200' },
+  active:    { label: 'Active',     className: 'bg-info/[.14] text-info border-info/[.30]' },
+  waiting:   { label: 'Waiting',    className: 'bg-warning/[.14] text-warning border-warning/[.30]' },
+  completed: { label: 'Completed',  className: 'bg-success/[.14] text-success border-success/[.30]' },
+  failed:    { label: 'Failed',     className: 'bg-destructive/[.14] text-destructive border-destructive/[.30]' },
+  cancelled: { label: 'Cancelled',  className: 'bg-secondary text-muted-foreground border-border' },
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -111,8 +111,8 @@ function StepRow({ step, isLast }: { step: WorkflowExecutionStep; isLast: boolea
               {step.branch_taken && (
                 <Badge variant="outline" className={`text-xs h-5 ${
                   step.branch_taken === 'true'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                    ? 'bg-success/[.10] text-success border-success/[.30]'
+                    : 'bg-secondary text-muted-foreground border-border'
                 }`}>
                   {step.branch_taken === 'true' ? '✓ True' : '✗ False'}
                 </Badge>
@@ -143,7 +143,7 @@ function StepRow({ step, isLast }: { step: WorkflowExecutionStep; isLast: boolea
           )}
         </div>
         {step.error_message && (
-          <div className="mt-1.5 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 font-mono">
+          <div className="mt-1.5 rounded-md bg-destructive/[.10] border border-destructive/[.30] px-3 py-2 text-xs text-destructive font-mono">
             {step.error_message}
           </div>
         )}
@@ -191,7 +191,7 @@ export function ExecutionDetailDrawer({ executionId, onClose }: Props) {
             ))}
           </div>
         ) : error ? (
-          <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-md bg-destructive/[.10] border border-destructive/[.30] px-4 py-3 text-sm text-destructive">
             Could not load execution details. Please try again.
           </div>
         ) : execution ? (
@@ -217,7 +217,7 @@ export function ExecutionDetailDrawer({ executionId, onClose }: Props) {
                     {execStatus.label}
                   </Badge>
                   {execution.goal_reached && (
-                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                    <Badge variant="outline" className="text-xs bg-info/[.10] text-info border-info/[.30]">
                       <Target className="h-3 w-3 mr-1" />
                       Goal
                     </Badge>
@@ -262,7 +262,7 @@ export function ExecutionDetailDrawer({ executionId, onClose }: Props) {
               </div>
 
               {execution.error_message && (
-                <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 font-mono">
+                <div className="rounded-md bg-destructive/[.10] border border-destructive/[.30] px-3 py-2 text-xs text-destructive font-mono">
                   {execution.error_message}
                 </div>
               )}

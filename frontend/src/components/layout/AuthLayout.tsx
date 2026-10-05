@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Send } from 'lucide-react';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -6,23 +6,29 @@ interface AuthLayoutProps {
   description?: string;
 }
 
+/**
+ * Signed-out shell. No sidebar, no topbar — just the brand mark over the same
+ * lime wash the app ground uses, so sign-in feels like the same product.
+ */
 export const AuthLayout = ({ children, title, description }: AuthLayoutProps) => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex justify-center mb-4">
-            <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-2xl text-primary-foreground font-bold">E</span>
-            </div>
-          </div>
-          <CardTitle className="text-2xl text-center">{title}</CardTitle>
+    <div className="app-ground grid min-h-screen place-items-center px-4 py-7">
+      <div className="w-full max-w-[400px]">
+        <div className="mb-5 flex items-center justify-center gap-2.5">
+          <span className="grid h-[30px] w-[30px] place-items-center rounded-lg bg-brand-fill text-brand-ink">
+            <Send className="h-3.5 w-3.5" />
+          </span>
+          <b className="text-[17px] font-extrabold tracking-tight">Cadence</b>
+        </div>
+
+        <div className="rounded-2xl border bg-card p-6 shadow-card">
+          <h2 className="mb-1.5 text-[21px] font-bold tracking-tight">{title}</h2>
           {description && (
-            <CardDescription className="text-center">{description}</CardDescription>
+            <p className="mb-5 text-[13px] text-muted-foreground">{description}</p>
           )}
-        </CardHeader>
-        <CardContent>{children}</CardContent>
-      </Card>
+          {children}
+        </div>
+      </div>
     </div>
   );
 };

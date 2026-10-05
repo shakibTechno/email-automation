@@ -72,7 +72,7 @@ export default function NodeConfigPanel({
       );
     }
 
-    return <p className="text-gray-500">No configuration available</p>;
+    return <p className="text-muted-foreground">No configuration available</p>;
   };
 
   return (
@@ -81,7 +81,7 @@ export default function NodeConfigPanel({
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <div>
           <h3 className="font-semibold">{nodeInfo?.label || 'Configure Node'}</h3>
-          <p className="text-xs text-gray-500">{nodeInfo?.description}</p>
+          <p className="text-xs text-muted-foreground">{nodeInfo?.description}</p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />

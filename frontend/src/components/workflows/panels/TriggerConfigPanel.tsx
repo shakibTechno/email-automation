@@ -93,7 +93,7 @@ export default function TriggerConfigPanel({
             ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Workflow triggers when this form is submitted
         </p>
       </div>
@@ -126,7 +126,7 @@ export default function TriggerConfigPanel({
             ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           {nodeType === 'trigger_tag_added'
             ? 'Workflow triggers when this tag is added to a contact'
             : 'Workflow triggers when this tag is removed from a contact'}
@@ -146,7 +146,7 @@ export default function TriggerConfigPanel({
           }
           placeholder="e.g., birthday, anniversary"
         />
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           The contact field containing the date
         </p>
       </div>
@@ -160,7 +160,7 @@ export default function TriggerConfigPanel({
             onChange({ ...config, offset_days: parseInt(e.target.value) || 0 })
           }
         />
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Days before (negative) or after (positive) the date
         </p>
       </div>
@@ -172,7 +172,7 @@ export default function TriggerConfigPanel({
           value={(config.time as string) || '09:00'}
           onChange={(e) => onChange({ ...config, time: e.target.value })}
         />
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Time of day to trigger the workflow
         </p>
       </div>
@@ -180,7 +180,7 @@ export default function TriggerConfigPanel({
   );
 
   const renderNoConfig = () => (
-    <p className="text-sm text-gray-500">
+    <p className="text-sm text-muted-foreground">
       This trigger has no additional configuration. It will fire automatically
       when the event occurs.
     </p>
@@ -255,7 +255,7 @@ export default function TriggerConfigPanel({
           </div>
         </>
       )}
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         Fires when a deal moves between stages. Leave stage filters empty to match any transition.
       </p>
     </div>
@@ -283,7 +283,7 @@ export default function TriggerConfigPanel({
           </SelectContent>
         </Select>
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         Fires when a deal is created. The deal's primary contact must be set for the workflow to run.
       </p>
     </div>
@@ -321,7 +321,7 @@ export default function TriggerConfigPanel({
           onChange={(e) => onLabelChange(e.target.value)}
           placeholder="Enter a custom label"
         />
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Optional: Give this node a descriptive name
         </p>
       </div>

@@ -152,7 +152,7 @@ export const CompanyFormDialog = ({
             <Label htmlFor="name">Company Name *</Label>
             <Input id="name" {...register('name')} placeholder="Acme Corp" />
             {errors.name && (
-              <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>
+              <p className="text-xs text-destructive mt-1">{errors.name.message}</p>
             )}
           </div>
 
@@ -161,7 +161,7 @@ export const CompanyFormDialog = ({
               <Label htmlFor="website">Website</Label>
               <Input id="website" {...register('website')} placeholder="https://example.com" />
               {errors.website && (
-                <p className="text-xs text-red-500 mt-1">{errors.website.message}</p>
+                <p className="text-xs text-destructive mt-1">{errors.website.message}</p>
               )}
             </div>
             <div>

@@ -29,7 +29,7 @@ export const PublicFormPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-secondary/50">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
@@ -37,7 +37,7 @@ export const PublicFormPage = () => {
 
   if (error || !form) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-secondary/50">
         <Card className="p-8 text-center max-w-md">
           <h2 className="text-xl font-semibold mb-2">Form Not Available</h2>
           <p className="text-muted-foreground">

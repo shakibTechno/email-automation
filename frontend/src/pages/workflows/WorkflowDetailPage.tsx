@@ -54,11 +54,11 @@ const STATUS_FILTERS: { value: ExecutionStatus | 'all'; label: string }[] = [
 ];
 
 const EXEC_STATUS_STYLES: Record<ExecutionStatus, string> = {
-  active:    'bg-blue-100 text-blue-700 border-blue-200',
-  waiting:   'bg-amber-100 text-amber-700 border-amber-200',
-  completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  failed:    'bg-red-100 text-red-700 border-red-200',
-  cancelled: 'bg-slate-100 text-slate-600 border-slate-200',
+  active:    'bg-info/[.14] text-info border-info/[.30]',
+  waiting:   'bg-warning/[.14] text-warning border-warning/[.30]',
+  completed: 'bg-success/[.14] text-success border-success/[.30]',
+  failed:    'bg-destructive/[.14] text-destructive border-destructive/[.30]',
+  cancelled: 'bg-secondary text-muted-foreground border-border',
 };
 
 const PAGE_SIZE = 15;
@@ -102,7 +102,7 @@ export default function WorkflowDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info" />
       </div>
     );
   }
@@ -110,7 +110,7 @@ export default function WorkflowDetailPage() {
   if (!workflow) {
     return (
       <div className="container mx-auto py-6">
-        <p className="text-center text-gray-500">Workflow not found</p>
+        <p className="text-center text-muted-foreground">Workflow not found</p>
       </div>
     );
   }
@@ -130,7 +130,7 @@ export default function WorkflowDetailPage() {
               <StatusBadge status={workflow.status} />
             </div>
             {workflow.description && (
-              <p className="text-gray-500 text-sm mt-0.5">{workflow.description}</p>
+              <p className="text-muted-foreground text-sm mt-0.5">{workflow.description}</p>
             )}
           </div>
         </div>
@@ -182,18 +182,18 @@ export default function WorkflowDetailPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Contacts Entered', value: analytics?.total_entered ?? 0, icon: Users,       color: 'text-gray-400' },
-          { label: 'Active / Waiting', value: `${analytics?.active ?? 0} / ${analytics?.waiting ?? 0}`, icon: Clock, color: 'text-gray-400' },
-          { label: 'Completed',        value: analytics?.completed ?? 0,     icon: CheckCircle,  color: 'text-gray-400' },
-          { label: 'Goal Reached',     value: analytics?.goal_reached ?? 0,  icon: Target,       color: 'text-green-500' },
+          { label: 'Contacts Entered', value: analytics?.total_entered ?? 0, icon: Users,       color: 'text-subtle-foreground' },
+          { label: 'Active / Waiting', value: `${analytics?.active ?? 0} / ${analytics?.waiting ?? 0}`, icon: Clock, color: 'text-subtle-foreground' },
+          { label: 'Completed',        value: analytics?.completed ?? 0,     icon: CheckCircle,  color: 'text-subtle-foreground' },
+          { label: 'Goal Reached',     value: analytics?.goal_reached ?? 0,  icon: Target,       color: 'text-success' },
         ].map((card) => (
           <Card key={card.label}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">{card.label}</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{card.label}</CardTitle>
               <card.icon className={`h-4 w-4 ${card.color}`} />
             </CardHeader>
             <CardContent>
-              <p className={`text-2xl font-bold ${card.label === 'Goal Reached' ? 'text-green-600' : ''}`}>
+              <p className={`text-2xl font-bold ${card.label === 'Goal Reached' ? 'text-success' : ''}`}>
                 {card.value}
               </p>
             </CardContent>
@@ -229,11 +229,11 @@ export default function WorkflowDetailPage() {
         {executions.length === 0 ? (
           <Card>
             <CardContent className="text-center py-8">
-              <p className="text-gray-500">
+              <p className="text-muted-foreground">
                 {statusFilter === 'all' ? 'No executions yet' : `No ${statusFilter} executions`}
               </p>
               {statusFilter === 'all' && (
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-subtle-foreground mt-1">
                   {workflow.status === 'active'
                     ? 'Executions will appear here when contacts trigger this workflow'
                     : 'Activate the workflow to start processing contacts'}
@@ -285,7 +285,7 @@ export default function WorkflowDetailPage() {
                       </TableCell>
                       <TableCell>
                         {execution.goal_reached ? (
-                          <span className="inline-flex items-center text-emerald-600 text-xs font-medium">
+                          <span className="inline-flex items-center text-success text-xs font-medium">
                             <Target className="h-3.5 w-3.5 mr-1" />
                             Reached
                           </span>
@@ -338,7 +338,7 @@ export default function WorkflowDetailPage() {
       </div>
 
       {/* ── meta ── */}
-      <div className="grid grid-cols-2 gap-4 text-sm text-gray-500">
+      <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
         <div>
           Created by {workflow.created_by_name || 'Unknown'} on{' '}
           {format(new Date(workflow.created_at), 'MMM d, yyyy')}
@@ -366,7 +366,7 @@ export default function WorkflowDetailPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

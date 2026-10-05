@@ -92,7 +92,7 @@ export const ActivityFormDialog = ({
                     'flex flex-col items-center gap-1 px-3 py-2 rounded-md border text-xs transition-colors',
                     activityType === type
                       ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-gray-200 text-muted-foreground hover:border-gray-300'
+                      : 'border-border text-muted-foreground hover:border-border'
                   )}
                 >
                   <Icon className="h-4 w-4" />

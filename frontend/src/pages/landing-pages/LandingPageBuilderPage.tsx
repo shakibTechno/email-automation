@@ -163,13 +163,13 @@ export const LandingPageBuilderPage = () => {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="w-px h-4 bg-gray-200 shrink-0" />
+          <div className="w-px h-4 bg-secondary shrink-0" />
           <span className="font-medium text-sm truncate max-w-[200px]">
             {landingPage.name}
           </span>
           <LandingPageStatusBadge status={landingPage.status} />
           {isSaving && (
-            <span className="hidden sm:flex items-center gap-1 text-xs text-gray-400 ml-1">
+            <span className="hidden sm:flex items-center gap-1 text-xs text-subtle-foreground ml-1">
               <Loader2 className="h-3 w-3 animate-spin" />
               Saving
             </span>
@@ -177,7 +177,7 @@ export const LandingPageBuilderPage = () => {
         </div>
 
         {/* Center zone: device toggle pill */}
-        <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
+        <div className="flex items-center bg-secondary rounded-lg p-0.5 gap-0.5 shrink-0">
           {deviceOptions.map(({ device, icon: Icon }) => (
             <button
               key={device}
@@ -185,8 +185,8 @@ export const LandingPageBuilderPage = () => {
               onClick={() => handleDeviceChange(device)}
               className={`h-7 w-8 flex items-center justify-center rounded-md transition-colors ${
                 activeDevice === device
-                  ? 'bg-white shadow-sm text-gray-800'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-white shadow-sm text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -230,7 +230,7 @@ export const LandingPageBuilderPage = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="w-px h-5 bg-gray-200 mx-1 shrink-0" />
+          <div className="w-px h-5 bg-secondary mx-1 shrink-0" />
 
           {landingPage.status === 'draft' ? (
             <Button
@@ -277,7 +277,7 @@ export const LandingPageBuilderPage = () => {
         <Suspense
           fallback={
             <div className="flex items-center justify-center h-full">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-300" />
+              <Loader2 className="h-8 w-8 animate-spin text-subtle-foreground" />
             </div>
           }
         >

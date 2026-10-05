@@ -141,8 +141,8 @@ export const PipelineKanbanPage = () => {
         <div className="grid grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Target className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-info/[.10] rounded-lg">
+                <Target className="h-5 w-5 text-brand" />
               </div>
               <div>
                 <div className="text-2xl font-bold">{analytics.summary.open_deals_count}</div>
@@ -152,8 +152,8 @@ export const PipelineKanbanPage = () => {
           </Card>
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <DollarSign className="h-5 w-5 text-green-600" />
+              <div className="p-2 bg-success/[.10] rounded-lg">
+                <DollarSign className="h-5 w-5 text-success" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -165,8 +165,8 @@ export const PipelineKanbanPage = () => {
           </Card>
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-purple-50 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-purple-600" />
+              <div className="p-2 bg-info/[.10] rounded-lg">
+                <TrendingUp className="h-5 w-5 text-info" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -178,8 +178,8 @@ export const PipelineKanbanPage = () => {
           </Card>
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-orange-50 rounded-lg">
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
+              <div className="p-2 bg-warning/[.10] rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-warning" />
               </div>
               <div>
                 <div className="text-2xl font-bold">{forecast?.rotting_deals_count ?? 0}</div>
@@ -275,14 +275,14 @@ export const PipelineKanbanPage = () => {
                     {listDeals.map(deal => (
                       <tr
                         key={deal.id}
-                        className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
+                        className="border-b hover:bg-secondary/50 cursor-pointer transition-colors"
                         onClick={() => navigate(`/crm/deals/${deal.id}`)}
                       >
                         <td className="p-3">
                           <div className="flex items-center gap-1.5">
                             <span className="font-medium text-sm">{deal.title}</span>
                             {deal.is_rotting && (
-                              <AlertTriangle className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+                              <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
                             )}
                           </div>
                         </td>
@@ -342,7 +342,7 @@ export const PipelineKanbanPage = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="text-xs text-muted-foreground mb-1">Best Case</div>
-                    <div className="text-2xl font-bold text-green-600">
+                    <div className="text-2xl font-bold text-success">
                       {formatCurrency(forecast.total_best_case)}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
@@ -354,7 +354,7 @@ export const PipelineKanbanPage = () => {
                   <CardContent className="p-4">
                     <div className="text-xs text-muted-foreground mb-1">Open Deals</div>
                     <div className="text-2xl font-bold">{forecast.open_deals_count}</div>
-                    <div className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                    <div className="text-xs text-warning mt-1 flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />
                       {forecast.rotting_deals_count} rotting
                     </div>
@@ -411,13 +411,13 @@ export const PipelineKanbanPage = () => {
                     </thead>
                     <tbody>
                       {forecast.buckets.map((b) => (
-                        <tr key={b.month ?? 'no-date'} className="border-b last:border-0 hover:bg-gray-50">
+                        <tr key={b.month ?? 'no-date'} className="border-b last:border-0 hover:bg-secondary/50">
                           <td className="p-3 font-medium">{b.label}</td>
                           <td className="p-3 text-right text-muted-foreground">{b.deal_count}</td>
                           <td className="p-3 text-right font-medium text-primary">
                             {formatCurrency(b.weighted)}
                           </td>
-                          <td className="p-3 text-right text-green-600">
+                          <td className="p-3 text-right text-success">
                             {formatCurrency(b.best_case)}
                           </td>
                         </tr>

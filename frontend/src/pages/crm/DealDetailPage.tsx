@@ -132,7 +132,7 @@ export const DealDetailPage = () => {
               <DealStatusBadge status={deal.status} />
               <PriorityBadge priority={deal.priority} />
               {deal.is_rotting && (
-                <span className="flex items-center gap-1 text-xs font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-full border border-orange-200">
+                <span className="flex items-center gap-1 text-xs font-medium text-warning bg-warning/[.10] px-2 py-1 rounded-full border border-warning/[.30]">
                   <AlertTriangle className="h-3 w-3" />
                   Rotting
                 </span>
@@ -168,7 +168,7 @@ export const DealDetailPage = () => {
             Edit
           </Button>
           <Button variant="ghost" size="sm" onClick={handleDelete}>
-            <Trash2 className="h-4 w-4 text-red-500" />
+            <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
       </div>
@@ -217,7 +217,7 @@ export const DealDetailPage = () => {
                   {deal.contacts.map(dc => (
                     <div
                       key={dc.id}
-                      className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50"
+                      className="flex items-center justify-between p-2 rounded-md hover:bg-secondary/50"
                     >
                       <div>
                         <div className="text-sm font-medium">{dc.contact_name}</div>
@@ -229,7 +229,7 @@ export const DealDetailPage = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => removeContact(dealId, dc.contact)}
-                        className="text-red-500 hover:text-red-600"
+                        className="text-destructive hover:text-destructive"
                       >
                         &times;
                       </Button>
@@ -370,7 +370,7 @@ export const DealDetailPage = () => {
           {deal.status === 'won' && deal.win_reason && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm text-green-600">Win Reason</CardTitle>
+                <CardTitle className="text-sm text-success">Win Reason</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm">{deal.win_reason}</p>
@@ -381,7 +381,7 @@ export const DealDetailPage = () => {
           {deal.status === 'lost' && deal.loss_reason && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm text-red-600">Loss Reason</CardTitle>
+                <CardTitle className="text-sm text-destructive">Loss Reason</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm">{deal.loss_reason}</p>

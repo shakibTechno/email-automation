@@ -103,8 +103,8 @@ export const TemplateListPage = () => {
         </div>
       ) : templates.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-center">
-          <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-            <Plus className="h-8 w-8 text-gray-400" />
+          <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center mb-4">
+            <Plus className="h-8 w-8 text-subtle-foreground" />
           </div>
           <h3 className="text-lg font-medium">No templates yet</h3>
           <p className="text-muted-foreground mt-1 mb-4">

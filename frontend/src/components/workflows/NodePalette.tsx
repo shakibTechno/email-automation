@@ -58,9 +58,9 @@ function NodePaletteItem({
   };
 
   const categoryStyles = {
-    trigger: 'border-blue-200 hover:border-blue-400 hover:bg-blue-50',
-    action: 'border-green-200 hover:border-green-400 hover:bg-green-50',
-    condition: 'border-amber-200 hover:border-amber-400 hover:bg-amber-50',
+    trigger: 'border-info/[.30] hover:border-info/[.50] hover:bg-info/[.10]',
+    action: 'border-success/[.30] hover:border-success/[.50] hover:bg-success/[.10]',
+    condition: 'border-warning/[.30] hover:border-warning/[.50] hover:bg-warning/[.10]',
   };
 
   return (
@@ -80,8 +80,8 @@ function NodePaletteItem({
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{label}</p>
-        <p className="text-xs text-gray-500 truncate">{description}</p>
+        <p className="text-sm font-medium text-foreground truncate">{label}</p>
+        <p className="text-xs text-muted-foreground truncate">{description}</p>
       </div>
     </div>
   );
@@ -98,7 +98,7 @@ export default function NodePalette() {
   return (
     <div className="p-4 space-y-6">
       <div>
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           Triggers
         </h3>
         <div className="space-y-2">
@@ -117,7 +117,7 @@ export default function NodePalette() {
       </div>
 
       <div>
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           Actions
         </h3>
         <div className="space-y-2">
@@ -136,7 +136,7 @@ export default function NodePalette() {
       </div>
 
       <div>
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           Logic
         </h3>
         <div className="space-y-2">
@@ -155,7 +155,7 @@ export default function NodePalette() {
       </div>
 
       <div>
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           Goals
         </h3>
         <div className="space-y-2">
@@ -174,7 +174,7 @@ export default function NodePalette() {
       </div>
 
       <div className="pt-4 border-t">
-        <p className="text-xs text-gray-400 text-center">
+        <p className="text-xs text-subtle-foreground text-center">
           Drag nodes to the canvas to build your workflow
         </p>
       </div>

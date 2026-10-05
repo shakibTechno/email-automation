@@ -53,7 +53,7 @@ export function ManualAdjustDialog({ contactId, currentScore, open, onClose }: P
             </div>
             <div>
               <div className="text-muted-foreground">Projected</div>
-              <div className={`text-2xl font-bold ${projected !== currentScore ? (projected > currentScore ? 'text-green-600' : 'text-red-600') : ''}`}>
+              <div className={`text-2xl font-bold ${projected !== currentScore ? (projected > currentScore ? 'text-success' : 'text-destructive') : ''}`}>
                 {projected}
               </div>
             </div>
