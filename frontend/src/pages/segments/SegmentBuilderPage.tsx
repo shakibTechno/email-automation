@@ -140,14 +140,14 @@ export default function SegmentBuilderPage() {
 
   if (segmentLoading && isEditing) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="w-full">
         <div className="text-center py-12">Loading segment...</div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="w-full space-y-4">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/segments')}>

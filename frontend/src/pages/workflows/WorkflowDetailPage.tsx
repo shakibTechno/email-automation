@@ -109,14 +109,14 @@ export default function WorkflowDetailPage() {
 
   if (!workflow) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="w-full">
         <p className="text-center text-muted-foreground">Workflow not found</p>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="w-full space-y-4">
 
       {/* ── header ── */}
       <div className="flex items-center justify-between">

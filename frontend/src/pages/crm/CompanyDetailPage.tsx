@@ -142,7 +142,7 @@ export const CompanyDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="w-full space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-32 w-full" />
       </div>
@@ -165,7 +165,7 @@ export const CompanyDetailPage = () => {
   const openValue = openDeals.reduce((sum, d) => sum + Number(d.value), 0);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="w-full space-y-6">
       {/* Back nav */}
       <Button
         variant="ghost"

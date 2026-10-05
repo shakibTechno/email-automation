@@ -59,7 +59,7 @@ export default function SequenceDetailPage() {
   const seqStatus = sequence.status;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="w-full space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">

@@ -10,7 +10,7 @@ import { Header } from './Header';
 export const AppLayout = () => {
   return (
     <div className="app-ground min-h-screen p-3.5">
-      <div className="mx-auto flex max-w-[1480px] flex-col items-stretch gap-3.5 lg:flex-row lg:items-start">
+      <div className="flex w-full flex-col items-stretch gap-3.5 lg:flex-row lg:items-start">
         <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col gap-3.5">

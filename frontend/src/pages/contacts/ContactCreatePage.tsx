@@ -16,7 +16,7 @@ export const ContactCreatePage = () => {
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="w-full space-y-4">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
