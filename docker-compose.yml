@@ -1,0 +1,131 @@
+# ---------------------------------------------------------------------------
+# Full stack: redis, Django backend, Celery worker, Celery beat, React frontend.
+#
+#   docker compose up --build          -> dev mode  (override file applies:
+#                                         hot reload for both backend + frontend)
+#   docker compose -f docker-compose.yml up --build
+#                                      -> prod-like (gunicorn + nginx, no mounts)
+#
+# Database is SQLite on the `sqlite_data` named volume, shared by the backend,
+# worker and beat containers.
+# ---------------------------------------------------------------------------
+
+x-backend-base: &backend-base
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: email-automation-backend:latest
+  env_file:
+    - .env
+    - .env.docker
+  volumes:
+    - sqlite_data:/app/data
+    - media_data:/app/media
+    - static_data:/app/staticfiles
+    - logs_data:/app/logs
+  depends_on:
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  # --- Redis: cache (db 0) + Celery broker/result backend (db 1) ------------
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    # Deliberately not published: only backend/worker/beat need it, and binding
+    # 6379 clashes with a redis-server already running on the host.
+    # Inspect it with:  docker compose exec redis redis-cli
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # --- Django API ----------------------------------------------------------
+  backend:
+    <<: *backend-base
+    environment:
+      # Only this container owns the schema; worker and beat wait for it.
+      RUN_MIGRATIONS: "1"
+    volumes:
+      - sqlite_data:/app/data
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+      - logs_data:/app/logs
+      # First boot only: carries the existing local db.sqlite3 into the volume.
+      - ./db.sqlite3:/app/seed/db.sqlite3:ro
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  # --- Celery worker -------------------------------------------------------
+  worker:
+    <<: *backend-base
+    command: ["celery", "-A", "config", "worker", "--loglevel=info", "--concurrency=4"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # --- Celery beat (scheduler) --------------------------------------------
+  beat:
+    <<: *backend-base
+    command:
+      - celery
+      - -A
+      - config
+      - beat
+      - --loglevel=info
+      - --schedule=/app/data/celerybeat-schedule
+      - --pidfile=
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  # --- React frontend behind nginx ----------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        VITE_API_URL: /api/v1
+    image: email-automation-frontend:latest
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  sqlite_data:
+  media_data:
+  static_data:
+  logs_data:
+  redis_data:

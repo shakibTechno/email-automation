@@ -1,0 +1,53 @@
+# Core Django packages
+Django>=5.0,<5.1
+djangorestframework>=3.14,<3.15
+django-environ>=0.11.2
+django-cors-headers>=4.3.1
+django-filter>=23.5
+drf-spectacular>=0.27.0
+
+# Database & ORM
+psycopg2-binary>=2.9.9
+
+# Caching & Performance
+django-redis>=5.4.0
+redis>=5.0.1
+
+# Task Queue (Celery worker + beat)
+celery>=5.3.6,<6.0
+
+# Authentication & Security
+djangorestframework-simplejwt>=5.3.1
+django-axes>=6.1.1
+
+# Email & Communication
+django-anymail>=10.2
+
+# Payments
+stripe>=7.0.0
+
+# Image handling (required by ImageField in landing_pages / templates)
+Pillow>=10.2.0
+
+# Utilities
+python-decouple>=3.8
+pytz>=2023.3
+requests>=2.31.0
+
+# Development & Testing
+pytest>=7.4.3
+pytest-django>=4.7.0
+pytest-cov>=4.1.0
+factory-boy>=3.3.0
+faker>=20.1.0
+django-debug-toolbar>=4.2.0
+django-extensions>=3.2.3
+ipython>=8.18.1
+
+# Code Quality
+black>=23.12.1
+flake8>=6.1.0
+isort>=5.13.2
+
+# Server
+gunicorn>=21.2.0

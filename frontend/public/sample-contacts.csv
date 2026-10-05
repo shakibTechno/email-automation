@@ -1,0 +1,6 @@
+email,first_name,last_name,company,phone,job_title
+john.doe@example.com,John,Doe,Acme Inc,+1-555-0101,Marketing Manager
+jane.smith@example.com,Jane,Smith,Tech Corp,+1-555-0102,Sales Director
+bob.johnson@example.com,Bob,Johnson,StartupXYZ,+1-555-0103,CEO
+alice.williams@example.com,Alice,Williams,BigCompany,+1-555-0104,Product Manager
+charlie.brown@example.com,Charlie,Brown,SmallBiz,+1-555-0105,Developer

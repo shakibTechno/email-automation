@@ -1,0 +1,271 @@
+"""
+Models for the Landing Pages app.
+"""
+import uuid
+from django.db import models
+from django.conf import settings
+from django.utils.text import slugify
+
+from apps.core.models import TimeStampedModel, SoftDeleteModel
+
+
+class LandingPageManager(models.Manager):
+    """Manager for LandingPage that excludes soft-deleted items by default."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
+    def with_deleted(self):
+        """Include soft-deleted items in queryset."""
+        return super().get_queryset()
+
+
+class LandingPage(TimeStampedModel, SoftDeleteModel):
+    """
+    Landing page model for building and publishing marketing pages.
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        'accounts.Organization',
+        on_delete=models.CASCADE,
+        related_name='landing_pages'
+    )
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=100, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='draft'
+    )
+
+    # Content
+    html_content = models.TextField(blank=True, default='')
+    design_json = models.JSONField(default=dict, blank=True)
+    css_content = models.TextField(blank=True, default='')
+
+    # SEO
+    seo_title = models.CharField(max_length=70, blank=True, default='')
+    seo_description = models.CharField(max_length=160, blank=True, default='')
+    seo_keywords = models.CharField(max_length=255, blank=True, default='')
+    og_image = models.ImageField(
+        upload_to='landing_pages/og_images/',
+        blank=True,
+        null=True
+    )
+
+    # Settings
+    favicon = models.ImageField(
+        upload_to='landing_pages/favicons/',
+        blank=True,
+        null=True
+    )
+    google_analytics_id = models.CharField(max_length=20, blank=True, default='')
+    facebook_pixel_id = models.CharField(max_length=20, blank=True, default='')
+    custom_head_code = models.TextField(blank=True, default='')
+    custom_body_code = models.TextField(blank=True, default='')
+
+    # Form Integration
+    form = models.ForeignKey(
+        'forms.Form',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='landing_pages'
+    )
+
+    # Analytics (cached)
+    view_count = models.PositiveIntegerField(default=0)
+    conversion_count = models.PositiveIntegerField(default=0)
+
+    # Metadata
+    published_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_landing_pages'
+    )
+
+    objects = LandingPageManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        db_table = 'landing_pages'
+        ordering = ['-created_at']
+        unique_together = ['organization', 'slug']
+        indexes = [
+            models.Index(fields=['organization', 'status']),
+            models.Index(fields=['organization', 'slug']),
+            models.Index(fields=['organization', 'created_at']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = self._generate_unique_slug()
+        super().save(*args, **kwargs)
+
+    def _generate_unique_slug(self):
+        """Generate a unique slug for this landing page."""
+        base_slug = slugify(self.name)[:90]
+        slug = base_slug
+        counter = 1
+        while LandingPage.all_objects.filter(
+            organization=self.organization,
+            slug=slug
+        ).exclude(pk=self.pk).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        return slug
+
+    @property
+    def public_url(self):
+        """Return the public URL for this landing page."""
+        # Landing pages are served by Django, so use BACKEND_URL (not FRONTEND_URL)
+        backend_url = getattr(settings, 'BACKEND_URL', 'http://localhost:8000').rstrip('/')
+        return f"{backend_url}/p/{self.slug}"
+
+    @property
+    def conversion_rate(self):
+        """Calculate conversion rate as percentage."""
+        if self.view_count == 0:
+            return 0
+        return round((self.conversion_count / self.view_count) * 100, 2)
+
+
+class LandingPageTemplate(TimeStampedModel):
+    """
+    Pre-built landing page templates that users can start from.
+    """
+    CATEGORY_CHOICES = [
+        ('lead_generation', 'Lead Generation'),
+        ('webinar', 'Webinar Registration'),
+        ('ebook', 'E-book Download'),
+        ('product_launch', 'Product Launch'),
+        ('event', 'Event Registration'),
+        ('coming_soon', 'Coming Soon'),
+        ('thank_you', 'Thank You'),
+        ('blank', 'Blank'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        'accounts.Organization',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='landing_page_templates'
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default='')
+    category = models.CharField(
+        max_length=50,
+        choices=CATEGORY_CHOICES,
+        default='blank'
+    )
+    thumbnail = models.ImageField(
+        upload_to='landing_pages/templates/thumbnails/',
+        blank=True,
+        null=True
+    )
+
+    # Content
+    html_content = models.TextField(default='')
+    design_json = models.JSONField(default=dict)
+    css_content = models.TextField(blank=True, default='')
+
+    # Flags
+    is_system = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    usage_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'landing_page_templates'
+        ordering = ['-usage_count', '-created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_category_display()})"
+
+
+class LandingPageAsset(TimeStampedModel):
+    """
+    Assets (images, videos) uploaded for use in landing pages.
+    """
+    FILE_TYPE_CHOICES = [
+        ('image', 'Image'),
+        ('video', 'Video'),
+        ('document', 'Document'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        'accounts.Organization',
+        on_delete=models.CASCADE,
+        related_name='landing_page_assets'
+    )
+    landing_page = models.ForeignKey(
+        LandingPage,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='assets'
+    )
+    file = models.FileField(upload_to='landing_pages/assets/')
+    file_type = models.CharField(
+        max_length=20,
+        choices=FILE_TYPE_CHOICES,
+        default='image'
+    )
+    file_name = models.CharField(max_length=255)
+    file_size = models.PositiveIntegerField(default=0)
+    mime_type = models.CharField(max_length=100, default='')
+
+    class Meta:
+        db_table = 'landing_page_assets'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.file_name
+
+    @property
+    def url(self):
+        """Return the full URL of the asset."""
+        if self.file:
+            return self.file.url
+        return ''
+
+
+class PageView(TimeStampedModel):
+    """
+    Track page views for landing page analytics.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    landing_page = models.ForeignKey(
+        LandingPage,
+        on_delete=models.CASCADE,
+        related_name='page_views'
+    )
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.TextField(blank=True, default='')
+    referrer = models.URLField(blank=True, default='', max_length=2000)
+    session_id = models.CharField(max_length=64, blank=True, default='')
+    is_unique = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'page_views'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['landing_page', 'created_at']),
+            models.Index(fields=['landing_page', 'session_id']),
+        ]
+
+    def __str__(self):
+        return f"View on {self.landing_page.name} at {self.created_at}"

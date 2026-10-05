@@ -1,0 +1,69 @@
+# ---------------------------------------------------------------------------
+# Development overlay: live code reload for backend and frontend.
+# Not applied automatically -- opt in explicitly:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# Source is bind-mounted, so edits on the host take effect without a rebuild.
+# The frontend runs the Vite dev server on :5173 and talks straight to the
+# published backend port (dev settings set CORS_ALLOW_ALL_ORIGINS).
+# ---------------------------------------------------------------------------
+
+services:
+  backend:
+    command:
+      - python
+      - manage.py
+      - runserver
+      - 0.0.0.0:8000
+    # bash + explicit path: bind-mounted files may not keep the exec bit on Windows.
+    entrypoint: ["bash", "/app/docker/entrypoint.sh"]
+    volumes:
+      - .:/app
+      - sqlite_data:/app/data
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+      - logs_data:/app/logs
+      - ./db.sqlite3:/app/seed/db.sqlite3:ro
+
+  worker:
+    # --pool=solo keeps tracebacks readable and avoids prefork restarts on edit.
+    command: ["celery", "-A", "config", "worker", "--loglevel=info", "--pool=solo"]
+    entrypoint: ["bash", "/app/docker/entrypoint.sh"]
+    volumes:
+      - .:/app
+      - sqlite_data:/app/data
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+      - logs_data:/app/logs
+
+  beat:
+    entrypoint: ["bash", "/app/docker/entrypoint.sh"]
+    volumes:
+      - .:/app
+      - sqlite_data:/app/data
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+      - logs_data:/app/logs
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    image: email-automation-frontend:dev
+    environment:
+      VITE_API_URL: http://localhost:8000/api/v1
+      VITE_APP_NAME: Email Marketing Platform
+    # !override replaces the base 3000:80 mapping instead of appending to it.
+    ports: !override
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      # Keep the image's node_modules; never shadow it with the host folder.
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5173/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
