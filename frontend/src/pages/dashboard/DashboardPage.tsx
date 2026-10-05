@@ -1,446 +1,408 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDashboard } from '@/hooks/useDashboard';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { format, parseISO } from 'date-fns';
 import {
   Users,
   Mail,
   FileText,
   Layout,
-  TrendingUp,
-  Eye,
-  MousePointer,
-  Send,
   Plus,
   ArrowRight,
   RefreshCw,
   Clock,
+  Sparkles,
+  Info,
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
 
-// Stat Card Component
-const StatCard = ({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  trend,
-  color = 'blue',
-}: {
-  title: string;
-  value: string | number;
-  subtitle?: string;
-  icon: React.ElementType;
-  trend?: { value: number; label: string };
-  color?: 'blue' | 'green' | 'purple' | 'orange' | 'pink';
-}) => {
-  const colorClasses = {
-    blue: 'bg-info/[.14] text-info',
-    green: 'bg-success/[.14] text-success',
-    purple: 'bg-info/[.14] text-info',
-    orange: 'bg-warning/[.14] text-warning',
-    pink: 'bg-info/[.14] text-info',
-  };
+import { useDashboard } from '@/hooks/useDashboard';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { StatTile } from '@/components/dashboard/StatTile';
+import {
+  AreaSparkline,
+  BarGroup,
+  DottedSparkline,
+  HeroAreaChart,
+  TickBars,
+} from '@/components/dashboard/charts';
+import { cn } from '@/lib/utils';
 
-  return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold mt-2">{value}</p>
-            {subtitle && (
-              <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
-            )}
-            {trend && (
-              <p className={`text-sm mt-2 flex items-center gap-1 ${trend.value >= 0 ? 'text-success' : 'text-destructive'}`}>
-                <TrendingUp className={`h-4 w-4 ${trend.value < 0 ? 'rotate-180' : ''}`} />
-                {trend.value >= 0 ? '+' : ''}{trend.value}% {trend.label}
-              </p>
-            )}
-          </div>
-          <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-            <Icon className="h-6 w-6" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+const RANGES = [7, 30, 90] as const;
+
+/**
+ * Period-over-period change, comparing the back half of a series with the
+ * front half. Returns undefined when there is not enough data to be honest
+ * about a trend — a tile shows no delta rather than a fabricated one.
+ */
+const halfOverHalf = (values: number[]): number | undefined => {
+  if (values.length < 4) return undefined;
+  const mid = Math.floor(values.length / 2);
+  const prev = values.slice(0, mid).reduce((a, b) => a + b, 0);
+  const curr = values.slice(mid).reduce((a, b) => a + b, 0);
+  if (prev === 0) return curr > 0 ? 100 : undefined;
+  return ((curr - prev) / prev) * 100;
 };
 
-// Simple Area Chart using CSS
-const MiniChart = ({ data, height = 60 }: { data: number[]; height?: number }) => {
-  if (!data || data.length === 0) return null;
-
-  const max = Math.max(...data, 1);
-  const points = data.map((value, index) => {
-    const x = (index / (data.length - 1)) * 100;
-    const y = 100 - (value / max) * 100;
-    return `${x},${y}`;
-  }).join(' ');
-
-  const areaPoints = `0,100 ${points} 100,100`;
-
-  return (
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full" style={{ height }}>
-      <defs>
-        <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="rgb(59, 130, 246)" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="rgb(59, 130, 246)" stopOpacity="0.05" />
-        </linearGradient>
-      </defs>
-      <polygon
-        fill="url(#chartGradient)"
-        points={areaPoints}
-      />
-      <polyline
-        fill="none"
-        stroke="rgb(59, 130, 246)"
-        strokeWidth="2"
-        vectorEffect="non-scaling-stroke"
-        points={points}
-      />
-    </svg>
-  );
+const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'success' | 'warning' | 'info' | 'destructive'> = {
+  sent: 'success',
+  sending: 'info',
+  scheduled: 'default',
+  draft: 'warning',
+  paused: 'warning',
+  cancelled: 'destructive',
+  archived: 'secondary',
 };
 
-// Campaign Status Badge
-const StatusBadge = ({ status }: { status: string }) => {
-  const statusClasses: Record<string, string> = {
-    draft: 'bg-secondary text-muted-foreground',
-    scheduled: 'bg-info/[.14] text-info',
-    sending: 'bg-warning/[.14] text-warning',
-    sent: 'bg-success/[.14] text-success',
-    failed: 'bg-destructive/[.14] text-destructive',
-  };
+const compact = (n: number) => new Intl.NumberFormat('en', { notation: 'compact' }).format(n);
+const full = (n: number) => new Intl.NumberFormat('en').format(n);
 
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusClasses[status] || statusClasses.draft}`}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
-  );
-};
+const DashboardSkeleton = () => (
+  <div className="flex flex-col gap-3.5">
+    <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+      {[0, 1, 2, 3].map((i) => (
+        <Skeleton key={i} className="h-[150px] rounded-lg" />
+      ))}
+    </div>
+    <div className="grid gap-3.5 lg:grid-cols-3">
+      <Skeleton className="h-[260px] rounded-lg lg:col-span-2" />
+      <Skeleton className="h-[260px] rounded-lg" />
+    </div>
+  </div>
+);
 
 export const DashboardPage = () => {
   const navigate = useNavigate();
-  const [days, setDays] = useState(30);
-  const { data, isLoading, refetch } = useDashboard(days);
+  const [days, setDays] = useState<number>(30);
+  const { data, isLoading, isError, refetch } = useDashboard(days);
 
-  if (isLoading) {
+  if (isLoading) return <DashboardSkeleton />;
+
+  if (isError || !data) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+      <div className="grid place-items-center rounded-lg border bg-card p-10 text-center shadow-card">
+        <Info className="mb-3 h-5 w-5 text-destructive" />
+        <h3 className="mb-1 text-[15px] font-semibold">Could not load your dashboard</h3>
+        <p className="mb-4 text-[12.5px] text-muted-foreground">
+          The API did not respond. Your data is safe — this is a read-only view.
+        </p>
+        <Button onClick={() => refetch()} size="sm">
+          <RefreshCw className="h-3.5 w-3.5" /> Try again
+        </Button>
       </div>
     );
   }
 
-  const overview = data?.overview;
-  const campaignStats = data?.campaign_stats;
-  const formStats = data?.form_stats;
-  const landingPageStats = data?.landing_page_stats;
-  const contactGrowth = data?.contact_growth || [];
-  const recentCampaigns = data?.recent_campaigns || [];
-  const recentSubmissions = data?.recent_submissions || [];
-  const topLandingPages = data?.top_landing_pages || [];
+  const {
+    overview,
+    contact_growth,
+    campaign_stats,
+    form_stats,
+    landing_page_stats,
+    recent_campaigns,
+    recent_submissions,
+    top_landing_pages,
+  } = data;
 
-  // Prepare chart data
-  const contactChartData = contactGrowth.map(d => d.count);
-  const submissionChartData = formStats?.submissions_by_day?.map(d => d.count) || [];
-  const pageViewChartData = landingPageStats?.views_by_day?.map(d => d.views) || [];
+  const growth = contact_growth.map((d) => d.count);
+  const submissions = form_stats.submissions_by_day.map((d) => d.count);
+  const views = landing_page_stats.views_by_day.map((d) => d.views);
+
+  // Labels thin out to six marks so they never collide at narrow widths.
+  const axisLabels = (dates: string[]) => {
+    if (dates.length === 0) return [];
+    const step = Math.max(1, Math.ceil(dates.length / 6));
+    return dates
+      .filter((_, i) => i % step === 0)
+      .map((d) => {
+        try {
+          return format(parseISO(d), 'd MMM');
+        } catch {
+          return d;
+        }
+      });
+  };
+
+  const deliveredRate = campaign_stats.emails_sent
+    ? (campaign_stats.emails_delivered / campaign_stats.emails_sent) * 100
+    : 0;
+
+  const quickActions = [
+    { label: 'New campaign', icon: Mail, to: '/campaigns/new' },
+    { label: 'Add contact', icon: Users, to: '/contacts/new' },
+    { label: 'Create form', icon: FileText, to: '/forms/new' },
+    { label: 'Landing page', icon: Layout, to: '/landing-pages' },
+  ];
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's what's happening.</p>
+    <div className="flex flex-col gap-3.5">
+      {/* period + quick actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1 rounded-md border bg-card p-0.5">
+          {RANGES.map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setDays(r)}
+              className={cn(
+                'rounded-[6px] px-2.5 py-1 font-mono text-[11px] transition-colors',
+                days === r
+                  ? 'bg-brand-fill text-brand-ink'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {r}d
+            </button>
+          ))}
         </div>
-        <div className="flex items-center gap-3">
-          <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Last 7 days</SelectItem>
-              <SelectItem value="30">Last 30 days</SelectItem>
-              <SelectItem value="90">Last 90 days</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4" />
+
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="grid h-8 w-8 place-items-center rounded-md border bg-card text-muted-foreground hover:text-foreground"
+          aria-label="Refresh"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </button>
+
+        <div className="flex-1" />
+
+        {quickActions.map((a) => (
+          <Button key={a.to} variant="outline" size="sm" onClick={() => navigate(a.to)}>
+            <a.icon className="h-3.5 w-3.5" /> {a.label}
           </Button>
-        </div>
+        ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Button
-          className="h-auto py-4 flex flex-col items-center gap-2"
-          onClick={() => navigate('/campaigns/new')}
-        >
-          <Send className="h-5 w-5" />
-          <span>New Campaign</span>
-        </Button>
-        <Button
-          variant="outline"
-          className="h-auto py-4 flex flex-col items-center gap-2"
-          onClick={() => navigate('/contacts/new')}
-        >
-          <Users className="h-5 w-5" />
-          <span>Add Contact</span>
-        </Button>
-        <Button
-          variant="outline"
-          className="h-auto py-4 flex flex-col items-center gap-2"
-          onClick={() => navigate('/forms/new')}
-        >
-          <FileText className="h-5 w-5" />
-          <span>Create Form</span>
-        </Button>
-        <Button
-          variant="outline"
-          className="h-auto py-4 flex flex-col items-center gap-2"
-          onClick={() => navigate('/landing-pages')}
-        >
-          <Layout className="h-5 w-5" />
-          <span>Landing Page</span>
-        </Button>
-      </div>
-
-      {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Contacts"
-          value={overview?.contacts.total.toLocaleString() || '0'}
-          icon={Users}
-          color="blue"
+      {/* headline figures */}
+      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile
+          label="Total contacts"
+          value={full(overview.contacts.total)}
+          deltaValue={halfOverHalf(growth)}
+          deltaLabel={`last ${days} days`}
+          chart={<DottedSparkline values={growth} />}
         />
-        <StatCard
-          title="Campaigns Sent"
-          value={overview?.campaigns.sent || 0}
-          subtitle={`${overview?.campaigns.total || 0} total campaigns`}
-          icon={Mail}
-          color="green"
+        <StatTile
+          label="Emails sent"
+          value={compact(campaign_stats.emails_sent)}
+          deltaValue={deliveredRate ? deliveredRate - 100 : undefined}
+          deltaLabel={`${full(campaign_stats.emails_delivered)} delivered`}
         />
-        <StatCard
-          title="Active Forms"
-          value={overview?.forms.active || 0}
-          subtitle={`${overview?.forms.total || 0} total forms`}
-          icon={FileText}
-          color="purple"
+        <StatTile
+          label="Open rate"
+          value={`${campaign_stats.open_rate.toFixed(1)}%`}
+          deltaLabel={`${full(campaign_stats.emails_opened)} opens · ${campaign_stats.click_rate.toFixed(1)}% clicked`}
+          chart={<TickBars values={submissions.length ? submissions : views} />}
         />
-        <StatCard
-          title="Published Pages"
-          value={overview?.landing_pages.published || 0}
-          subtitle={`${overview?.landing_pages.total || 0} total pages`}
-          icon={Layout}
-          color="orange"
+        <StatTile
+          label="Page views"
+          value={compact(landing_page_stats.total_views)}
+          deltaValue={halfOverHalf(views)}
+          deltaLabel={`${full(landing_page_stats.unique_views)} unique`}
+          chart={<AreaSparkline values={views} />}
         />
       </div>
 
-      {/* Email Performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Email Performance</CardTitle>
-            <CardDescription>Campaign metrics for the last {days} days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="text-center p-4 bg-secondary/50 rounded-lg">
-                <Send className="h-6 w-6 mx-auto mb-2 text-brand" />
-                <p className="text-2xl font-bold">{campaignStats?.emails_sent.toLocaleString() || 0}</p>
-                <p className="text-sm text-muted-foreground">Emails Sent</p>
-              </div>
-              <div className="text-center p-4 bg-secondary/50 rounded-lg">
-                <Mail className="h-6 w-6 mx-auto mb-2 text-success" />
-                <p className="text-2xl font-bold">{campaignStats?.emails_delivered.toLocaleString() || 0}</p>
-                <p className="text-sm text-muted-foreground">Delivered</p>
-              </div>
-              <div className="text-center p-4 bg-secondary/50 rounded-lg">
-                <Eye className="h-6 w-6 mx-auto mb-2 text-info" />
-                <p className="text-2xl font-bold">{campaignStats?.open_rate || 0}%</p>
-                <p className="text-sm text-muted-foreground">Open Rate</p>
-              </div>
-              <div className="text-center p-4 bg-secondary/50 rounded-lg">
-                <MousePointer className="h-6 w-6 mx-auto mb-2 text-warning" />
-                <p className="text-2xl font-bold">{campaignStats?.click_rate || 0}%</p>
-                <p className="text-sm text-muted-foreground">Click Rate</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact Growth</CardTitle>
-            <CardDescription>New contacts over time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {contactChartData.length > 0 ? (
-              <MiniChart data={contactChartData} height={100} />
-            ) : (
-              <div className="h-[100px] flex items-center justify-center text-muted-foreground">
-                No data available
-              </div>
-            )}
-            <p className="text-center text-sm text-muted-foreground mt-2">
-              {contactGrowth.reduce((sum, d) => sum + d.count, 0)} new contacts in {days} days
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Forms & Landing Pages */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Form Submissions</CardTitle>
-              <CardDescription>Last {days} days</CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/forms')}>
-              View All <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-3xl font-bold">{formStats?.total_submissions || 0}</p>
-                <p className="text-sm text-muted-foreground">Total submissions</p>
-              </div>
-              {submissionChartData.length > 0 && (
-                <div className="w-32">
-                  <MiniChart data={submissionChartData} height={40} />
-                </div>
-              )}
-            </div>
-            {recentSubmissions.length > 0 ? (
-              <div className="space-y-3">
-                {recentSubmissions.slice(0, 3).map((submission) => (
-                  <div key={submission.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div>
-                      <p className="font-medium text-sm">{submission.form_name}</p>
-                      <p className="text-xs text-muted-foreground">{submission.contact_email || 'Anonymous'}</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {format(parseISO(submission.created_at), 'MMM d, h:mm a')}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">No recent submissions</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Landing Page Views</CardTitle>
-              <CardDescription>Last {days} days</CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/landing-pages')}>
-              View All <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-3xl font-bold">{landingPageStats?.total_views || 0}</p>
-                <p className="text-sm text-muted-foreground">{landingPageStats?.unique_views || 0} unique visitors</p>
-              </div>
-              {pageViewChartData.length > 0 && (
-                <div className="w-32">
-                  <MiniChart data={pageViewChartData} height={40} />
-                </div>
-              )}
-            </div>
-            {topLandingPages.length > 0 ? (
-              <div className="space-y-3">
-                {topLandingPages.slice(0, 3).map((page) => (
-                  <div key={page.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div>
-                      <p className="font-medium text-sm">{page.name}</p>
-                      <p className="text-xs text-muted-foreground">/{page.slug}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{page.view_count} views</p>
-                      <p className="text-xs text-muted-foreground">{page.conversion_count} conversions</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">No published pages yet</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Campaigns */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Recent Campaigns</CardTitle>
-            <CardDescription>Your latest email campaigns</CardDescription>
+      {/* hero + email performance */}
+      <div className="grid gap-3.5 lg:grid-cols-3">
+        <div className="chart-hero rounded-lg border p-4 shadow-card lg:col-span-2">
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="text-[16px] font-semibold tracking-tight">Contact growth</h3>
+            <span className="ml-auto font-mono text-[11.5px] text-muted-foreground">
+              {full(growth.reduce((a, b) => a + b, 0))} added in {days} days
+            </span>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/campaigns')}>
-            View All <ArrowRight className="h-4 w-4 ml-1" />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {recentCampaigns.length > 0 ? (
-            <div className="space-y-4">
-              {recentCampaigns.map((campaign) => (
-                <div
-                  key={campaign.id}
-                  className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg hover:bg-secondary cursor-pointer transition-colors"
-                  onClick={() => navigate(`/campaigns/${campaign.id}`)}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-white rounded-lg shadow-sm">
-                      <Mail className="h-5 w-5 text-brand" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{campaign.name}</p>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {campaign.sent_at
-                          ? `Sent ${format(parseISO(campaign.sent_at), 'MMM d, yyyy')}`
-                          : `Created ${format(parseISO(campaign.created_at), 'MMM d, yyyy')}`
-                        }
-                      </p>
-                    </div>
+          <HeroAreaChart values={growth} labels={axisLabels(contact_growth.map((d) => d.date))} />
+        </div>
+
+        <div className="rounded-lg border bg-card p-4 shadow-card">
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="text-[13.5px] font-semibold">Email performance</h3>
+            <span className="ml-auto leading-none text-subtle-foreground">⋯</span>
+          </div>
+          <p className="stat-value text-[28px]">
+            {campaign_stats.open_rate.toFixed(1)}
+            <span className="text-[15px] text-subtle-foreground">% open</span>
+          </p>
+
+          <div className="mt-4 flex flex-col gap-2.5">
+            {[
+              ['Sent', campaign_stats.emails_sent],
+              ['Delivered', campaign_stats.emails_delivered],
+              ['Opened', campaign_stats.emails_opened],
+              ['Clicked', campaign_stats.emails_clicked],
+            ].map(([label, value]) => {
+              const pct = campaign_stats.emails_sent
+                ? ((value as number) / campaign_stats.emails_sent) * 100
+                : 0;
+              return (
+                <div key={label as string}>
+                  <div className="mb-1 flex justify-between text-[12px]">
+                    <span className="text-muted-foreground">{label}</span>
+                    <b className="font-mono text-[11.5px]">{full(value as number)}</b>
                   </div>
-                  <StatusBadge status={campaign.status} />
+                  <div className="bar-track">
+                    <div className="bar-fill" style={{ width: `${Math.min(100, pct)}%` }} />
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* three-up */}
+      <div className="grid gap-3.5 lg:grid-cols-3">
+        <div className="rounded-lg border bg-card p-4 shadow-card">
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="text-[13.5px] font-semibold">Form submissions</h3>
+            <span className="ml-auto font-mono text-[11.5px] text-brand">
+              {full(form_stats.total_submissions)}
+            </span>
+          </div>
+          <BarGroup values={submissions} labels={axisLabels(form_stats.submissions_by_day.map((d) => d.date))} />
+        </div>
+
+        <div className="rounded-lg border bg-card p-4 shadow-card">
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="text-[13.5px] font-semibold">Landing page views</h3>
+            <span className="ml-auto font-mono text-[11.5px] text-brand">
+              {full(landing_page_stats.total_views)}
+            </span>
+          </div>
+          <BarGroup values={views} labels={axisLabels(landing_page_stats.views_by_day.map((d) => d.date))} />
+        </div>
+
+        <div className="rounded-lg border bg-card p-4 shadow-card">
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="text-[13.5px] font-semibold">Top pages</h3>
+            <span className="ml-auto leading-none text-subtle-foreground">⋯</span>
+          </div>
+          {top_landing_pages.length === 0 ? (
+            <p className="py-6 text-center text-[12.5px] text-subtle-foreground">
+              No published pages yet.
+            </p>
           ) : (
-            <div className="text-center py-8">
-              <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No campaigns yet</p>
-              <Button onClick={() => navigate('/campaigns/new')}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Campaign
+            top_landing_pages.slice(0, 4).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => navigate(`/landing-pages/${p.id}`)}
+                className="flex w-full items-center gap-2.5 border-b py-2.5 text-left last:border-b-0 hover:opacity-80"
+              >
+                <span className="grid h-7 w-7 flex-none place-items-center rounded-md bg-secondary text-muted-foreground">
+                  <Layout className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <b className="block truncate text-[12.5px] font-semibold">{p.name}</b>
+                  <span className="block truncate font-mono text-[10.5px] text-subtle-foreground">
+                    /p/{p.slug}
+                  </span>
+                </span>
+                <span className="flex-none text-right">
+                  <b className="block font-mono text-[12px]">{compact(p.view_count)}</b>
+                  <span className="block font-mono text-[10px] text-brand">
+                    {p.conversion_count} conv.
+                  </span>
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* recent activity */}
+      <div className="grid gap-3.5 lg:grid-cols-3">
+        <div className="rounded-lg border bg-card p-4 shadow-card lg:col-span-2">
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="text-[13.5px] font-semibold">Recent campaigns</h3>
+            <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigate('/campaigns')}>
+              View all <ArrowRight className="h-3 w-3" />
+            </Button>
+          </div>
+
+          {recent_campaigns.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="mb-3 text-[12.5px] text-subtle-foreground">No campaigns yet.</p>
+              <Button size="sm" onClick={() => navigate('/campaigns/new')}>
+                <Plus className="h-3.5 w-3.5" /> Create your first campaign
               </Button>
             </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Sent</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recent_campaigns.slice(0, 5).map((c) => (
+                  <TableRow
+                    key={c.id}
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/campaigns/${c.id}`)}
+                  >
+                    <TableCell className="font-semibold text-foreground">{c.name}</TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_VARIANT[c.status] ?? 'secondary'}>{c.status}</Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-[12px]">
+                      {c.sent_at ? format(parseISO(c.sent_at), 'd MMM') : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="rounded-lg border bg-card p-4 shadow-card">
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="text-[13.5px] font-semibold">Latest submissions</h3>
+            <span className="ml-auto leading-none text-subtle-foreground">⋯</span>
+          </div>
+
+          {recent_submissions.length === 0 ? (
+            <div className="flex gap-2.5 rounded-md bg-brand/[.10] p-3 text-[12px] text-muted-foreground">
+              <Sparkles className="mt-0.5 h-3.5 w-3.5 flex-none text-brand" />
+              <span>
+                Publish a form to start capturing leads — submissions appear here as they arrive.
+              </span>
+            </div>
+          ) : (
+            recent_submissions.slice(0, 5).map((s) => (
+              <div key={s.id} className="flex items-center gap-2.5 border-b py-2.5 last:border-b-0">
+                <span className="grid h-7 w-7 flex-none place-items-center rounded-md bg-secondary text-muted-foreground">
+                  <FileText className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <b className="block truncate text-[12.5px] font-semibold">
+                    {s.contact_email ?? 'Anonymous'}
+                  </b>
+                  <span className="block truncate text-[11px] text-subtle-foreground">
+                    {s.form_name}
+                  </span>
+                </span>
+                <span className="flex flex-none items-center gap-1 font-mono text-[10.5px] text-subtle-foreground">
+                  <Clock className="h-3 w-3" />
+                  {format(parseISO(s.created_at), 'd MMM')}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 };
