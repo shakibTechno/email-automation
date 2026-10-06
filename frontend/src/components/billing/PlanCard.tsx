@@ -77,7 +77,7 @@ export function PlanCard({ plan, interval, isCurrentPlan, onSelect, isLoading }:
     <Card className={cn(
       'relative flex flex-col',
       plan.is_popular && 'border-primary shadow-lg ring-1 ring-primary',
-      isCurrentPlan && 'border-success bg-success/[.10]/50'
+      isCurrentPlan && 'border-success bg-success/[0.05]'
     )}>
       {plan.is_popular && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">

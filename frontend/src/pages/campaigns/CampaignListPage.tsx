@@ -10,11 +10,12 @@ import {
   Eye,
   Pause,
   XCircle,
-  Users,
+  Send,
   Archive,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -91,276 +92,278 @@ export const CampaignListPage = () => {
   };
 
   return (
-    <div className="w-full space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="w-full space-y-3.5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Campaigns</h1>
-          <p className="text-muted-foreground">
-            Create and manage your email campaigns
+          <h1 className="text-2xl font-bold tracking-tight">Campaigns</h1>
+          <p className="text-[13px] text-muted-foreground">
+            One message to many people, now or scheduled.
           </p>
         </div>
-        <Button onClick={() => navigate('/campaigns/new')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Campaign
+        <Button size="sm" onClick={() => navigate('/campaigns/new')}>
+          <Plus className="h-3.5 w-3.5" /> New campaign
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="space-y-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search campaigns..."
-            onChange={(e) => handleSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {statusFilters.map((sf) => (
-            <button
-              key={sf.value}
-              onClick={() => {
-                setStatusFilter(sf.value);
-                setCurrentPage(1);
-              }}
-              className={cn(
-                'px-3 py-1.5 text-sm font-medium rounded-full border transition-colors',
-                statusFilter === sf.value
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground'
-              )}
-            >
-              {sf.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Content */}
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
-      ) : campaigns.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 text-center">
-          <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center mb-4">
-            <Plus className="h-8 w-8 text-subtle-foreground" />
+      <div className="rounded-lg border bg-card shadow-card">
+        <div className="flex flex-wrap items-center gap-2 border-b p-3">
+          <div className="relative max-w-xs flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-subtle-foreground" />
+            <Input
+              placeholder="Search campaigns…"
+              onChange={(e) => handleSearch(e.target.value)}
+              className="h-8 pl-8"
+            />
           </div>
-          <h3 className="text-lg font-medium">No campaigns yet</h3>
-          <p className="text-muted-foreground mt-1 mb-4">
-            Create your first email campaign to get started
-          </p>
-          <Button onClick={() => navigate('/campaigns/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Campaign
-          </Button>
+
+          <div className="flex flex-wrap gap-1">
+            {statusFilters.map((sf) => (
+              <button
+                key={sf.value}
+                type="button"
+                aria-pressed={statusFilter === sf.value}
+                onClick={() => {
+                  setStatusFilter(sf.value);
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  'rounded-md border px-2.5 py-1 font-mono text-[11px] transition-colors',
+                  statusFilter === sf.value
+                    ? 'border-transparent bg-brand-fill text-brand-ink'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {sf.label}
+              </button>
+            ))}
+          </div>
+
+          <span className="ml-auto font-mono text-[11px] text-subtle-foreground">
+            {new Intl.NumberFormat('en').format(total ?? 0)} shown
+          </span>
         </div>
-      ) : (
-        <>
-          {/* Campaign Table */}
-          <div className="border rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-secondary/50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                    Name
-                  </th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                    Status
-                  </th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                    Subject
-                  </th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5" />
-                      Recipients
-                    </div>
-                  </th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                    Date
-                  </th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {campaigns.map((campaign) => (
-                  <tr
-                    key={campaign.id}
-                    className="hover:bg-secondary/50 cursor-pointer"
-                    onClick={() => navigate(`/campaigns/${campaign.id}`)}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-sm">{campaign.name}</div>
-                      {campaign.template_name && (
-                        <div className="text-xs text-muted-foreground">
-                          Template: {campaign.template_name}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        <CampaignStatusBadge status={campaign.status} />
-                        {campaign.status === 'sending' && campaign.send_progress && (
-                          <div className="w-20">
-                            <div className="h-1.5 w-full rounded-full bg-warning/[.20] overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-warning transition-all duration-500"
-                                style={{ width: `${campaign.send_progress.percent}%` }}
-                              />
-                            </div>
-                            <span className="text-[10px] text-muted-foreground">
-                              {campaign.send_progress.percent}%
-                            </span>
+
+        {isLoading ? (
+          <div className="flex flex-col gap-2 p-3">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-md" />
+            ))}
+          </div>
+        ) : campaigns.length === 0 ? (
+          <div className="px-4 py-14 text-center">
+            <Send className="mx-auto mb-3 h-6 w-6 text-subtle-foreground" />
+            <h3 className="mb-1 text-[14px] font-semibold">
+              {statusFilter === 'all' ? 'No campaigns yet' : `No ${statusFilter} campaigns`}
+            </h3>
+            <p className="mb-4 text-[12.5px] text-muted-foreground">
+              {statusFilter === 'all'
+                ? 'Create your first campaign to start sending.'
+                : 'Try a different status filter.'}
+            </p>
+            {statusFilter === 'all' ? (
+              <Button size="sm" onClick={() => navigate('/campaigns/new')}>
+                <Plus className="h-3.5 w-3.5" /> New campaign
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => setStatusFilter('all')}>
+                Show all campaigns
+              </Button>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-[13px]">
+                <thead>
+                  <tr className="border-b">
+                    {['Campaign', 'Status', 'Subject', 'Recipients', 'Date', ''].map((h, i) => (
+                      <th
+                        key={h || i}
+                        className={cn(
+                          'px-3 pb-2.5 pt-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.13em] text-subtle-foreground',
+                          h === 'Recipients' && 'text-right',
+                          h === '' && 'w-10'
+                        )}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaigns.map((campaign) => (
+                    <tr
+                      key={campaign.id}
+                      className="cursor-pointer border-b transition-colors last:border-b-0 hover:bg-secondary/50"
+                      onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                    >
+                      <td className="px-3 py-2.5">
+                        <div className="font-semibold text-foreground">{campaign.name}</div>
+                        {campaign.template_name && (
+                          <div className="text-[11px] text-subtle-foreground">
+                            {campaign.template_name}
                           </div>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate">
-                      {campaign.subject || '(No subject)'}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {campaign.recipient_count.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {campaign.sent_at
-                        ? formatDateTime(campaign.sent_at)
-                        : campaign.scheduled_at
-                        ? formatDateTime(campaign.scheduled_at)
-                        : formatDate(campaign.created_at)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/campaigns/${campaign.id}`);
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-2" /> View
-                          </DropdownMenuItem>
-                          {campaign.status === 'draft' && (
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex flex-col gap-1">
+                          <CampaignStatusBadge status={campaign.status} />
+                          {campaign.status === 'sending' && campaign.send_progress && (
+                            <div className="w-20">
+                              <div className="bar-track">
+                                <div
+                                  className="bar-fill transition-all duration-500"
+                                  style={{ width: `${campaign.send_progress.percent}%` }}
+                                />
+                              </div>
+                              <span className="font-mono text-[10px] text-subtle-foreground">
+                                {campaign.send_progress.percent}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="max-w-[220px] truncate px-3 py-2.5 text-muted-foreground">
+                        {campaign.subject || '(No subject)'}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono text-[12px]">
+                        {campaign.recipient_count.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-[11.5px] text-muted-foreground">
+                        {campaign.sent_at
+                          ? formatDateTime(campaign.sent_at)
+                          : campaign.scheduled_at
+                          ? formatDateTime(campaign.scheduled_at)
+                          : formatDate(campaign.created_at)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/campaigns/${campaign.id}/edit`);
+                                navigate(`/campaigns/${campaign.id}`);
                               }}
                             >
-                              <Pencil className="h-4 w-4 mr-2" /> Edit
+                              <Eye className="mr-2 h-4 w-4" /> View
                             </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              duplicateCampaign(campaign.id);
-                            }}
-                          >
-                            <Copy className="h-4 w-4 mr-2" /> Duplicate
-                          </DropdownMenuItem>
-                          {campaign.status === 'scheduled' && (
+                            {campaign.status === 'draft' && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/campaigns/${campaign.id}/edit`);
+                                }}
+                              >
+                                <Pencil className="mr-2 h-4 w-4" /> Edit
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                pauseCampaign(campaign.id);
+                                duplicateCampaign(campaign.id);
                               }}
                             >
-                              <Pause className="h-4 w-4 mr-2" /> Pause
+                              <Copy className="mr-2 h-4 w-4" /> Duplicate
                             </DropdownMenuItem>
-                          )}
-                          {(campaign.status === 'scheduled' ||
-                            campaign.status === 'paused') && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                cancelCampaign(campaign.id);
-                              }}
-                            >
-                              <XCircle className="h-4 w-4 mr-2" /> Cancel
-                            </DropdownMenuItem>
-                          )}
-                          {(campaign.status === 'sent' ||
-                            campaign.status === 'cancelled') && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                archiveCampaign(campaign.id);
-                              }}
-                            >
-                              <Archive className="h-4 w-4 mr-2" /> Archive
-                            </DropdownMenuItem>
-                          )}
-                          {campaign.status === 'draft' && (
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(campaign.id);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" /> Delete
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Showing {(page - 1) * perPage + 1} to{' '}
-                {Math.min(page * perPage, total)} of {total} campaigns
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setCurrentPage(page - 1)}
-                  disabled={page === 1}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setCurrentPage(page + 1)}
-                  disabled={page === totalPages}
-                >
-                  Next
-                </Button>
-              </div>
+                            {campaign.status === 'scheduled' && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  pauseCampaign(campaign.id);
+                                }}
+                              >
+                                <Pause className="mr-2 h-4 w-4" /> Pause
+                              </DropdownMenuItem>
+                            )}
+                            {(campaign.status === 'scheduled' || campaign.status === 'paused') && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  cancelCampaign(campaign.id);
+                                }}
+                              >
+                                <XCircle className="mr-2 h-4 w-4" /> Cancel
+                              </DropdownMenuItem>
+                            )}
+                            {(campaign.status === 'sent' || campaign.status === 'cancelled') && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  archiveCampaign(campaign.id);
+                                }}
+                              >
+                                <Archive className="mr-2 h-4 w-4" /> Archive
+                              </DropdownMenuItem>
+                            )}
+                            {campaign.status === 'draft' && (
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(campaign.id);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </>
-      )}
 
-      {/* Delete Confirmation Dialog */}
+            {totalPages > 1 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2.5">
+                <span className="font-mono text-[11px] text-subtle-foreground">
+                  {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} of {total}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setCurrentPage(page - 1)}
+                    disabled={page === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="px-2 font-mono text-[11px] text-muted-foreground">
+                    {page} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setCurrentPage(page + 1)}
+                    disabled={page === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Campaign</DialogTitle>
+            <DialogTitle>Delete campaign</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this campaign? This action cannot
-              be undone.
+              This removes the campaign and its draft content. It cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
             <Button variant="destructive" onClick={confirmDelete}>

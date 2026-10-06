@@ -29,30 +29,30 @@ export const KanbanBoard = ({ columns, onDragEnd, onAddDeal }: KanbanBoardProps)
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-280px)]">
+      <div className="flex gap-3 overflow-x-auto pb-3 min-h-[calc(100vh-320px)]">
         {columns.map((column) => (
           <div
             key={column.stage.id}
-            className="flex flex-col bg-secondary/50 rounded-lg min-w-[300px] w-[300px] shrink-0"
+            className="flex flex-col rounded-xl border bg-secondary/40 min-w-[264px] w-[264px] shrink-0"
           >
             {/* Column header */}
-            <div className="p-3 border-b border-border">
+            <div className="px-3 py-2.5 border-b">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <div
-                    className="h-3 w-3 rounded-full"
+                    className="h-2 w-2 rounded-full flex-none"
                     style={{ backgroundColor: column.stage.color }}
                   />
-                  <h3 className="text-sm font-semibold text-foreground">
+                  <h3 className="text-[12.5px] font-bold tracking-tight text-foreground">
                     {column.stage.name}
                   </h3>
-                  <span className="text-xs text-muted-foreground bg-secondary rounded-full px-1.5 py-0.5">
+                  <span className="ml-auto font-mono text-[10.5px] text-subtle-foreground">
                     {column.deal_count}
                   </span>
                 </div>
               </div>
               {Number(column.total_value) > 0 && (
-                <div className="text-xs text-muted-foreground">
+                <div className="font-mono text-[11px] text-brand">
                   {formatValue(Number(column.total_value))}
                 </div>
               )}
@@ -65,7 +65,7 @@ export const KanbanBoard = ({ columns, onDragEnd, onAddDeal }: KanbanBoardProps)
                   ref={provided.innerRef}
                   {...provided.droppableProps}
                   className={`flex-1 p-2 space-y-2 overflow-y-auto ${
-                    snapshot.isDraggingOver ? 'bg-info/[.10]/50' : ''
+                    snapshot.isDraggingOver ? 'bg-info/[0.05]' : ''
                   }`}
                   style={{ minHeight: '100px' }}
                 >

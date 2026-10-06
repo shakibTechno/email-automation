@@ -33,7 +33,7 @@ import {
 } from '@/hooks/useCRM';
 import { useAuthStore } from '@/stores/authStore';
 import { DealFilters, Stage } from '@/types/crm';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 const formatCurrency = (value: number) => {
   if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
@@ -136,57 +136,53 @@ export const PipelineKanbanPage = () => {
         </div>
       </div>
 
-      {/* Stats bar */}
+      {/* Stats bar — same tile object as the Dashboard and Contacts, so the
+          three screens read as one system rather than three designs. */}
       {analytics && (
-        <div className="grid grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-info/[.10] rounded-lg">
-                <Target className="h-5 w-5 text-brand" />
+        <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            {
+              label: 'Open deals',
+              value: analytics.summary.open_deals_count,
+              note: 'in this pipeline',
+              icon: Target,
+            },
+            {
+              label: 'Pipeline value',
+              value: formatCurrency(analytics.summary.open_deals_value),
+              note: 'open deals, unweighted',
+              icon: DollarSign,
+            },
+            {
+              label: 'Win rate (30d)',
+              value: `${analytics.win_rate.toFixed(0)}%`,
+              note: 'closed won vs lost',
+              icon: TrendingUp,
+            },
+            {
+              label: 'Rotting deals',
+              value: forecast?.rotting_deals_count ?? 0,
+              note: 'no recent activity',
+              icon: AlertTriangle,
+              warn: (forecast?.rotting_deals_count ?? 0) > 0,
+            },
+          ].map((tile) => (
+            <div key={tile.label} className="rounded-lg border bg-card p-4 shadow-card">
+              <div className="flex items-center gap-2">
+                <span className="stat-label">{tile.label}</span>
+                <tile.icon
+                  className={cn(
+                    'ml-auto h-3.5 w-3.5',
+                    tile.warn ? 'text-warning' : 'text-subtle-foreground'
+                  )}
+                />
               </div>
-              <div>
-                <div className="text-2xl font-bold">{analytics.summary.open_deals_count}</div>
-                <div className="text-xs text-muted-foreground">Open Deals</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-success/[.10] rounded-lg">
-                <DollarSign className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(analytics.summary.open_deals_value)}
-                </div>
-                <div className="text-xs text-muted-foreground">Pipeline Value</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-info/[.10] rounded-lg">
-                <TrendingUp className="h-5 w-5 text-info" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">
-                  {analytics.win_rate.toFixed(0)}%
-                </div>
-                <div className="text-xs text-muted-foreground">Win Rate (30d)</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-warning/[.10] rounded-lg">
-                <AlertTriangle className="h-5 w-5 text-warning" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{forecast?.rotting_deals_count ?? 0}</div>
-                <div className="text-xs text-muted-foreground">Rotting Deals</div>
-              </div>
-            </CardContent>
-          </Card>
+              <p className="stat-value text-[22px]">{tile.value}</p>
+              <p className={cn('delta', tile.warn && 'delta-down')}>
+                <span>{tile.note}</span>
+              </p>
+            </div>
+          ))}
         </div>
       )}
 

@@ -36,7 +36,7 @@ const TaskItem = ({ task, onComplete, onDelete }: TaskItemProps) => {
     <div
       className={cn(
         'flex items-start gap-3 px-4 py-3 border-b last:border-0',
-        task.is_overdue && !isDone && 'bg-destructive/[.10]/40',
+        task.is_overdue && !isDone && 'bg-destructive/[0.04]',
       )}
     >
       <button

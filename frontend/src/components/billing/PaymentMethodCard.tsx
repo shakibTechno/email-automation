@@ -31,7 +31,7 @@ export function PaymentMethodCard({
   return (
     <Card className={cn(
       method.is_default && 'border-primary',
-      method.is_expired && 'border-destructive/[.40] bg-destructive/[.10]/50',
+      method.is_expired && 'border-destructive/[.40] bg-destructive/[0.05]',
     )}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
