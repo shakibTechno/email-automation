@@ -32,6 +32,7 @@ import { TestEmailDialog } from '@/components/campaigns/TestEmailDialog';
 import { ABTestPanel } from '@/components/campaigns/ABTestPanel';
 import { useCampaign, useCampaigns } from '@/hooks/useCampaigns';
 import { useCampaignRecipients } from '@/hooks/useCampaignRecipients';
+import { useCampaignDetail } from '@/hooks/useAnalytics';
 import { formatDate, formatDateTime } from '@/lib/utils';
 
 export const CampaignDetailPage = () => {
@@ -55,6 +56,8 @@ export const CampaignDetailPage = () => {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  // The campaign endpoint carries no engagement data; analytics does.
+  const { data: perf } = useCampaignDetail(id ?? '');
   const [testEmailOpen, setTestEmailOpen] = useState(false);
 
   const handleDelete = () => {
@@ -94,7 +97,7 @@ export const CampaignDetailPage = () => {
   }
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-3.5">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
@@ -206,8 +209,31 @@ export const CampaignDetailPage = () => {
         </Card>
       )}
 
+      {/* Performance — only once something has actually been sent. A draft has
+          no delivery data, and zeroed tiles would read as a failed send. */}
+      {campaign.sent_at && perf && (
+        <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: 'Delivered', value: perf.delivered, note: `of ${perf.recipient_count} sent` },
+            { label: 'Opened', value: perf.opened, note: `${perf.open_rate.toFixed(1)}% open rate` },
+            { label: 'Clicked', value: perf.clicked, note: `${perf.click_rate.toFixed(1)}% click rate` },
+            { label: 'Bounced', value: perf.bounced, note: `${perf.bounce_rate.toFixed(1)}% bounce rate`, bad: perf.bounced > 0 },
+          ].map((t) => (
+            <div key={t.label} className="rounded-lg border bg-card p-4 shadow-card">
+              <span className="stat-label">{t.label}</span>
+              <p className="stat-value text-[22px]">
+                {new Intl.NumberFormat('en').format(t.value ?? 0)}
+              </p>
+              <p className={`delta ${t.bad ? 'delta-down' : ''}`}>
+                <span>{t.note}</span>
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Campaign Details */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-3.5 md:grid-cols-2">
         <Card className="p-5 space-y-4">
           <h2 className="font-semibold flex items-center gap-2">
             <Mail className="h-4 w-4" /> Email Settings

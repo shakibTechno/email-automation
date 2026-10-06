@@ -44,18 +44,22 @@ function getInitials(contact: { first_name?: string; last_name?: string; email: 
   return contact.email[0].toUpperCase();
 }
 
-const AVATAR_COLORS = [
-  'from-violet-500 to-purple-600',
-  'from-blue-500 to-cyan-500',
-  'from-emerald-500 to-teal-600',
-  'from-orange-400 to-rose-500',
-  'from-pink-500 to-fuchsia-600',
-  'from-amber-400 to-orange-500',
+/**
+ * Avatars used to pick from six unrelated gradients, which fought the palette.
+ * The mark is now the brand chip; only the ring opacity varies by id, so one
+ * contact still looks distinct from the next without introducing new hues.
+ */
+const AVATAR_RINGS = [
+  'ring-brand/10',
+  'ring-brand/20',
+  'ring-brand/30',
+  'ring-brand/40',
+  'ring-brand/50',
+  'ring-brand/60',
 ];
 
-function avatarGradient(id: string) {
-  const idx = id.charCodeAt(0) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[idx];
+function avatarRing(id: string) {
+  return AVATAR_RINGS[id.charCodeAt(0) % AVATAR_RINGS.length];
 }
 
 const SOURCE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
@@ -153,7 +157,7 @@ export const ContactDetailPage = () => {
       : contact.email;
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-3.5">
 
       {/* ── top nav ── */}
       <div className="flex items-center justify-between">
@@ -168,14 +172,14 @@ export const ContactDetailPage = () => {
       </div>
 
       {/* ── hero / identity ── */}
-      <Card>
+      <Card className="chart-hero">
         <CardContent className="pt-6">
           <div className="flex items-center gap-5">
             {/* avatar */}
             <div
-              className={`h-16 w-16 rounded-full bg-gradient-to-br ${avatarGradient(contact.id)} flex items-center justify-center flex-shrink-0 shadow-md`}
+              className={`h-16 w-16 flex-shrink-0 rounded-full bg-brand-fill ring-4 ${avatarRing(contact.id)} flex items-center justify-center`}
             >
-              <span className="text-white text-xl font-bold tracking-wide">
+              <span className="text-xl font-extrabold tracking-tight text-brand-ink">
                 {getInitials(contact)}
               </span>
             </div>
@@ -226,25 +230,57 @@ export const ContactDetailPage = () => {
               </div>
             </div>
 
-            {/* lead score — prominent */}
-            <div className="flex-shrink-0 text-right">
-              <div className="text-xs text-muted-foreground mb-1">Lead Score</div>
-              <ScoreBadge
-                score={contact.lead_score}
-                engagementLevel={contact.engagement_level}
-                onClick={() => setScoreHistoryOpen(true)}
-              />
-              <div className="text-[10px] text-muted-foreground mt-1 cursor-pointer hover:text-primary"
-                onClick={() => setScoreHistoryOpen(true)}>
-                View history →
+            {/* Lead score as a meter: the number alone does not say how close
+                this contact is to the next threshold, which is the decision. */}
+            <div className="w-full flex-shrink-0 sm:w-[220px]">
+              <div className="mb-1.5 flex items-center gap-2">
+                <span className="stat-label">Lead score</span>
+                <button
+                  type="button"
+                  onClick={() => setScoreHistoryOpen(true)}
+                  className="ml-auto font-mono text-[10.5px] text-subtle-foreground hover:text-brand"
+                >
+                  history →
+                </button>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setScoreHistoryOpen(true)}
+                className="w-full text-left"
+              >
+                <div className="flex items-baseline gap-1.5">
+                  <span className="stat-value text-[26px] leading-none">
+                    {contact.lead_score ?? 0}
+                  </span>
+                  <span className="text-[13px] text-subtle-foreground">/ 100</span>
+                  <span className="ml-auto">
+                    <ScoreBadge
+                      score={contact.lead_score}
+                      engagementLevel={contact.engagement_level}
+                    />
+                  </span>
+                </div>
+
+                <div className="bar-track mt-2">
+                  <div
+                    className="bar-fill"
+                    style={{ width: `${Math.min(100, Math.max(0, contact.lead_score ?? 0))}%` }}
+                  />
+                </div>
+                <div className="mt-1 flex justify-between font-mono text-[9.5px] text-subtle-foreground">
+                  <span>cold 10</span>
+                  <span>warm 40</span>
+                  <span>hot 70</span>
+                </div>
+              </button>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* ── main grid ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
 
         {/* ── LEFT: detail card ── */}
         <Card className="md:col-span-2">
@@ -381,31 +417,23 @@ export const ContactDetailPage = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Quick Stats</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            {/* Lead score lives in the hero meter now; repeating it here was
+                the same figure twice on one screen. */}
+            <CardContent className="flex gap-6">
               <div>
-                <div className="text-xs text-muted-foreground mb-1">Lead Score</div>
-                <ScoreBadge
-                  score={contact.lead_score}
-                  engagementLevel={contact.engagement_level}
-                  onClick={() => setScoreHistoryOpen(true)}
-                />
+                <div className="stat-value text-[20px]">{tags.length}</div>
+                <div className="stat-label">Tags</div>
               </div>
-              <div className="flex gap-4">
-                <div>
-                  <div className="text-lg font-bold">{tags.length}</div>
-                  <div className="text-xs text-muted-foreground">Tags</div>
-                </div>
-                <div>
-                  <div className="text-lg font-bold">{contactDeals?.length ?? 0}</div>
-                  <div className="text-xs text-muted-foreground">Deals</div>
-                </div>
-                {customEntries.length > 0 && (
-                  <div>
-                    <div className="text-lg font-bold">{customEntries.length}</div>
-                    <div className="text-xs text-muted-foreground">Custom fields</div>
-                  </div>
-                )}
+              <div>
+                <div className="stat-value text-[20px]">{contactDeals?.length ?? 0}</div>
+                <div className="stat-label">Deals</div>
               </div>
+              {customEntries.length > 0 && (
+                <div>
+                  <div className="stat-value text-[20px]">{customEntries.length}</div>
+                  <div className="stat-label">Custom fields</div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

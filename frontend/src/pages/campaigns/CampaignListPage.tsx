@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
   Search,
@@ -194,11 +194,17 @@ export const CampaignListPage = () => {
                   {campaigns.map((campaign) => (
                     <tr
                       key={campaign.id}
-                      className="cursor-pointer border-b transition-colors last:border-b-0 hover:bg-secondary/50"
-                      onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                      className="border-b transition-colors last:border-b-0 hover:bg-secondary/50"
                     >
                       <td className="px-3 py-2.5">
-                        <div className="font-semibold text-foreground">{campaign.name}</div>
+                        {/* A real link, not a click handler on the row: that was
+                            unreachable by keyboard and did not actually fire. */}
+                        <Link
+                          to={`/campaigns/${campaign.id}`}
+                          className="font-semibold text-foreground hover:text-brand"
+                        >
+                          {campaign.name}
+                        </Link>
                         {campaign.template_name && (
                           <div className="text-[11px] text-subtle-foreground">
                             {campaign.template_name}
@@ -238,7 +244,7 @@ export const CampaignListPage = () => {
                       </td>
                       <td className="px-3 py-2.5 text-right">
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
                               <MoreVertical className="h-3.5 w-3.5" />
                             </Button>
