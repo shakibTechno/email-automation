@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +11,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useTags } from '@/hooks/useTags';
+import { TagChip } from '@/components/contacts/TagChip';
 
 interface TagSelectorProps {
   selectedTagIds: string[];
@@ -41,22 +41,11 @@ export const TagSelector = ({ selectedTagIds, onChange, disabled }: TagSelectorP
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2 min-h-[40px] p-2 border rounded-md">
         {selectedTags.map((tag) => (
-          <Badge
+          <TagChip
             key={tag.id}
-            style={{ backgroundColor: tag.color }}
-            className="text-white flex items-center gap-1"
-          >
-            {tag.name}
-            {!disabled && (
-              <button
-                type="button"
-                onClick={() => handleRemoveTag(tag.id)}
-                className="ml-1 hover:bg-black/20 rounded-full p-0.5"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </Badge>
+            tag={tag}
+            onRemove={disabled ? undefined : () => handleRemoveTag(tag.id)}
+          />
         ))}
         {selectedTags.length === 0 && (
           <span className="text-sm text-muted-foreground">No tags selected</span>
@@ -92,12 +81,7 @@ export const TagSelector = ({ selectedTagIds, onChange, disabled }: TagSelectorP
                       htmlFor={`tag-${tag.id}`}
                       className="flex-1 cursor-pointer flex items-center gap-2"
                     >
-                      <Badge
-                        style={{ backgroundColor: tag.color }}
-                        className="text-white"
-                      >
-                        {tag.name}
-                      </Badge>
+                      <TagChip tag={tag} />
                     </Label>
                   </div>
                 ))

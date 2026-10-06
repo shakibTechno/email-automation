@@ -21,7 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { cn, getInitials } from '@/lib/utils';
 import { useTheme } from '@/lib/theme';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import logoUrl from '@/emailLogo.png';
+import logoUrl from '@/assets/logo.png';
 
 interface HeaderProps {
   collapsed: boolean;
@@ -53,7 +53,7 @@ export const Header = ({ collapsed, onToggleCollapsed, onToggleDrawer }: HeaderP
           alt="Cadence"
           width={32}
           height={32}
-          className="h-8 w-8 flex-none rounded-lg object-contain"
+          className="h-8 w-8 flex-none object-contain"
         />
       </Link>
 

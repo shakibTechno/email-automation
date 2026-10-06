@@ -33,6 +33,7 @@ import { ScoreBadge } from '@/components/lead-scoring/ScoreBadge';
 import { ScoreHistoryDrawer } from '@/components/lead-scoring/ScoreHistoryDrawer';
 import { ContactActivityTimeline } from '@/components/contacts/ContactActivityTimeline';
 import { formatDateTime } from '@/lib/utils';
+import { TagChip } from '@/components/contacts/TagChip';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -306,13 +307,7 @@ export const ContactDetailPage = () => {
                 <SectionHeading>Tags</SectionHeading>
                 <div className="flex flex-wrap gap-2 py-2">
                   {tags.map((tag) => (
-                    <Badge
-                      key={tag.id}
-                      style={{ backgroundColor: tag.color }}
-                      className="text-white border-0"
-                    >
-                      {tag.name}
-                    </Badge>
+                    <TagChip key={tag.id} tag={tag} />
                   ))}
                 </div>
               </>

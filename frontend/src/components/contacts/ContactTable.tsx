@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDate, getEngagementLevel, getSubscriptionStatusColor } from '@/lib/utils';
+import { TagChip } from '@/components/contacts/TagChip';
 
 interface ContactTableProps {
   contacts: Contact[];
@@ -196,13 +197,7 @@ export const ContactTable = ({
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {tags.slice(0, 2).map((tag) => (
-                          <Badge
-                            key={tag.id}
-                            style={{ backgroundColor: tag.color }}
-                            className="text-white text-xs"
-                          >
-                            {tag.name}
-                          </Badge>
+                          <TagChip key={tag.id} tag={tag} size="sm" />
                         ))}
                         {tags.length > 2 && (
                           <Badge variant="outline" className="text-xs">

@@ -1,4 +1,4 @@
-import logoUrl from '@/emailLogo.png';
+import logoUrl from '@/assets/logo.png';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -20,7 +20,7 @@ export const AuthLayout = ({ children, title, description }: AuthLayoutProps) =>
             alt="Cadence"
             width={44}
             height={44}
-            className="h-11 w-11 rounded-xl object-contain"
+            className="h-11 w-11 object-contain"
           />
         </div>
 

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Download, Upload, Trash2, GitMerge } from 'lucide-react';
+import { Plus, Download, Upload, Trash2, GitMerge, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ContactTable } from '@/components/contacts/ContactTable';
 import { ImportContactsDialog } from '@/components/contacts/ImportContactsDialog';
 import { DuplicateContactsDialog } from '@/components/contacts/DuplicateContactsDialog';
@@ -25,13 +26,37 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-import { debounce } from '@/lib/utils';
+import { cn, debounce } from '@/lib/utils';
+
+const countFmt = (n: number) => new Intl.NumberFormat('en').format(n ?? 0);
+
+/**
+ * The old `subscription_status` filter never worked: the backend FilterSet has
+ * no such field, so every value returned the full list. Contact only stores
+ * `is_subscribed`, and there is no bounced/complained state on the model — so
+ * these are the views the data can actually support.
+ */
+type ViewKey = 'all' | 'subscribed' | 'unsubscribed' | 'engaged';
+
+const VIEW_PARAMS: Record<ViewKey, Record<string, unknown>> = {
+  all: {},
+  subscribed: { is_subscribed: true },
+  unsubscribed: { is_subscribed: false },
+  engaged: { engagement_level: 'high' },
+};
+
+const VIEW_LABELS: Array<{ key: ViewKey; label: string }> = [
+  { key: 'all', label: 'All contacts' },
+  { key: 'subscribed', label: 'Subscribed' },
+  { key: 'unsubscribed', label: 'Unsubscribed' },
+  { key: 'engaged', label: 'Highly engaged' },
+];
 
 export const ContactListPage = () => {
   const navigate = useNavigate();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [view, setView] = useState<ViewKey>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<string>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -43,15 +68,15 @@ export const ContactListPage = () => {
 
   const { data: members = [] } = useTeamMembers();
 
-  const filters: ContactFilters & { page: number; per_page: number; assigned_to?: string } = {
+  const filters = {
     search: searchQuery || undefined,
-    subscription_status: statusFilter !== 'all' ? [statusFilter] : undefined,
+    ...VIEW_PARAMS[view],
     assigned_to: assignedToFilter !== 'all' ? assignedToFilter : undefined,
     sort_by: sortBy,
     sort_order: sortOrder,
     page: currentPage,
     per_page: 10,
-  };
+  } as ContactFilters & { page: number; per_page: number; assigned_to?: string };
 
   const {
     contacts,
@@ -65,6 +90,23 @@ export const ContactListPage = () => {
     exportContacts,
     isExporting,
   } = useContacts(filters);
+
+  // Real counts per status, so the tiles are filters with true figures rather
+  // than decoration. per_page: 1 keeps each one a cheap count query.
+  // PaginationParams declares `page_size`, but the API reads `per_page` — the
+  // filters above rely on the same widening, so keep the two consistent.
+  const countArgs = (key: ViewKey) =>
+    ({ ...VIEW_PARAMS[key], page: 1, per_page: 1 }) as ContactFilters & {
+      page: number;
+      per_page: number;
+    };
+
+  const counts: Record<ViewKey, number> = {
+    all: useContacts(countArgs('all')).total,
+    subscribed: useContacts(countArgs('subscribed')).total,
+    unsubscribed: useContacts(countArgs('unsubscribed')).total,
+    engaged: useContacts(countArgs('engaged')).total,
+  };
 
   const handleSearch = debounce((value: string) => {
     setSearchQuery(value);
@@ -95,10 +137,7 @@ export const ContactListPage = () => {
 
   const handleBulkDelete = () => {
     if (selectedIds.length > 0) {
-      bulkAction({
-        contact_ids: selectedIds,
-        action: 'delete',
-      });
+      bulkAction({ contact_ids: selectedIds, action: 'delete' });
       setSelectedIds([]);
     }
   };
@@ -108,174 +147,197 @@ export const ContactListPage = () => {
   };
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="w-full space-y-3.5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Contacts</h1>
-          <p className="text-muted-foreground">
-            Manage your email contacts and subscribers
+          <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
+          <p className="text-[13px] text-muted-foreground">
+            Everyone in your organization, with status and engagement.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setDuplicateDialogOpen(true)}>
-            <GitMerge className="h-4 w-4 mr-2" />
-            Find Duplicates
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => setDuplicateDialogOpen(true)}>
+            <GitMerge className="h-3.5 w-3.5" /> Find duplicates
           </Button>
-          <Button variant="outline" onClick={handleExport} disabled={isExporting}>
-            <Download className="h-4 w-4 mr-2" />
-            {isExporting ? 'Exporting...' : 'Export'}
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
+            <Download className="h-3.5 w-3.5" /> {isExporting ? 'Exporting…' : 'Export'}
           </Button>
-          <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Import
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+            <Upload className="h-3.5 w-3.5" /> Import
           </Button>
-          <Button onClick={() => navigate('/contacts/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Contact
+          <Button size="sm" onClick={() => navigate('/contacts/new')}>
+            <Plus className="h-3.5 w-3.5" /> New contact
           </Button>
         </div>
       </div>
 
-      <div className="flex gap-4 items-center">
-        <div className="flex-1">
+      {/* Counts double as the status filter — the figure and the control are the
+          same object, so there is nothing to keep in sync. */}
+      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        {VIEW_LABELS.map((tile) => {
+          const active = view === tile.key;
+          return (
+            <button
+              key={tile.key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => {
+                setView(tile.key);
+                setCurrentPage(1);
+              }}
+              className={cn(
+                'rounded-lg border bg-card p-4 text-left shadow-card transition-colors hover:border-brand/40',
+                active && 'border-brand bg-brand/[.06]'
+              )}
+            >
+              <span className="stat-label">{tile.label}</span>
+              <p className="stat-value text-[22px]">{countFmt(counts[tile.key])}</p>
+              <p className="delta">
+                {active ? <b className="text-brand">Filtering</b> : <span>Click to filter</span>}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="rounded-lg border bg-card shadow-card">
+        <div className="flex flex-wrap items-center gap-2 border-b p-3">
           <Input
-            placeholder="Search by email, name, or company..."
+            placeholder="Search by email, name, or company…"
             onChange={(e) => handleSearch(e.target.value)}
-            className="max-w-md"
+            className="h-8 max-w-xs flex-1"
           />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
-            <SelectItem value="bounced">Bounced</SelectItem>
-            <SelectItem value="complained">Complained</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={assignedToFilter} onValueChange={(v) => { setAssignedToFilter(v); setCurrentPage(1); }}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Filter by assignee" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Assignees</SelectItem>
-            {(members as any[]).map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.full_name || m.email}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {selectedIds.length > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-info/[.10] rounded-lg border border-info/[.30]">
-          <span className="text-sm font-medium">
-            {selectedIds.length} contact(s) selected
-          </span>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleBulkDelete}
+          <Select
+            value={assignedToFilter}
+            onValueChange={(v) => {
+              setAssignedToFilter(v);
+              setCurrentPage(1);
+            }}
           >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Selected
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectedIds([])}
-          >
-            Clear Selection
-          </Button>
-        </div>
-      )}
+            <SelectTrigger className="h-8 w-[180px]">
+              <SelectValue placeholder="All assignees" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All assignees</SelectItem>
+              {(members as any[]).map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.full_name || m.email}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      ) : (
-        <>
-          <ContactTable
-            contacts={contacts}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            onDelete={handleDelete}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSort={handleSort}
-          />
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Showing {(page - 1) * perPage + 1} to{' '}
-                {Math.min(page * perPage, total)} of {total} contacts
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setCurrentPage(page - 1)}
-                  disabled={page === 1}
-                >
-                  Previous
-                </Button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(
-                      (p) =>
-                        p === 1 ||
-                        p === totalPages ||
-                        (p >= page - 1 && p <= page + 1)
-                    )
-                    .map((p, i, arr) => (
-                      <>
-                        {i > 0 && arr[i - 1] !== p - 1 && (
-                          <span key={`ellipsis-${p}`} className="px-2">
-                            ...
-                          </span>
-                        )}
-                        <Button
-                          key={p}
-                          variant={p === page ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setCurrentPage(p)}
-                        >
-                          {p}
-                        </Button>
-                      </>
-                    ))}
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => setCurrentPage(page + 1)}
-                  disabled={page === totalPages}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
+          {view !== 'all' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => {
+                setView('all');
+                setCurrentPage(1);
+              }}
+            >
+              Clear filter
+            </Button>
           )}
-        </>
-      )}
+
+          <span className="ml-auto font-mono text-[11px] text-subtle-foreground">
+            {countFmt(total)} shown
+          </span>
+        </div>
+
+        {selectedIds.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 border-b bg-brand/[.08] px-3 py-2.5">
+            <span className="text-[12.5px] font-semibold">{selectedIds.length} selected</span>
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+              <Trash2 className="h-3.5 w-3.5" /> Delete selected
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setSelectedIds([])}>
+              Clear selection
+            </Button>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex flex-col gap-2 p-3">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-11 w-full rounded-md" />
+            ))}
+          </div>
+        ) : contacts.length === 0 ? (
+          <div className="px-4 py-14 text-center">
+            <Users className="mx-auto mb-3 h-6 w-6 text-subtle-foreground" />
+            <h3 className="mb-1 text-[14px] font-semibold">No contacts match this view</h3>
+            <p className="mb-4 text-[12.5px] text-muted-foreground">
+              Try clearing the filters, or import a list to get started.
+            </p>
+            <div className="flex justify-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+                <Upload className="h-3.5 w-3.5" /> Import contacts
+              </Button>
+              <Button size="sm" onClick={() => navigate('/contacts/new')}>
+                <Plus className="h-3.5 w-3.5" /> New contact
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="p-1">
+              <ContactTable
+                contacts={contacts}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
+                onDelete={handleDelete}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2.5">
+                <span className="font-mono text-[11px] text-subtle-foreground">
+                  {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} of {countFmt(total)}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setCurrentPage(page - 1)}
+                    disabled={page === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="px-2 font-mono text-[11px] text-muted-foreground">
+                    {page} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setCurrentPage(page + 1)}
+                    disabled={page === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Contact</DialogTitle>
+            <DialogTitle>Delete contact</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this contact? This action cannot be undone.
+              This removes the contact and its history. It cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
             <Button variant="destructive" onClick={confirmDelete}>
@@ -285,10 +347,7 @@ export const ContactListPage = () => {
         </DialogContent>
       </Dialog>
 
-      <ImportContactsDialog
-        open={importDialogOpen}
-        onClose={() => setImportDialogOpen(false)}
-      />
+      <ImportContactsDialog open={importDialogOpen} onClose={() => setImportDialogOpen(false)} />
 
       <DuplicateContactsDialog
         open={duplicateDialogOpen}
