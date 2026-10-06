@@ -1,4 +1,4 @@
-import { Send } from 'lucide-react';
+import logoUrl from '@/emailLogo.png';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -14,11 +14,14 @@ export const AuthLayout = ({ children, title, description }: AuthLayoutProps) =>
   return (
     <div className="app-ground grid min-h-screen place-items-center px-4 py-7">
       <div className="w-full max-w-[400px]">
-        <div className="mb-5 flex items-center justify-center gap-2.5">
-          <span className="grid h-[30px] w-[30px] place-items-center rounded-lg bg-brand-fill text-brand-ink">
-            <Send className="h-3.5 w-3.5" />
-          </span>
-          <b className="text-[17px] font-extrabold tracking-tight">Cadence</b>
+        <div className="mb-5 flex justify-center">
+          <img
+            src={logoUrl}
+            alt="Cadence"
+            width={44}
+            height={44}
+            className="h-11 w-11 rounded-xl object-contain"
+          />
         </div>
 
         <div className="rounded-2xl border bg-card p-6 shadow-card">

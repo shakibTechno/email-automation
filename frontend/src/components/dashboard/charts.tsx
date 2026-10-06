@@ -33,6 +33,17 @@ const linePath = (pts: Array<[number, number]>) =>
 const peakIndex = (values: number[]) =>
   values.reduce((best, v, i) => (v > values[best] ? i : best), 0);
 
+/** No data is a state, not a hole: a flat dashed rule keeps the tile's shape. */
+const FlatBaseline = ({ height, label }: { height: number; label?: string }) => (
+  <div
+    className="flex items-center justify-center"
+    style={{ height }}
+    aria-label={label ?? 'No data for this period'}
+  >
+    <span className="h-px w-full border-t border-dashed border-border" />
+  </div>
+);
+
 interface SeriesProps {
   values: number[];
   className?: string;
@@ -42,7 +53,7 @@ interface SeriesProps {
 /** Dotted line with a glowing marker on the peak — the contacts tile. */
 export const DottedSparkline = ({ values, className, height = 44 }: SeriesProps) => {
   const pts = toPoints(values, height);
-  if (pts.length === 0) return <div style={{ height }} />;
+  if (pts.length === 0) return <FlatBaseline height={height} />;
   const peak = pts[peakIndex(values)];
 
   return (
@@ -70,7 +81,7 @@ export const DottedSparkline = ({ values, className, height = 44 }: SeriesProps)
 /** Vertical hairlines — the sends tile. */
 export const StickChart = ({ values, className, height = 44 }: SeriesProps) => {
   const pts = toPoints(values, height);
-  if (pts.length === 0) return <div style={{ height }} />;
+  if (pts.length === 0) return <FlatBaseline height={height} />;
   const peak = pts[peakIndex(values)];
 
   return (
@@ -98,7 +109,7 @@ export const StickChart = ({ values, className, height = 44 }: SeriesProps) => {
 
 /** Dense lime ticks — the rate tiles. Pure CSS, no SVG needed. */
 export const TickBars = ({ values, className, height = 44 }: SeriesProps) => {
-  if (values.length === 0) return <div style={{ height }} />;
+  if (values.length === 0) return <FlatBaseline height={height} />;
   const max = Math.max(...values) || 1;
 
   return (
@@ -113,7 +124,7 @@ export const TickBars = ({ values, className, height = 44 }: SeriesProps) => {
 /** Smooth arc — the value tile. */
 export const AreaSparkline = ({ values, className, height = 44 }: SeriesProps) => {
   const pts = toPoints(values, height);
-  if (pts.length === 0) return <div style={{ height }} />;
+  if (pts.length === 0) return <FlatBaseline height={height} />;
   const peak = pts[peakIndex(values)];
 
   return (
@@ -168,8 +179,11 @@ export const HeroAreaChart = ({
 
   if (pts.length === 0) {
     return (
-      <div className="grid text-[12.5px] text-subtle-foreground" style={{ height, placeItems: 'center' }}>
-        No activity in this period yet.
+      <div className="flex flex-col items-center justify-center gap-2 py-6">
+        <span className="h-px w-full border-t border-dashed border-border" />
+        <span className="text-[12.5px] text-subtle-foreground">
+          No activity in this period yet.
+        </span>
       </div>
     );
   }
@@ -226,8 +240,9 @@ interface BarGroupProps {
 export const BarGroup = ({ values, labels = [], height = 100 }: BarGroupProps) => {
   if (values.length === 0) {
     return (
-      <div className="grid text-[12.5px] text-subtle-foreground" style={{ height, placeItems: 'center' }}>
-        Nothing to chart yet.
+      <div className="flex flex-col items-center justify-center gap-2 py-4">
+        <span className="h-px w-full border-t border-dashed border-border" />
+        <span className="text-[12.5px] text-subtle-foreground">Nothing to chart yet.</span>
       </div>
     );
   }

@@ -144,6 +144,13 @@ export const DashboardPage = () => {
 
   return (
     <div className="flex flex-col gap-3.5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
+        <p className="text-[13px] text-muted-foreground">
+          Audience growth, sending health and pipeline at a glance.
+        </p>
+      </div>
+
       {/* period + quick actions */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-md border bg-card p-0.5">

@@ -1,5 +1,14 @@
-import { Search, SlidersHorizontal, Sun, Moon, User } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Search,
+  SlidersHorizontal,
+  Sun,
+  Moon,
+  User,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Menu,
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,55 +21,64 @@ import { useAuth } from '@/hooks/useAuth';
 import { cn, getInitials } from '@/lib/utils';
 import { useTheme } from '@/lib/theme';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import logoUrl from '@/emailLogo.png';
 
-/**
- * Page titles live here rather than in each page so the topbar stays one
- * component. Longest prefix wins, so detail routes inherit their section.
- */
-const PAGE_TITLES: Array<[string, string, string]> = [
-  ['/dashboard', 'Overview', 'Audience growth, sending health and pipeline at a glance.'],
-  ['/contacts/tags', 'Tags', 'The shared labels forms, workflows and segments all read.'],
-  ['/contacts', 'Contacts', 'Everyone in your organization, with score and engagement.'],
-  ['/segments', 'Segments', 'Saved audiences — dynamic rules or a curated list.'],
-  ['/campaigns', 'Campaigns', 'One message to many people, now or scheduled.'],
-  ['/sequences', 'Sequences', 'Fixed series of emails spaced over days.'],
-  ['/workflows', 'Workflows', 'Branching automations that react to behaviour.'],
-  ['/templates', 'Email templates', 'Reusable designs for campaigns and sequences.'],
-  ['/forms', 'Forms', 'Lead capture, hosted or embedded on your own site.'],
-  ['/landing-pages', 'Landing pages', 'The pages your ads and posts point at.'],
-  ['/crm/companies', 'Companies', 'Accounts, their people and open deals.'],
-  ['/crm', 'Pipeline', 'Deals from first conversation to won.'],
-  ['/analytics', 'Analytics', 'Every period compared against the one before it.'],
-  ['/integrations', 'Integrations', 'Lead sources, pixels, webhooks and API keys.'],
-  ['/billing', 'Billing', 'Plan, usage against limits, payment and invoices.'],
-  ['/settings', 'Settings', 'Sending identity, provider, domain auth and limits.'],
-  ['/profile', 'Your profile', 'Personal details, password and sessions.'],
-];
+interface HeaderProps {
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+  onToggleDrawer: () => void;
+}
 
-const usePageMeta = () => {
-  const { pathname } = useLocation();
-  const match = PAGE_TITLES.find(([prefix]) => pathname.startsWith(prefix));
-  return { title: match?.[1] ?? 'Cadence', subtitle: match?.[2] ?? '' };
-};
-
-export const Header = () => {
+export const Header = ({ collapsed, onToggleCollapsed, onToggleDrawer }: HeaderProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const { title, subtitle } = usePageMeta();
   const { theme, setTheme } = useTheme();
 
   const iconBtn =
-    'grid h-8 w-8 place-items-center rounded-md border bg-card text-muted-foreground transition-colors hover:text-foreground';
+    'grid h-8 w-8 flex-none place-items-center rounded-md border bg-card text-muted-foreground transition-colors hover:text-foreground';
 
   return (
-    <header className="flex flex-wrap items-center gap-2.5 px-0.5 pt-0.5">
-      <div className="min-w-0">
-        <h1 className="truncate text-[19px] font-bold tracking-tight">{title}</h1>
-      </div>
+    <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center gap-2.5 border-b bg-sidebar px-3">
+      {/* brand — sits over the rail, so it survives a collapse */}
+      <Link
+        to="/dashboard"
+        className={cn(
+          'flex flex-none items-center justify-center transition-[width] duration-200',
+          collapsed ? 'lg:w-[52px]' : 'lg:w-[222px] lg:justify-start'
+        )}
+        aria-label="Cadence home"
+      >
+        <img
+          src={logoUrl}
+          alt="Cadence"
+          width={32}
+          height={32}
+          className="h-8 w-8 flex-none rounded-lg object-contain"
+        />
+      </Link>
+
+      {/* rail controls: collapse on desktop, drawer below lg */}
+      <button
+        type="button"
+        onClick={onToggleCollapsed}
+        className={cn(iconBtn, 'hidden lg:grid')}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-pressed={collapsed}
+      >
+        {collapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+      </button>
+      <button
+        type="button"
+        onClick={onToggleDrawer}
+        className={cn(iconBtn, 'lg:hidden')}
+        aria-label="Open navigation"
+      >
+        <Menu className="h-3.5 w-3.5" />
+      </button>
 
       <div className="flex-1" />
 
-      <label className="hidden min-w-[200px] items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-[12.5px] text-subtle-foreground sm:flex">
+      <label className="hidden min-w-[180px] items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-[12.5px] text-subtle-foreground xl:flex">
         <Search className="h-3.5 w-3.5 flex-none" />
         <input
           id="global-search"
@@ -70,7 +88,10 @@ export const Header = () => {
         />
       </label>
 
-      <button type="button" className="hidden items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-[12.5px] text-muted-foreground hover:text-foreground md:flex">
+      <button
+        type="button"
+        className="hidden items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-[12.5px] text-muted-foreground hover:text-foreground xl:flex"
+      >
         <SlidersHorizontal className="h-3.5 w-3.5" /> Filter
       </button>
 
@@ -99,12 +120,12 @@ export const Header = () => {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-2 rounded-md border bg-card py-1 pl-1 pr-2.5 hover:bg-accent"
+            className="flex flex-none items-center gap-2 rounded-md border bg-card py-1 pl-1 pr-1 hover:bg-accent sm:pr-2.5"
           >
             <span className="grid h-7 w-7 flex-none place-items-center rounded-full bg-brand-fill text-[11.5px] font-extrabold text-brand-ink">
               {user ? getInitials(user.first_name, user.last_name) : <User className="h-3.5 w-3.5" />}
             </span>
-            <span className="hidden text-left md:block">
+            <span className="hidden text-left lg:block">
               <span className="block text-[12.5px] font-semibold leading-tight">
                 {user ? `${user.first_name} ${user.last_name}` : 'User'}
               </span>
@@ -123,10 +144,6 @@ export const Header = () => {
           <DropdownMenuItem onClick={() => logout()}>Log out</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {subtitle && (
-        <p className="order-last -mt-0.5 w-full text-[12.5px] text-muted-foreground">{subtitle}</p>
-      )}
     </header>
   );
 };
