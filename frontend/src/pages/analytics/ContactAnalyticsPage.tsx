@@ -42,7 +42,7 @@ export function ContactAnalyticsPage() {
     <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Analytics</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
           <p className="text-muted-foreground">Contact growth and engagement insights</p>
         </div>
         <DateRangeSelector value={days} onChange={setDays} />

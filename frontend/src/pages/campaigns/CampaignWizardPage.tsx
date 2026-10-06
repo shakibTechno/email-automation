@@ -30,6 +30,7 @@ import {
   RecipientType,
   ABTestConfig,
 } from '@/types/campaign';
+import { StepIndicator } from '@/components/ui/step-indicator';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -301,37 +302,8 @@ export const CampaignWizardPage = () => {
       </div>
 
       {/* Step Indicator */}
-      <div className="flex items-center gap-2">
-        {STEPS.map((step, index) => {
-          const Icon = step.icon;
-          const isActive = currentStep === step.id;
-          const isComplete = currentStep > step.id;
-          return (
-            <div key={step.id} className="flex items-center">
-              <button
-                onClick={() => {
-                  if (isComplete || isActive) setCurrentStep(step.id);
-                }}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  isActive && 'bg-primary text-primary-foreground',
-                  isComplete && 'bg-primary/10 text-primary cursor-pointer',
-                  !isActive && !isComplete && 'text-muted-foreground'
-                )}
-              >
-                {isComplete ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Icon className="h-4 w-4" />
-                )}
-                {step.label}
-              </button>
-              {index < STEPS.length - 1 && (
-                <div className="w-8 h-px bg-border mx-1" />
-              )}
-            </div>
-          );
-        })}
+      <div className="rounded-lg border bg-card p-3 shadow-card">
+        <StepIndicator steps={STEPS} current={currentStep} onStepClick={setCurrentStep} />
       </div>
 
       {/* Step Content */}

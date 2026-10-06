@@ -94,7 +94,7 @@ export const TagManagementPage = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Tag Management</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Tag Management</h1>
             <p className="text-muted-foreground">
               Create and manage tags for organizing contacts
             </p>

@@ -187,6 +187,16 @@
     background: hsl(var(--brand-fill));
   }
 
+
+  /* ---- builder canvas ---- */
+  /* The dot grid reads as "this is a workspace you arrange things on",
+     which a flat panel does not. */
+  .canvas-grid {
+    background-image: radial-gradient(circle at 1px 1px, hsl(var(--border)) 1px, transparent 0);
+    background-size: 19px 19px;
+    background-color: hsl(var(--secondary) / .45);
+  }
+
   .tick-row { @apply flex items-end gap-0.5; }
   .tick-row > i {
     @apply flex-1 block rounded-[1px];

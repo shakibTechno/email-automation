@@ -26,7 +26,7 @@ export const ContactCreatePage = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Create Contact</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Create Contact</h1>
           <p className="text-muted-foreground">
             Add a new contact to your email list
           </p>

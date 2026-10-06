@@ -263,7 +263,7 @@ export default function SequenceBuilderPage() {
                 {steps.map((step, idx) => (
                   <div
                     key={step.id}
-                    className="flex items-start gap-3 p-4 border rounded-lg bg-card hover:border-info/[.30] transition-colors"
+                    className="flex items-start gap-3 p-4 border rounded-lg bg-card hover:border-brand/40 transition-colors"
                   >
                     <GripVertical className="h-5 w-5 text-subtle-foreground mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">

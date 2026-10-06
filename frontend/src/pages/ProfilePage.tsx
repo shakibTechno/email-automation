@@ -66,7 +66,7 @@ export const ProfilePage = () => {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-3xl font-bold">Profile Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Profile Settings</h1>
         <p className="text-muted-foreground">
           Manage your account settings and preferences
         </p>

@@ -33,6 +33,7 @@ import {
   defaultFormLayout,
 } from '@/types/form';
 import { toast } from 'sonner';
+import { StepIndicator } from '@/components/ui/step-indicator';
 
 const defaultField = (order: number): FormField => ({
   field_type: 'text',
@@ -235,23 +236,13 @@ export const FormBuilderPage = () => {
         </div>
         <div className="flex items-center gap-2">
           {/* Step indicators */}
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            {steps.map((s, i) => (
-              <div key={s.id} className="flex items-center">
-                {i > 0 && <ChevronRight className="h-4 w-4 mx-1" />}
-                <span
-                  className={`cursor-pointer hover:text-foreground transition-colors ${
-                    step === s.id ? 'font-semibold text-foreground' : ''
-                  }`}
-                  onClick={() => {
-                    if (s.id === 1 || validateStep1()) setStep(s.id);
-                  }}
-                >
-                  {s.label}
-                </span>
-              </div>
-            ))}
-          </div>
+          <StepIndicator
+            steps={steps}
+            current={step}
+            onStepClick={(id) => {
+              if (id === 1 || validateStep1()) setStep(id);
+            }}
+          />
         </div>
       </div>
 
