@@ -68,7 +68,7 @@ export const ContactTable = ({
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-white">
+    <div className="border rounded-lg overflow-hidden bg-card">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-secondary/50 border-b">

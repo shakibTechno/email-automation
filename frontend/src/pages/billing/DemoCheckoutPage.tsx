@@ -48,7 +48,7 @@ export function DemoCheckoutPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-xl overflow-hidden">
           {/* Header */}
           <div className="bg-foreground text-white px-8 py-6">
             <div className="flex items-center justify-between">

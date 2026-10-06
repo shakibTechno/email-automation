@@ -62,12 +62,12 @@ export const TemplateListPage = () => {
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-3.5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Email Templates</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight">Email Templates</h1>
+          <p className="text-[13px] text-muted-foreground">
             Create and manage your email templates
           </p>
         </div>

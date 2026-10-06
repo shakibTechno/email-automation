@@ -541,7 +541,7 @@ export function EmailTab() {
                       </div>
 
                       <CollapsibleContent>
-                        <div className="px-4 pb-4 pt-3 space-y-3 bg-white border-t">
+                        <div className="px-4 pb-4 pt-3 space-y-3 bg-card border-t">
                           {/* SPF */}
                           <div>
                             <div className="flex items-center justify-between mb-1">

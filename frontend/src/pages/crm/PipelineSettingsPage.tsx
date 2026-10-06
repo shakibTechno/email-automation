@@ -192,7 +192,7 @@ export const PipelineSettingsPage = () => {
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`flex items-center gap-3 p-3 bg-white border rounded-lg ${
+                          className={`flex items-center gap-3 p-3 bg-card border rounded-lg ${
                             snapshot.isDragging ? 'shadow-lg' : ''
                           }`}
                         >

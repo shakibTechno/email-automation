@@ -46,7 +46,7 @@ export const CampaignPreviewDialog = ({
             {subject ? `Preview: ${subject}` : 'Campaign Preview'}
           </DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-auto border rounded bg-white min-h-[400px]">
+        <div className="flex-1 overflow-auto border rounded bg-card min-h-[400px]">
           {loading ? (
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />

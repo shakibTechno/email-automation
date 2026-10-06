@@ -94,7 +94,7 @@ function BaseNode({
         <Handle
           type="target"
           position={Position.Top}
-          className="!h-3 !w-3 !bg-muted-foreground !border-2 !border-white"
+          className="!h-3 !w-3 !bg-muted-foreground !border-2 !border-border"
         />
       )}
 
@@ -103,7 +103,7 @@ function BaseNode({
         <Handle
           type="source"
           position={Position.Bottom}
-          className="!h-3 !w-3 !bg-muted-foreground !border-2 !border-white"
+          className="!h-3 !w-3 !bg-muted-foreground !border-2 !border-border"
         />
       )}
 
@@ -115,7 +115,7 @@ function BaseNode({
           position={handle.position}
           id={handle.id}
           className={cn(
-            '!h-3 !w-3 !border-2 !border-white',
+            '!h-3 !w-3 !border-2 !border-border',
             handle.id === 'true' ? '!bg-success' : '!bg-destructive'
           )}
           style={{

@@ -148,9 +148,9 @@ export const LandingPageBuilderPage = () => {
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div className="flex flex-col h-screen bg-card">
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
-      <div className="h-12 shrink-0 border-b bg-white flex items-center px-3 gap-2">
+      <div className="h-12 shrink-0 border-b bg-card flex items-center px-3 gap-2">
 
         {/* Left zone: back + name + status */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -185,7 +185,7 @@ export const LandingPageBuilderPage = () => {
               onClick={() => handleDeviceChange(device)}
               className={`h-7 w-8 flex items-center justify-center rounded-md transition-colors ${
                 activeDevice === device
-                  ? 'bg-white shadow-sm text-foreground'
+                  ? 'bg-card shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >

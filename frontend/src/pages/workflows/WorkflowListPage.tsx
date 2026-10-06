@@ -74,8 +74,8 @@ export default function WorkflowListPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Workflows</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight">Workflows</h1>
+          <p className="text-[13px] text-muted-foreground">
             Automate your marketing with visual workflows
           </p>
         </div>
@@ -124,7 +124,7 @@ export default function WorkflowListPage() {
           </Button>
         </div>
       ) : (
-        <div className="border rounded-lg">
+        <div className="rounded-lg border bg-card shadow-card overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>

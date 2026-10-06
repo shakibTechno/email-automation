@@ -112,8 +112,8 @@ export default function SegmentListPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Segments</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight">Segments</h1>
+          <p className="text-[13px] text-muted-foreground">
             Create and manage contact segments for targeted campaigns
           </p>
         </div>
@@ -183,7 +183,7 @@ export default function SegmentListPage() {
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg">
+      <div className="rounded-lg border bg-card shadow-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

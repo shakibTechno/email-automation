@@ -236,7 +236,7 @@ export default function WorkflowBuilderPage() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left sidebar - Node Palette */}
-        <div className="w-64 border-r bg-white overflow-y-auto">
+        <div className="w-64 border-r bg-card overflow-y-auto">
           <div className="p-4 border-b space-y-4">
             <div>
               <Label>Name</Label>

@@ -87,11 +87,11 @@ export const CompanyListPage = () => {
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-3.5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Companies</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Companies</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Manage your accounts and company relationships
           </p>
@@ -114,7 +114,7 @@ export const CompanyListPage = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg border shadow-sm">
+      <div className="rounded-lg border bg-card shadow-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

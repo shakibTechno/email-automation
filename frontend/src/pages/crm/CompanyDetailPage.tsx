@@ -205,15 +205,15 @@ export const CompanyDetailPage = () => {
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border p-4 text-center">
+        <div className="bg-card rounded-lg border p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{contacts.length}</p>
           <p className="text-sm text-muted-foreground mt-1">Contacts</p>
         </div>
-        <div className="bg-white rounded-lg border p-4 text-center">
+        <div className="bg-card rounded-lg border p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{deals.length}</p>
           <p className="text-sm text-muted-foreground mt-1">Total Deals</p>
         </div>
-        <div className="bg-white rounded-lg border p-4 text-center">
+        <div className="bg-card rounded-lg border p-4 text-center">
           <p className="text-2xl font-bold text-success">${openValue.toLocaleString()}</p>
           <p className="text-sm text-muted-foreground mt-1">Open Pipeline</p>
         </div>
@@ -222,7 +222,7 @@ export const CompanyDetailPage = () => {
       <div className="grid grid-cols-3 gap-6">
         {/* Left — Info */}
         <div className="space-y-4">
-          <div className="bg-white rounded-lg border p-4 space-y-3">
+          <div className="bg-card rounded-lg border p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Company Info</h3>
 
             {company.website && (

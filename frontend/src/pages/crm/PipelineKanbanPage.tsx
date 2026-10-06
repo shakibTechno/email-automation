@@ -209,13 +209,13 @@ export const PipelineKanbanPage = () => {
           <div className="flex items-center justify-between">
             <div className="flex border rounded-md overflow-hidden">
               <button
-                className={`px-3 py-1.5 text-sm ${viewMode === 'kanban' ? 'bg-primary text-white' : 'bg-white'}`}
+                className={`px-3 py-1.5 text-sm ${viewMode === 'kanban' ? 'bg-primary text-primary-foreground' : 'bg-card'}`}
                 onClick={() => setViewMode('kanban')}
               >
                 <LayoutGrid className="h-4 w-4" />
               </button>
               <button
-                className={`px-3 py-1.5 text-sm ${viewMode === 'list' ? 'bg-primary text-white' : 'bg-white'}`}
+                className={`px-3 py-1.5 text-sm ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'bg-card'}`}
                 onClick={() => setViewMode('list')}
               >
                 <List className="h-4 w-4" />

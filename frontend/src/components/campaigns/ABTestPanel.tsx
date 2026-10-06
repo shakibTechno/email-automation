@@ -145,15 +145,15 @@ export const ABTestPanel = ({ campaignId, abTest }: ABTestPanelProps) => {
                 {/* Stats */}
                 {hasResults && (
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-white rounded p-2 text-center border">
+                    <div className="bg-card rounded p-2 text-center border">
                       <p className="text-muted-foreground">Sent</p>
                       <p className="font-semibold text-base">{v.sent_count.toLocaleString()}</p>
                     </div>
-                    <div className="bg-white rounded p-2 text-center border">
+                    <div className="bg-card rounded p-2 text-center border">
                       <p className="text-muted-foreground">Opens</p>
                       <p className="font-semibold text-base">{v.open_count.toLocaleString()}</p>
                     </div>
-                    <div className="bg-white rounded p-2 text-center border">
+                    <div className="bg-card rounded p-2 text-center border">
                       <p className="text-muted-foreground">Open Rate</p>
                       <p
                         className={cn(
@@ -166,7 +166,7 @@ export const ABTestPanel = ({ campaignId, abTest }: ABTestPanelProps) => {
                         {v.open_rate}%
                       </p>
                     </div>
-                    <div className="bg-white rounded p-2 text-center border">
+                    <div className="bg-card rounded p-2 text-center border">
                       <p className="text-muted-foreground">Click Rate</p>
                       <p
                         className={cn(

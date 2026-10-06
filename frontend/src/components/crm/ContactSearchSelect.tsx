@@ -118,7 +118,7 @@ export const ContactSearchSelect = ({
       )}
 
       {isOpen && options.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+        <div className="absolute z-50 w-full mt-1 bg-card border rounded-md shadow-lg max-h-60 overflow-auto">
           {options.map((contact) => {
             const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
             return (

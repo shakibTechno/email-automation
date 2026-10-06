@@ -28,7 +28,7 @@ export const DealCard = ({ deal }: DealCardProps) => {
   return (
     <div
       className={cn(
-        "bg-white rounded-lg border p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer",
+        "bg-card rounded-lg border p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer",
         deal.is_rotting ? "border-warning/[.40] bg-warning/[0.04]" : "border-border"
       )}
       onClick={() => navigate(`/crm/deals/${deal.id}`)}

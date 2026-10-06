@@ -57,7 +57,7 @@ export default function SequenceListPage() {
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Email Sequences</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Email Sequences</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Automate multi-step email series for contacts
           </p>
@@ -93,7 +93,7 @@ export default function SequenceListPage() {
           </Button>
         </div>
       ) : (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="rounded-lg border bg-card shadow-card overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>

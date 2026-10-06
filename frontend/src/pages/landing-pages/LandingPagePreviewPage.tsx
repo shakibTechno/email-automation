@@ -38,7 +38,7 @@ export const LandingPagePreviewPage = () => {
   return (
     <div className="flex flex-col h-screen bg-secondary">
       {/* Toolbar */}
-      <div className="h-14 border-b bg-white flex items-center justify-between px-4">
+      <div className="h-14 border-b bg-card flex items-center justify-between px-4">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -83,7 +83,7 @@ export const LandingPagePreviewPage = () => {
       {/* Preview Frame */}
       <div className="flex-1 flex items-start justify-center p-4 overflow-auto">
         <div
-          className="bg-white shadow-lg transition-all duration-300"
+          className="bg-card shadow-lg transition-all duration-300"
           style={{
             width: deviceWidths[device],
             maxWidth: '100%',

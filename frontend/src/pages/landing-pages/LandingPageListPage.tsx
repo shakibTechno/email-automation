@@ -85,11 +85,11 @@ export const LandingPageListPage = () => {
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-3.5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Landing Pages</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight">Landing Pages</h1>
+          <p className="text-[13px] text-muted-foreground">
             Create and manage your landing pages
           </p>
         </div>
@@ -136,7 +136,7 @@ export const LandingPageListPage = () => {
             </div>
           ) : landingPages.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No landing pages found</p>
+              <p className="text-[13px] text-muted-foreground">No landing pages found</p>
               <Button
                 variant="outline"
                 className="mt-4"

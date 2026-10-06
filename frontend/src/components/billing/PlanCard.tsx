@@ -81,7 +81,7 @@ export function PlanCard({ plan, interval, isCurrentPlan, onSelect, isLoading }:
     )}>
       {plan.is_popular && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <Badge className="bg-primary text-white flex items-center gap-1">
+          <Badge className="bg-primary text-primary-foreground flex items-center gap-1">
             <Star className="h-3 w-3" />
             Most Popular
           </Badge>
