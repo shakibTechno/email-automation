@@ -317,6 +317,11 @@ def coerce_value(type_, raw, *, label='value', options=()):
             raise CoercionError(f'{label} must be a date and time, got "{raw}".')
         return parsed
 
+    if type_ in ('url', 'email'):
+        # Shape is checked by the caller that knows which validator applies;
+        # here the value is only normalised.
+        return str(raw)
+
     if type_ == 'select' and options:
         text = str(raw).strip().lower()
         if text not in {str(o).lower() for o in options}:

@@ -3,8 +3,10 @@ Contact models for the Email Marketing Automation Platform.
 """
 from django.db import models
 from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import EmailValidator
 from django.utils import timezone
+from django.utils.text import slugify
 from apps.core.models import TimeStampedModel, SoftDeleteModel
 from apps.accounts.models import Organization
 import uuid
@@ -204,6 +206,13 @@ class Contact(TimeStampedModel, SoftDeleteModel):
             models.Index(fields=['first_name', 'last_name']),
             models.Index(fields=['company']),
             models.Index(fields=['last_activity_at']),
+            # Custom-field lookups are JSON containment queries, which a btree
+            # index cannot serve. Without this, a segment rule on a custom
+            # field is a full table scan — unnoticeable with a thousand
+            # contacts and ruinous with a million. Postgres-only, which is what
+            # production runs; SQLite ignores it, so the fast test settings are
+            # unaffected.
+            GinIndex(fields=['custom_fields'], name='contacts_custom_fields_gin'),
         ]
 
     def __str__(self):
@@ -356,6 +365,17 @@ class ContactTag(TimeStampedModel):
 class CustomField(TimeStampedModel):
     """
     Custom field definition for contacts.
+
+    The definition and the data have always both existed — this model, and
+    `Contact.custom_fields` — with nothing connecting them: values were never
+    checked against a definition, so any key could be written with any value
+    of any type.
+
+    `key` and `label` are separate because they do different jobs. The key is
+    the JSON key the values are stored under and never changes; the label is
+    what people read and can be edited freely. They used to be the same field,
+    so renaming a custom field orphaned every value already stored under its
+    old name.
     """
     FIELD_TYPE_CHOICES = [
         ('text', 'Text'),
@@ -363,7 +383,24 @@ class CustomField(TimeStampedModel):
         ('date', 'Date'),
         ('boolean', 'Boolean'),
         ('dropdown', 'Dropdown'),
+        ('multiselect', 'Multi-select'),
+        ('url', 'URL'),
+        ('email', 'Email'),
     ]
+
+    # How a declared type maps onto the shared coercion vocabulary in
+    # apps.contacts.fields, so one implementation validates both columns and
+    # custom values.
+    TYPE_TO_SPEC = {
+        'text': 'string',
+        'number': 'number',
+        'date': 'date',
+        'boolean': 'boolean',
+        'dropdown': 'select',
+        'multiselect': 'multiselect',
+        'url': 'url',
+        'email': 'email',
+    }
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
@@ -371,9 +408,15 @@ class CustomField(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name='custom_fields'
     )
-    name = models.CharField(max_length=100)
+    # The JSON key. Set once from the label and then left alone, which is what
+    # makes renaming safe.
+    key = models.SlugField(max_length=100, blank=True)
+    name = models.CharField(
+        max_length=100,
+        help_text='The label people see. Safe to change; the stored key does not.',
+    )
     field_type = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=FIELD_TYPE_CHOICES,
         default='text'
     )
@@ -382,13 +425,51 @@ class CustomField(TimeStampedModel):
     dropdown_options = models.JSONField(default=list, blank=True)  # For dropdown type
     help_text = models.TextField(blank=True)
 
+    # Where this field appears in a form, so an organization can order its own
+    # fields rather than being stuck with alphabetical.
+    display_order = models.PositiveIntegerField(default=0)
+
     class Meta:
         db_table = 'custom_fields'
-        ordering = ['name']
-        unique_together = [['organization', 'name']]
+        ordering = ['display_order', 'name']
+        unique_together = [
+            ['organization', 'name'],
+            # The key is what values are stored under, so two definitions
+            # sharing one would make the data ambiguous.
+            ['organization', 'key'],
+        ]
         indexes = [
             models.Index(fields=['organization', 'name']),
+            models.Index(fields=['organization', 'key']),
         ]
 
     def __str__(self):
         return f"{self.name} ({self.get_field_type_display()})"
+
+    @property
+    def spec_type(self):
+        """This field's type in the shared coercion vocabulary."""
+        return self.TYPE_TO_SPEC.get(self.field_type, 'string')
+
+    def save(self, *args, **kwargs):
+        if not self.key:
+            self.key = self._generate_key()
+        super().save(*args, **kwargs)
+
+    def _generate_key(self):
+        """
+        A stable key from the label, unique within the organization.
+
+        Only ever called when the key is empty — on create, or on a row
+        migrated from before the column existed. Renaming must not reach here,
+        because that is the whole point of the split.
+        """
+        base = slugify(self.name).replace('-', '_')[:90] or 'field'
+        key = base
+        counter = 1
+        while CustomField.objects.filter(
+            organization_id=self.organization_id, key=key,
+        ).exclude(pk=self.pk).exists():
+            key = f'{base}_{counter}'
+            counter += 1
+        return key

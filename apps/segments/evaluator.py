@@ -62,6 +62,9 @@ OPERATOR_TYPE_FOR = {
 CUSTOM_FIELD_TYPE_MAP = {
     'text': 'string',
     'dropdown': 'select',
+    'multiselect': 'select',
+    'url': 'string',
+    'email': 'string',
 }
 
 
@@ -127,9 +130,24 @@ class SegmentEvaluator:
     """
 
     @staticmethod
-    def get_field_definitions():
-        """Return all available fields for segmentation."""
-        return FIELD_DEFINITIONS
+    def get_field_definitions(organization=None):
+        """
+        Every field a rule may use, this organization's custom fields included.
+
+        The custom ones could not be offered before: this returned a
+        module-level dict with no organization in scope, so a customer had to
+        know to hand-write `custom.industry` and then got string operators for
+        it whatever its declared type.
+        """
+        if organization is None:
+            return dict(FIELD_DEFINITIONS)
+
+        from apps.contacts.custom_fields import CustomFieldService
+
+        return {
+            **FIELD_DEFINITIONS,
+            **CustomFieldService.segment_fields(organization),
+        }
 
     @staticmethod
     def get_operators_for_field(field: str, organization=None) -> list:
@@ -144,9 +162,9 @@ class SegmentEvaluator:
         if field.startswith('custom.') and organization is not None:
             from apps.contacts.models import CustomField
 
-            name = field[len('custom.'):]
+            key = field[len('custom.'):]
             declared = CustomField.objects.filter(
-                organization=organization, name=name,
+                organization=organization, key=key,
             ).values_list('field_type', flat=True).first()
             if declared:
                 mapped = operator_type(CUSTOM_FIELD_TYPE_MAP.get(declared, declared))

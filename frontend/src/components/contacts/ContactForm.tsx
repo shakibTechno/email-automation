@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,6 +17,7 @@ import { Contact } from '@/types/contact';
 import { formatDateTime } from '@/lib/utils';
 import { TagSelector } from './TagSelector';
 import { ContactSection } from './ContactSection';
+import { CustomFieldInputs } from './CustomFieldInputs';
 import { useTeamMembers } from '@/hooks/useTeam';
 
 const LIFECYCLE_STAGES = [
@@ -158,6 +160,9 @@ export const ContactForm = ({ contact, onSubmit, isSubmitting }: ContactFormProp
   const tagIds = watch('tags') || [];
   const assignedTo = watch('assigned_to');
   const values = watch();
+  const [customValues, setCustomValues] = useState<Record<string, unknown>>(
+    contact?.custom_fields ?? {}
+  );
 
   /** Register an input and hand it its own error, so each call site is one line. */
   const bind = (name: keyof ContactFormData) => ({
@@ -180,7 +185,10 @@ export const ContactForm = ({ contact, onSubmit, isSubmitting }: ContactFormProp
     }).length;
 
   const handleFormSubmit = (data: ContactFormData) => {
-    onSubmit(data);
+    // custom_fields is held outside the zod schema: its shape is the
+    // organization's own, decided at runtime, and the server validates it
+    // against the definitions.
+    onSubmit({ ...data, custom_fields: customValues });
   };
 
   return (
@@ -426,6 +434,22 @@ export const ContactForm = ({ contact, onSubmit, isSubmitting }: ContactFormProp
           </SelectContent>
         </Select>
       </div>
+
+      <ContactSection
+        title="Custom fields"
+        description="Your organization's own fields"
+        filledCount={
+          Object.values(customValues).filter(
+            (v) => v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)
+          ).length
+        }
+      >
+        <CustomFieldInputs
+          values={customValues}
+          onChange={setCustomValues}
+          disabled={isSubmitting}
+        />
+      </ContactSection>
 
       <div className="space-y-2">
         <Label>Tags</Label>

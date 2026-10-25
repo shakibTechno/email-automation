@@ -34,6 +34,7 @@ import { ScoreHistoryDrawer } from '@/components/lead-scoring/ScoreHistoryDrawer
 import { ContactActivityTimeline } from '@/components/contacts/ContactActivityTimeline';
 import { formatDateTime } from '@/lib/utils';
 import { TagChip } from '@/components/contacts/TagChip';
+import { useCustomFields } from '@/hooks/useCustomFields';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -122,6 +123,10 @@ export const ContactDetailPage = () => {
   const { contact, isLoading } = useContact(contactId);
   const { data: contactDeals } = useContactDeals(contactId);
   const [scoreHistoryOpen, setScoreHistoryOpen] = useState(false);
+  // With the other hooks, above the early returns: calling it below them
+  // makes it conditional, which breaks hook ordering on the renders that
+  // return early.
+  const { fields: customFields } = useCustomFields();
 
   if (isLoading) {
     return (
@@ -147,9 +152,22 @@ export const ContactDetailPage = () => {
   const sourceMeta = SOURCE_META[source] ?? SOURCE_META.manual;
   const SourceIcon = sourceMeta.icon;
   const engagementMeta = ENGAGEMENT_META[contact.engagement_level] ?? ENGAGEMENT_META.none;
-  const customEntries = Object.entries(contact.custom_fields ?? {}).filter(
-    ([, v]) => v !== null && v !== ''
-  );
+  // Labelled from the definitions rather than shown as raw JSON keys. This
+  // used to print whatever key happened to be stored, so a contact showed
+  // "annual_revenue" instead of "Annual Revenue" — and showed keys that no
+  // longer had a definition at all with no sign that they were orphans.
+  const customEntries = Object.entries(contact.custom_fields ?? {})
+    .filter(([, v]) => v !== null && v !== '' && !(Array.isArray(v) && !v.length))
+    .map(([key, value]) => {
+      const definition = customFields.find((f) => f.key === key);
+      return {
+        key,
+        label: definition?.name ?? key,
+        orphan: !definition,
+        value: Array.isArray(value) ? value.join(', ') : String(value),
+      };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
 
   const displayName =
     contact.first_name || contact.last_name
@@ -353,9 +371,22 @@ export const ContactDetailPage = () => {
             {customEntries.length > 0 && (
               <>
                 <SectionHeading>Custom Fields</SectionHeading>
-                {customEntries.map(([key, value]) => (
-                  <InfoRow key={key} icon={FileText} label={key} iconClass="text-subtle-foreground">
-                    {String(value)}
+                {customEntries.map((entry) => (
+                  <InfoRow
+                    key={entry.key}
+                    icon={FileText}
+                    label={entry.label}
+                    iconClass="text-subtle-foreground"
+                  >
+                    {entry.value}
+                    {/* A value whose definition was deleted. Shown rather than
+                        hidden, because silently dropping stored data is worse
+                        than showing it as unrecognised. */}
+                    {entry.orphan && (
+                      <span className="ml-2 text-[11px] text-muted-foreground">
+                        (no longer a defined field)
+                      </span>
+                    )}
                   </InfoRow>
                 ))}
               </>

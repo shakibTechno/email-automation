@@ -74,13 +74,37 @@ export interface Tag {
   updated_at: string;
 }
 
+export type CustomFieldType =
+  | 'text'
+  | 'number'
+  | 'date'
+  | 'boolean'
+  | 'dropdown'
+  | 'multiselect'
+  | 'url'
+  | 'email';
+
+/**
+ * A contact custom field definition.
+ *
+ * The field names here match what the API actually returns. They did not
+ * before — this said `options` and `required` where the API sends
+ * `dropdown_options` and `is_required`, so nothing that read them worked.
+ */
 export interface CustomField {
   id: string;
+  /** The immutable JSON key values are stored under. Read-only. */
+  key: string;
+  /** The label people see. Safe to rename; the key does not change. */
   name: string;
-  field_type: 'text' | 'number' | 'date' | 'boolean' | 'select';
-  options?: string[];
-  required: boolean;
-  organization_id: string;
+  field_type: CustomFieldType;
+  is_required: boolean;
+  default_value?: string;
+  dropdown_options: string[];
+  help_text?: string;
+  display_order: number;
+  /** How many contacts hold a value — shown before deleting one. */
+  contact_count: number;
   created_at: string;
   updated_at: string;
 }

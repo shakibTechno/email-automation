@@ -190,11 +190,24 @@ class SegmentViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='field-definitions')
     def field_definitions(self, request):
-        """Get available fields and their operators for segment builder."""
+        """
+        Available fields and their operators for the segment builder.
+
+        Organization-scoped now, so the customer's own custom fields appear in
+        the list with their declared types. They were previously absent
+        entirely — the builder read a module-level dict — which meant a custom
+        field could only be used by someone who knew to type `custom.<key>` by
+        hand, and then got string operators for it regardless of its type.
+        """
+        organization = request.user.organization
         fields = []
 
-        for field_key, field_def in FIELD_DEFINITIONS.items():
-            operators = SegmentEvaluator.get_operators_for_field(field_key)
+        definitions = SegmentEvaluator.get_field_definitions(organization)
+
+        for field_key, field_def in definitions.items():
+            operators = SegmentEvaluator.get_operators_for_field(
+                field_key, organization=organization,
+            )
             operator_list = [
                 {'value': op[0], 'label': op[1]}
                 for op in operators
@@ -205,6 +218,9 @@ class SegmentViewSet(viewsets.ModelViewSet):
                 'type': field_def['type'],
                 'label': field_def['label'],
                 'operators': operator_list,
+                # Lets the builder group the customer's own fields separately
+                # from the built-in ones.
+                'custom': field_def.get('custom', False),
             }
 
             if 'options' in field_def:

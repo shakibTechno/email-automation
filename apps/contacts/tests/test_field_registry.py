@@ -13,7 +13,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Organization, User
 from apps.contacts import fields as contact_fields
-from apps.contacts.models import Contact
+from apps.contacts.models import Contact, CustomField
 from apps.contacts.services import CSVExportService, CSVImportService
 
 
@@ -103,7 +103,11 @@ class ImportMappingIsolationTests(TestCase):
         self.assertEqual(contact.organization, self.mine)
         self.assertEqual(contact.company, 'Acme')
 
-    def test_a_custom_field_target_is_accepted_and_stored_as_json(self):
+    def test_a_declared_custom_field_target_is_accepted_and_stored_as_json(self):
+        CustomField.objects.create(
+            organization=self.mine, name='Industry', key='industry',
+        )
+
         response = self._import(
             {'email': 'email', 'col': 'custom.industry'},
             csv_text='email,col\nnew@example.com,Mining\n',
@@ -112,6 +116,21 @@ class ImportMappingIsolationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         contact = Contact.objects.get(email='new@example.com')
         self.assertEqual(contact.custom_fields.get('industry'), 'Mining')
+
+    def test_an_undeclared_custom_field_is_refused_per_row(self):
+        """
+        The mapping target is syntactically fine, so the serializer passes it;
+        the definition check catches it at the row and names it, rather than
+        storing data under a field nobody declared.
+        """
+        response = self._import(
+            {'email': 'email', 'col': 'custom.not_declared'},
+            csv_text='email,col\nnew@example.com,Mining\n',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Contact.objects.filter(email='new@example.com').count(), 0)
+        self.assertIn('not_declared', str(response.data['results']['errors']))
 
 
 class ImportCoercionTests(TestCase):
@@ -128,6 +147,8 @@ class ImportCoercionTests(TestCase):
         Merged, not replaced. A CSV carrying one custom column used to be able
         to wipe every other custom value the contact held.
         """
+        for name, key in (('Industry', 'industry'), ('Tier', 'tier')):
+            CustomField.objects.create(organization=self.org, name=name, key=key)
         Contact.objects.create(
             organization=self.org, email='old@example.com',
             custom_fields={'industry': 'Mining', 'tier': 'gold'},

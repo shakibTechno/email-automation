@@ -8,6 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 from .models import Contact, ContactTag, Tag
 from . import fields as contact_fields
+from .custom_fields import CustomFieldError, CustomFieldService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -251,10 +252,14 @@ class CSVImportService:
                     if custom_data:
                         # Merged, not replaced: a CSV with one custom column
                         # must not wipe the others this contact already has.
-                        existing_contact.custom_fields = {
-                            **(existing_contact.custom_fields or {}),
-                            **custom_data,
-                        }
+                        # Validated against the definitions too, so an import
+                        # cannot write a field nobody declared or a value of
+                        # the wrong type.
+                        existing_contact.custom_fields = CustomFieldService.merge(
+                            self.organization,
+                            existing_contact.custom_fields,
+                            custom_data,
+                        )
                     existing_contact.save()
                     self.updated_count += 1
                 elif skip_duplicates:
@@ -273,10 +278,20 @@ class CSVImportService:
                 contact_data['organization'] = self.organization
                 contact_data['source'] = 'import'
                 if custom_data:
-                    contact_data['custom_fields'] = custom_data
+                    contact_data['custom_fields'] = (
+                        CustomFieldService.validate_and_coerce(
+                            self.organization, custom_data,
+                        )
+                    )
                 Contact.objects.create(**contact_data)
                 self.imported_count += 1
 
+        except CustomFieldError as e:
+            # Reported per row with the offending field named, rather than
+            # failing the whole file: one bad cell in row 400 should not
+            # discard the 399 rows that were fine.
+            self.errors.append({'row': row_number, 'error': str(e)})
+            self.skipped_count += 1
         except Exception as e:
             logger.error(f"Error processing row {row_number}: {str(e)}")
             self.errors.append({

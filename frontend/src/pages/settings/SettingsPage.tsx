@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Building2, Activity, TrendingUp, Mail, Sparkles, Globe } from 'lucide-react';
+import {
+  Users, Building2, Activity, TrendingUp, Mail, Sparkles, Globe, ListPlus,
+} from 'lucide-react';
 import { TeamTab } from './TeamTab';
 import { OrganizationTab } from './OrganizationTab';
 import { ActivityTab } from './ActivityTab';
 import { LeadScoringTab } from './LeadScoringTab';
 import { EmailTab } from './EmailTab';
-import { DomainsTab } from './DomainsTab';
+import { DomainsTab } from './DomainsTab';
+import { CustomFieldsTab } from './CustomFieldsTab';
 import { AITab } from './AITab';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -48,6 +51,10 @@ export function SettingsPage() {
               Lead Scoring
             </TabsTrigger>
           )}
+          <TabsTrigger value="custom-fields" className="flex items-center gap-2">
+            <ListPlus className="h-4 w-4" />
+            Custom Fields
+          </TabsTrigger>
           <TabsTrigger value="email" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Email
@@ -80,6 +87,9 @@ export function SettingsPage() {
             <LeadScoringTab />
           </TabsContent>
         )}
+        <TabsContent value="custom-fields" className="mt-6">
+          <CustomFieldsTab />
+        </TabsContent>
         <TabsContent value="email" className="mt-6">
           <EmailTab />
         </TabsContent>

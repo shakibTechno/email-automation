@@ -5,6 +5,7 @@ from rest_framework import serializers
 from django.db import transaction
 from .models import Contact, Tag, ContactTag, CustomField
 from . import fields as contact_fields
+from .custom_fields import CustomFieldError, CustomFieldService
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -33,24 +34,90 @@ class TagSerializer(serializers.ModelSerializer):
 class CustomFieldSerializer(serializers.ModelSerializer):
     """Serializer for CustomField model."""
 
+    contact_count = serializers.SerializerMethodField()
+
     class Meta:
         model = CustomField
         fields = [
-            'id', 'name', 'field_type', 'is_required',
+            'id', 'key', 'name', 'field_type', 'is_required',
             'default_value', 'dropdown_options', 'help_text',
+            'display_order', 'contact_count',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        # `key` is read-only on purpose. It is what values are stored under, so
+        # changing it would orphan every value already saved — which is the
+        # exact failure the key/name split exists to prevent. Rename the label
+        # instead; that is free.
+        read_only_fields = ['id', 'key', 'contact_count', 'created_at', 'updated_at']
+
+    def get_contact_count(self, obj):
+        """
+        How many contacts hold a value for this field.
+
+        Shown when deleting one, because "remove this field" reads very
+        differently at 0 contacts and at 4,000.
+        """
+        from .models import Contact
+
+        if not obj.key:
+            return 0
+        return Contact.objects.filter(
+            organization_id=obj.organization_id,
+            custom_fields__has_key=obj.key,
+        ).count()
 
     def validate_dropdown_options(self, value):
-        """Validate dropdown_options is a list if field_type is dropdown."""
-        field_type = self.initial_data.get('field_type')
-        if field_type == 'dropdown' and not isinstance(value, list):
+        """A list of choices is required for the types that choose from one."""
+        field_type = self.initial_data.get('field_type') or getattr(
+            self.instance, 'field_type', None
+        )
+        if field_type in ('dropdown', 'multiselect'):
+            if not isinstance(value, list):
+                raise serializers.ValidationError(
+                    'Provide the choices as a list for this field type.'
+                )
+            cleaned = [str(v).strip() for v in value if str(v).strip()]
+            if len(set(cleaned)) != len(cleaned):
+                raise serializers.ValidationError('Choices must be unique.')
+            return cleaned
+        return value
+
+    def validate_name(self, value):
+        value = (value or '').strip()
+        if not value:
+            raise serializers.ValidationError('Give the field a name.')
+        from django.utils.text import slugify
+
+        if not slugify(value):
             raise serializers.ValidationError(
-                "dropdown_options must be a list for dropdown field type"
+                'The name needs at least one letter or number.'
             )
         return value
 
+
+class CustomFieldsValidationMixin:
+    """
+    Validates `custom_fields` against the organization's definitions.
+
+    A mixin because three serializers accept the field — full, create and
+    update — and only one of them having the check is how a create slipped
+    past it: the API create path uses ContactCreateSerializer, so an
+    undeclared key was still accepted there while the full serializer
+    rejected it.
+    """
+
+    def validate_custom_fields(self, value):
+        request = self.context.get('request')
+        organization = getattr(getattr(request, 'user', None), 'organization', None)
+        try:
+            return CustomFieldService.validate_and_coerce(
+                organization, value,
+                # An update that sets one field must not fail because a
+                # different required one was not in this payload.
+                partial=self.instance is not None,
+            )
+        except CustomFieldError as exc:
+            raise serializers.ValidationError(exc.errors)
 
 class ContactListSerializer(serializers.ModelSerializer):
     """Serializer for Contact list view (minimal fields)."""
@@ -79,7 +146,7 @@ class ContactListSerializer(serializers.ModelSerializer):
         return None
 
 
-class ContactSerializer(serializers.ModelSerializer):
+class ContactSerializer(CustomFieldsValidationMixin, serializers.ModelSerializer):
     """Full serializer for Contact model."""
 
     full_name = serializers.CharField(read_only=True)
@@ -152,12 +219,6 @@ class ContactSerializer(serializers.ModelSerializer):
 
         return value
 
-    def validate_custom_fields(self, value):
-        """Validate custom fields against defined CustomField models."""
-        if not isinstance(value, dict):
-            raise serializers.ValidationError("custom_fields must be a dictionary")
-        return value
-
     @transaction.atomic
     def create(self, validated_data):
         tags = validated_data.pop('tags', [])
@@ -190,7 +251,7 @@ class ContactSerializer(serializers.ModelSerializer):
         return instance
 
 
-class ContactCreateSerializer(serializers.ModelSerializer):
+class ContactCreateSerializer(CustomFieldsValidationMixin, serializers.ModelSerializer):
     """Serializer for creating a contact."""
 
     tags = serializers.PrimaryKeyRelatedField(
@@ -241,7 +302,7 @@ class ContactCreateSerializer(serializers.ModelSerializer):
         return contact
 
 
-class ContactUpdateSerializer(serializers.ModelSerializer):
+class ContactUpdateSerializer(CustomFieldsValidationMixin, serializers.ModelSerializer):
     """Serializer for updating a contact."""
 
     tags = serializers.PrimaryKeyRelatedField(
