@@ -43,4 +43,4 @@ frontend/
 *.md
 docs/
 nul
-debug_auth.html
+scripts/debug_auth.html

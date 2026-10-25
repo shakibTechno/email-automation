@@ -82,6 +82,11 @@ dist/
 *.backup
 
 # Node / frontend
+# The Python boilerplate's bare `lib/` rule above matches a directory named
+# `lib` at ANY depth, which silently excluded all of frontend/src/lib --
+# including utils.ts, whose `cn()` helper nearly every component imports. A
+# fresh clone could not build. Re-include the frontend's own source folder.
+!frontend/src/lib/
 node_modules/
 frontend/node_modules/
 frontend/dist/
@@ -93,3 +98,17 @@ celerybeat-schedule*
 
 # Stray Windows reserved-name file (0 bytes, from a "> nul" redirect)
 nul
+
+# Docker volume mount for the SQLite database and runtime data
+data/
+
+# Windows artifact from a botched `> nul` redirect
+nul
+
+# Self-hosted Postal mail server stack.
+# Excluded from this repository deliberately: it documents the production mail
+# infrastructure — hostnames, the provisioning API surface, and operational
+# tradeoffs — which does not belong in a public repo. Kept locally and deployed
+# to the mail server directly.
+mailstack/
+.claude/settings.local.json

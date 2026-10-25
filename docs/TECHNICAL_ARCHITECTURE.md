@@ -1,4 +1,5 @@
 # Technical Architecture Document
+
 ## Email Marketing Automation Platform (Django)
 
 **Version:** 1.0
@@ -9,6 +10,7 @@
 ---
 
 ## Table of Contents
+
 1. [System Overview](#1-system-overview)
 2. [Technology Stack](#2-technology-stack)
 3. [Django Project Structure](#3-django-project-structure)
@@ -101,33 +103,33 @@
 
 ### 2.1 Core Technologies
 
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| **Backend Framework** | Django | 5.0+ | Core application framework |
-| **API Framework** | Django REST Framework | 3.14+ | RESTful API development |
-| **Async Tasks** | Celery | 5.3+ | Background job processing |
-| **Task Queue** | Redis | 7.0+ | Message broker for Celery |
-| **Primary Database** | PostgreSQL | 15+ | Relational data storage |
-| **Cache** | Redis | 7.0+ | Application caching |
-| **Search Engine** | Elasticsearch | 8.0+ | Full-text search, analytics |
-| **Web Server** | Gunicorn | 21+ | WSGI HTTP server |
-| **Reverse Proxy** | Nginx | 1.24+ | Load balancing, static files |
-| **Task Monitoring** | Flower | 2.0+ | Celery monitoring UI |
+| Component             | Technology            | Version | Purpose                      |
+| --------------------- | --------------------- | ------- | ---------------------------- |
+| **Backend Framework** | Django                | 5.0+    | Core application framework   |
+| **API Framework**     | Django REST Framework | 3.14+   | RESTful API development      |
+| **Async Tasks**       | Celery                | 5.3+    | Background job processing    |
+| **Task Queue**        | Redis                 | 7.0+    | Message broker for Celery    |
+| **Primary Database**  | PostgreSQL            | 15+     | Relational data storage      |
+| **Cache**             | Redis                 | 7.0+    | Application caching          |
+| **Search Engine**     | Elasticsearch         | 8.0+    | Full-text search, analytics  |
+| **Web Server**        | Gunicorn              | 21+     | WSGI HTTP server             |
+| **Reverse Proxy**     | Nginx                 | 1.24+   | Load balancing, static files |
+| **Task Monitoring**   | Flower                | 2.0+    | Celery monitoring UI         |
 
 ### 2.2 Supporting Technologies
 
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **Email Service** | AWS SES / SendGrid | Email delivery |
-| **SMS Service** | Twilio | SMS delivery |
-| **Payment Processing** | Stripe | Subscription billing |
-| **File Storage** | AWS S3 | Media and static files |
-| **CDN** | CloudFront | Content delivery |
-| **Monitoring** | Sentry + Prometheus | Error tracking, metrics |
-| **Logging** | ELK Stack | Centralized logging |
-| **Container Runtime** | Docker | Application containerization |
-| **Orchestration** | Kubernetes | Container orchestration |
-| **CI/CD** | GitHub Actions | Automated deployment |
+| Component              | Technology          | Purpose                      |
+| ---------------------- | ------------------- | ---------------------------- |
+| **Email Service**      | AWS SES / SendGrid  | Email delivery               |
+| **SMS Service**        | Twilio              | SMS delivery                 |
+| **Payment Processing** | Stripe              | Subscription billing         |
+| **File Storage**       | AWS S3              | Media and static files       |
+| **CDN**                | CloudFront          | Content delivery             |
+| **Monitoring**         | Sentry + Prometheus | Error tracking, metrics      |
+| **Logging**            | ELK Stack           | Centralized logging          |
+| **Container Runtime**  | Docker              | Application containerization |
+| **Orchestration**      | Kubernetes          | Container orchestration      |
+| **CI/CD**              | GitHub Actions      | Automated deployment         |
 
 ### 2.3 Django Packages
 
@@ -481,24 +483,24 @@ email_automation/
 
 ### 3.2 App Responsibilities
 
-| App | Responsibility |
-|-----|---------------|
-| **accounts** | User authentication, organization management, permissions |
-| **contacts** | Contact CRUD, custom fields, tagging, import/export |
-| **segments** | Dynamic segmentation, segment rules, evaluation |
-| **campaigns** | Email campaign creation, scheduling, sending |
-| **email_editor** | Email template builder, block management, rendering |
-| **automations** | Workflow builder, automation engine, execution |
-| **forms** | Form builder, submission handling, validation |
-| **landing_pages** | Landing page builder, publishing, hosting |
-| **analytics** | Event aggregation, reporting, dashboards |
-| **tracking** | Email opens/clicks tracking, link management |
-| **lead_scoring** | Scoring rules, score calculation, updates |
-| **crm** | Deal management, pipeline, sales activities |
-| **integrations** | Third-party integrations, webhooks, API connectors |
-| **sms** | SMS campaigns, delivery, Twilio integration |
-| **notifications** | In-app notifications, notification center |
-| **billing** | Subscription management, Stripe integration, invoicing |
+| App               | Responsibility                                            |
+| ----------------- | --------------------------------------------------------- |
+| **accounts**      | User authentication, organization management, permissions |
+| **contacts**      | Contact CRUD, custom fields, tagging, import/export       |
+| **segments**      | Dynamic segmentation, segment rules, evaluation           |
+| **campaigns**     | Email campaign creation, scheduling, sending              |
+| **email_editor**  | Email template builder, block management, rendering       |
+| **automations**   | Workflow builder, automation engine, execution            |
+| **forms**         | Form builder, submission handling, validation             |
+| **landing_pages** | Landing page builder, publishing, hosting                 |
+| **analytics**     | Event aggregation, reporting, dashboards                  |
+| **tracking**      | Email opens/clicks tracking, link management              |
+| **lead_scoring**  | Scoring rules, score calculation, updates                 |
+| **crm**           | Deal management, pipeline, sales activities               |
+| **integrations**  | Third-party integrations, webhooks, API connectors        |
+| **sms**           | SMS campaigns, delivery, Twilio integration               |
+| **notifications** | In-app notifications, notification center                 |
+| **billing**       | Subscription management, Stripe integration, invoicing    |
 
 ---
 

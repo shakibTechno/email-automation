@@ -34,6 +34,7 @@ copy .env.example .env
 ```
 
 To generate a secure SECRET_KEY, run:
+
 ```python
 python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 ```
@@ -41,6 +42,7 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 ### 3. Set Up Database
 
 #### Option A: SQLite (Quick Start - Development Only)
+
 ```bash
 # No additional setup needed, Django will create db.sqlite3
 # Make sure .env has:
@@ -48,6 +50,7 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 ```
 
 #### Option B: PostgreSQL (Recommended)
+
 ```bash
 # Install PostgreSQL first, then:
 # 1. Create database
@@ -80,6 +83,7 @@ python manage.py create_test_data
 ```
 
 This creates:
+
 - Test organizations with different plans
 - Test users with different roles
 - Credentials: owner@test-startup-inc.com / testpass123
@@ -168,6 +172,7 @@ docker-compose down
 ## Troubleshooting
 
 ### Port Already in Use
+
 ```bash
 # Windows: Find process using port 8000
 netstat -ano | findstr :8000
@@ -177,6 +182,7 @@ taskkill /PID <PID> /F
 ```
 
 ### Database Connection Error
+
 ```bash
 # Check PostgreSQL is running
 # Windows: Check Services
@@ -187,6 +193,7 @@ psql -U postgres -h localhost
 ```
 
 ### Redis Connection Error (Optional)
+
 ```bash
 # Redis is optional for basic setup
 # Set in .env for in-memory cache:
@@ -194,6 +201,7 @@ psql -U postgres -h localhost
 ```
 
 ### Migration Issues
+
 ```bash
 # Reset database (development only!)
 python manage.py flush
