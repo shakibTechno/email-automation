@@ -2,6 +2,7 @@
 Models for the Email Campaigns app.
 """
 from django.db import models
+from django.db.models import Q
 from django.conf import settings
 from apps.core.models import TimeStampedModel, SoftDeleteModel
 from apps.accounts.models import Organization
@@ -185,6 +186,34 @@ class CampaignRecipient(TimeStampedModel):
     # Outcomes that end the line. They always win, whatever the current status,
     # because they change whether this contact may be mailed again.
     TERMINAL_STATUSES = frozenset({'bounced', 'complained', 'unsubscribed', 'failed'})
+
+    # States that cannot be reached unless the message arrived — you cannot
+    # open, click or unsubscribe from mail that never landed.
+    DELIVERED_STATUSES = ('delivered', 'opened', 'clicked', 'unsubscribed', 'complained')
+
+    @classmethod
+    def delivered_filter(cls):
+        """
+        Everything that counts as delivered.
+
+        Defined here because three call sites each had their own version and
+        they disagreed: the dashboard asked for `status='delivered'` alone,
+        which silently drops every recipient who went on to open or click,
+        since `status` advances through the funnel. A campaign to two people,
+        one of whom clicked, read as 2 delivered on the campaign report and 1
+        on the dashboard.
+
+        Two independent kinds of evidence are accepted: an explicit delivery
+        timestamp from the provider's webhook, or a status that implies
+        delivery. The timestamp alone is not enough, because a provider
+        without delivery webhooks (plain SMTP) never sets it.
+        """
+        return Q(delivered_at__isnull=False) | Q(status__in=cls.DELIVERED_STATUSES)
+
+    @classmethod
+    def bounced_filter(cls):
+        """Bounced, by timestamp or terminal status — same reasoning as above."""
+        return Q(bounced_at__isnull=False) | Q(status='bounced')
 
     def advance_status(self, new_status, extra_fields=None):
         """

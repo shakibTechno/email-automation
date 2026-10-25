@@ -152,10 +152,14 @@ class DashboardService:
             campaign_id__in=campaign_ids
         ).aggregate(
             total_sent=Count('id'),
-            total_delivered=Count('id', filter=Q(status='delivered')),
+            # Shared definition — see CampaignRecipient.delivered_filter().
+            # This previously asked for status='delivered' alone, which drops
+            # anyone who went on to open or click, so the dashboard reported
+            # fewer delivered than the campaign report for the same send.
+            total_delivered=Count('id', filter=CampaignRecipient.delivered_filter()),
             total_opened=Count('id', filter=Q(opened_at__isnull=False)),
             total_clicked=Count('id', filter=Q(clicked_at__isnull=False)),
-            total_bounced=Count('id', filter=Q(status='bounced')),
+            total_bounced=Count('id', filter=CampaignRecipient.bounced_filter()),
         )
 
         total_sent = recipient_stats['total_sent'] or 0

@@ -216,12 +216,11 @@ class CampaignAnalyticsService:
         for c in campaigns:
             recipients = CampaignRecipient.objects.filter(campaign=c)
             total = recipients.count()
-            delivered = recipients.filter(
-                Q(status='delivered') | Q(status='opened') | Q(status='clicked')
-            ).count()
+            # Shared definition — see CampaignRecipient.delivered_filter().
+            delivered = recipients.filter(CampaignRecipient.delivered_filter()).count()
             opened = recipients.filter(opened_at__isnull=False).count()
             clicked = recipients.filter(clicked_at__isnull=False).count()
-            bounced = recipients.filter(status='bounced').count()
+            bounced = recipients.filter(CampaignRecipient.bounced_filter()).count()
 
             open_rate = round((opened / delivered * 100), 1) if delivered > 0 else 0
             click_rate = round((clicked / delivered * 100), 1) if delivered > 0 else 0
@@ -299,12 +298,10 @@ class CampaignAnalyticsService:
             for d in all_dates
         ]
 
-        delivered = recipients.filter(
-            Q(status='delivered') | Q(status='opened') | Q(status='clicked')
-        ).count()
+        delivered = recipients.filter(CampaignRecipient.delivered_filter()).count()
         opened = recipients.filter(opened_at__isnull=False).count()
         clicked = recipients.filter(clicked_at__isnull=False).count()
-        bounced = recipients.filter(status='bounced').count()
+        bounced = recipients.filter(CampaignRecipient.bounced_filter()).count()
 
         return {
             'campaign': {
