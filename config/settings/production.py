@@ -19,6 +19,18 @@ DEBUG = False
 
 # Security Settings
 SECURE_SSL_REDIRECT = True
+
+# Caddy asks /internal/tls-allow over plain HTTP on the Docker network before
+# obtaining a certificate, and SECURE_SSL_REDIRECT answered it with a 301.
+# Caddy treats anything that is not 2xx as a refusal, so every customer domain
+# would have been declined a certificate — silently, because the endpoint looks
+# fine from everywhere else. Found by calling it the way Caddy does.
+#
+# Exempting it costs nothing: it carries no credentials and no user data, it
+# answers only 200 or 404, and it is unreachable from outside this network
+# (frontend/nginx.conf does not proxy /internal/, so a public request gets the
+# SPA instead).
+SECURE_REDIRECT_EXEMPT = [r'^internal/tls-allow$']
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000  # 1 year

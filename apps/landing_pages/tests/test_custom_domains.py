@@ -9,7 +9,8 @@ customer's hostname to landing pages alone. If it is ever removed, reordered
 out of first place, or made to fall through, these tests are what notices.
 """
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.middleware.security import SecurityMiddleware
+from django.test import RequestFactory, TestCase, override_settings
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Organization, User
@@ -210,3 +211,38 @@ class TlsGateTests(TestCase):
 
     def test_allows_the_platform_host(self):
         self.assertEqual(self._ask('app.example.com').status_code, 200)
+
+
+class TlsGateReachabilityTests(TestCase):
+    """
+    The gate has to answer Caddy, and Caddy asks over plain HTTP.
+
+    Production sets SECURE_SSL_REDIRECT, which turned that request into a 301.
+    Caddy reads anything but 2xx as "refuse", so every customer domain was
+    declined a certificate — and nothing else would have shown it, because the
+    endpoint answers correctly from everywhere that is not Caddy.
+    """
+
+    @override_settings(
+        SECURE_SSL_REDIRECT=True,
+        SECURE_REDIRECT_EXEMPT=[r'^internal/tls-allow$'],
+    )
+    def test_the_gate_is_exempt_from_the_https_redirect(self):
+        middleware = SecurityMiddleware(lambda request: None)
+        request = RequestFactory().get('/internal/tls-allow', {'domain': 'x.example.com'})
+
+        # None means "no redirect, carry on to the view".
+        self.assertIsNone(middleware.process_request(request))
+
+    @override_settings(SECURE_SSL_REDIRECT=True, SECURE_REDIRECT_EXEMPT=[])
+    def test_without_the_exemption_it_would_be_redirected(self):
+        """Pins what the exemption is protecting against, so it is not dropped."""
+        middleware = SecurityMiddleware(lambda request: None)
+        request = RequestFactory().get('/internal/tls-allow', {'domain': 'x.example.com'})
+
+        self.assertEqual(middleware.process_request(request).status_code, 301)
+
+    def test_production_configures_the_exemption(self):
+        from config.settings import production
+
+        self.assertIn(r'^internal/tls-allow$', production.SECURE_REDIRECT_EXEMPT)
