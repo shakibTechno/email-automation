@@ -13,7 +13,9 @@ deliberate but weak: that default is unconfigured in most deployments, which is
 precisely why `send` reports whether it worked instead of pretending.
 """
 import logging
+import re
 from collections import namedtuple
+from html import unescape
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -46,12 +48,7 @@ def send_transactional_email(
     value is how the caller tells the user the truth.
     """
     html_body = render_to_string(f'{template}.html', context)
-    # Generated from the HTML rather than kept as a second template, so the two
-    # cannot drift apart — a plain-text part that contradicts the HTML is worse
-    # than one that is merely plainer.
-    text_body = strip_tags(
-        html_body.replace('</p>', '</p>\n\n').replace('<br>', '\n')
-    ).strip()
+    text_body = _html_to_text(html_body)
 
     from_name, from_email = _resolve_sender(organization)
 
@@ -114,3 +111,38 @@ def _resolve_connection(organization):
             organization.id, exc_info=True,
         )
         return None
+
+
+def _html_to_text(html):
+    """
+    Derive the plain-text part from the HTML.
+
+    Generated rather than kept as a second template, so the two cannot drift
+    apart — a plain-text part that contradicts the HTML is worse than one that
+    is merely plainer.
+
+    <head> is dropped first. Without it the <title> comes through and the
+    subject line appears twice at the top of the message, which is how this was
+    noticed: by reading the rendered text part rather than trusting it.
+    """
+    body = html
+    if '<body' in body:
+        body = body.split('<body', 1)[1].split('>', 1)[-1]
+    if '</body>' in body:
+        body = body.split('</body>', 1)[0]
+
+    # Block-level tags become blank lines so sentences do not run together.
+    for tag in ('</p>', '</tr>', '</div>', '</h1>', '</h2>'):
+        body = body.replace(tag, tag + '\n\n')
+    for br in ('<br>', '<br/>', '<br />'):
+        body = body.replace(br, '\n')
+
+    text = unescape(strip_tags(body))
+    # Collapse the whitespace that table markup leaves behind, without
+    # collapsing the paragraph breaks just inserted.
+    collapsed = [re.sub(r'[ \t]+', ' ', line).strip() for line in text.splitlines()]
+    out = []
+    for line in collapsed:
+        if line or (out and out[-1]):
+            out.append(line)
+    return '\n'.join(out).strip()

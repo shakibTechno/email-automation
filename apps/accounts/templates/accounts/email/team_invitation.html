@@ -13,9 +13,15 @@
     {{ role_article }} <strong>{{ role_label }}</strong>.
   </p>
 
-  {# A bare <a> styled as a button: an image or a nested table here is what
-     makes a plain notice look like a campaign, and these go to people who were
-     not expecting mail from us. #}
+  {% comment %}
+    A bare <a> styled as a button: an image or a nested table here is what
+    makes a plain notice look like a campaign, and these go to people who were
+    not expecting mail from us.
+
+    {% comment %} and not {# #}: the hash form is single-line only, so a
+    multi-line one is not a comment at all — it renders as visible text, which
+    is exactly what it did in the first version of this file.
+  {% endcomment %}
   <p style="margin:0 0 20px 0;">
     <a href="{{ accept_url }}"
        style="display:inline-block; padding:11px 20px; background-color:#18181b; color:#ffffff; font-size:14px; font-weight:600; text-decoration:none; border-radius:6px;">
@@ -28,8 +34,10 @@
     ask {{ inviter_name }} to send a new one.
   </p>
 
-  {# Spelled out because some clients strip the href from a styled link, and
-     because a recipient who is cautious about buttons can read where it goes. #}
+  {% comment %}
+    Spelled out because some clients strip the href from a styled link, and
+    because a recipient who is cautious about buttons can read where it goes.
+  {% endcomment %}
   <p style="margin:0; font-size:12px; color:#71717a; word-break:break-all;">
     Or paste this into your browser:<br>
     {{ accept_url }}

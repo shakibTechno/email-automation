@@ -174,3 +174,38 @@ class InvitationEmailTests(TestCase):
         from apps.accounts.serializers import TeamInvitationSerializer
 
         self.assertIsNone(TeamInvitationSerializer(invitation).data['accept_url'])
+
+    # ------------------------------------------- what the recipient actually reads
+    def test_no_template_comment_leaks_into_the_message(self):
+        """
+        Django's `{# #}` is single-line only, so a multi-line one is not a
+        comment — it renders as visible text. The first version of this
+        template had two, and the note explaining the button markup was being
+        emailed to the recipient.
+        """
+        TeamService.invite_member(self.org, 'new@example.com', 'member', self.owner)
+        message = mail.outbox[0]
+
+        for fragment in ('{#', '{% comment', 'bare <a> styled', 'Spelled out because'):
+            self.assertNotIn(fragment, message.body, f'{fragment!r} leaked into the text part')
+            self.assertNotIn(
+                fragment, message.alternatives[0][0],
+                f'{fragment!r} leaked into the HTML part',
+            )
+
+    def test_the_text_part_does_not_repeat_the_subject_from_the_title_tag(self):
+        """<head> has to be dropped, or the subject appears twice at the top."""
+        TeamService.invite_member(self.org, 'new@example.com', 'member', self.owner)
+
+        self.assertEqual(mail.outbox[0].body.count('invited you to'), 1)
+
+    def test_the_text_part_is_readable_rather_than_a_wall_of_whitespace(self):
+        """
+        Table-based email markup leaves long runs of indentation behind. A text
+        part full of them is technically present and practically unreadable.
+        """
+        TeamService.invite_member(self.org, 'new@example.com', 'member', self.owner)
+        body = mail.outbox[0].body
+
+        self.assertNotIn('    ', body)
+        self.assertNotIn('\n\n\n', body)
