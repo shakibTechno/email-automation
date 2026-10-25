@@ -265,6 +265,13 @@ CORS_ALLOWED_ORIGINS = env.list(
     default=['http://localhost:3000', 'http://localhost:8000']
 )
 
+# Django rejects any HTTPS POST whose Origin is not listed here, so behind a
+# TLS-terminating proxy this must name the public origin or the admin login
+# and every session-authenticated form fail CSRF validation. The REST API is
+# unaffected, since it authenticates with JWT rather than a session cookie —
+# which is why this breaks in a way that looks like "only the admin is broken".
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+
 
 # Cache Configuration (Redis)
 CACHES = {

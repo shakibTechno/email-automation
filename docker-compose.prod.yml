@@ -1,0 +1,66 @@
+# ---------------------------------------------------------------------------
+# Production overlay. Use alongside the base file, never on its own:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# What it changes:
+#   * puts Caddy in front, terminating TLS for APP_HOST with an automatic
+#     Let's Encrypt certificate
+#   * stops publishing the backend and frontend ports, so the only way in is
+#     through Caddy on 80/443
+#   * builds DATABASE_URL from the POSTGRES_* values in .env rather than the
+#     development defaults baked into .env.docker
+#   * runs the production settings module
+#
+# Requires in .env: APP_HOST, POSTGRES_PASSWORD, SECRET_KEY, and the POSTAL_*
+# values. See .env.example.
+# ---------------------------------------------------------------------------
+
+x-django-env: &django-env
+  DJANGO_SETTINGS_MODULE: config.settings.production
+  # `environment:` wins over `env_file:`, which is the point — .env.docker
+  # carries the development credentials and is tracked in git, so the real
+  # password has to arrive this way, substituted from the untracked .env.
+  DATABASE_URL: postgres://${POSTGRES_USER:-email_automation}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-email_automation}
+
+services:
+  backend:
+    environment:
+      <<: *django-env
+      RUN_MIGRATIONS: "1"
+    # Reachable only through Caddy.
+    ports: !override []
+
+  worker:
+    environment:
+      <<: *django-env
+
+  beat:
+    environment:
+      <<: *django-env
+
+  frontend:
+    ports: !override []
+
+  # --- TLS terminator ------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      APP_HOST: ${APP_HOST}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and the ACME account live here. Losing this volume means
+      # re-issuing from Let's Encrypt, which is rate limited — keep it.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

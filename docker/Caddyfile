@@ -1,0 +1,32 @@
+# Caddy terminates TLS and hands everything to the frontend container, whose
+# nginx serves the built SPA and proxies Django's paths to the backend.
+#
+# APP_HOST comes from the environment so this file stays deployment-agnostic.
+
+{$APP_HOST} {
+	encode zstd gzip
+
+	# X-Forwarded-Proto is what lets Django know the original request was
+	# HTTPS (SECURE_PROXY_SSL_HEADER in production settings). Without it
+	# SECURE_SSL_REDIRECT sees "http" on every proxied request and redirects
+	# forever. Caddy sets it by default; stated here because the failure is a
+	# redirect loop that looks nothing like a missing header.
+	reverse_proxy frontend:80 {
+		header_up X-Real-IP {remote_host}
+	}
+
+	header {
+		# Caddy already sends HSTS on its own; these cover what it does not.
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}

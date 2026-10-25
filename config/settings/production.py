@@ -17,8 +17,15 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # Static files (whitenoise or S3)
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
-# Email backend for production
-EMAIL_BACKEND = 'anymail.backends.amazon_ses.EmailBackend'
+# EMAIL_BACKEND is read from the environment in base.py and deliberately not
+# overridden here. It used to be pinned to Anymail's Amazon SES backend, which
+# meant production could not use any other provider no matter what was
+# configured — and boto3 is not a dependency, so the first send that reached
+# the global backend raised ImportError rather than sending anything.
+#
+# Per-organization sending does not come through here at all: it resolves a
+# connection via EmailConfigService.get_connection(). This only sets the
+# fallback used by anything that sends without one.
 
 # Only JSON renderer in production
 REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [
