@@ -1,18 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/api/auth';
+import { landingPathFor, resolveRedirect } from '@/lib/postAuthRedirect';
 import {
   LoginCredentials,
   RegisterData,
   ForgotPasswordData,
-  ChangePasswordData,
   UpdateProfileData,
 } from '@/types/auth';
 
 export const useAuth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { setAuth, clearAuth, user, organization, isAuthenticated } = useAuthStore();
 
@@ -23,7 +24,12 @@ export const useAuth = () => {
       // user.organization is nested inside user object
       setAuth(data.user, data.user.organization, data.tokens.access, data.tokens.refresh);
       toast.success('Login successful!');
-      navigate('/contacts');
+      // Not '/contacts': that was a leftover from when contacts was the only
+      // screen, and it sends a platform operator — who has no tenant — to a
+      // page the API refuses.
+      navigate(resolveRedirect(data.user, (location.state as { from?: unknown })?.from), {
+        replace: true,
+      });
     },
     onError: (error: any) => {
       toast.error(error.message || 'Login failed');
@@ -36,7 +42,7 @@ export const useAuth = () => {
       // Backend returns: { user, tokens: { access, refresh }, message }
       setAuth(data.user, data.user.organization, data.tokens.access, data.tokens.refresh);
       toast.success('Registration successful!');
-      navigate('/contacts');
+      navigate(landingPathFor(data.user), { replace: true });
     },
     onError: (error: any) => {
       toast.error(error.message || 'Registration failed');
@@ -108,7 +114,11 @@ export const useAuth = () => {
     register: (data: RegisterData) => registerMutation.mutate(data),
     logout: () => logoutMutation.mutate(),
     forgotPassword: (data: ForgotPasswordData) => forgotPasswordMutation.mutate(data),
-    changePassword: (data: ChangePasswordData) => changePasswordMutation.mutate(data),
+    // Exposed as the mutation's own `mutate` so callers can pass
+    // { onSuccess }: a form that clears itself on failure throws away what the
+    // user typed along with their chance to read the error.
+    changePassword: changePasswordMutation.mutate,
+    isChangingPassword: changePasswordMutation.isPending,
     updateProfile: (data: UpdateProfileData) => updateProfileMutation.mutate(data),
     isLoggingIn: loginMutation.isPending,
     isRegistering: registerMutation.isPending,

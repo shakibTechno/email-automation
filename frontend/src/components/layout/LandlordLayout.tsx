@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import { Menu, PanelLeft } from 'lucide-react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { LogOut, Menu, PanelLeft } from 'lucide-react';
 import { LandlordSidebar } from './LandlordSidebar';
 import { useSidebar } from '@/lib/useSidebar';
+import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +24,7 @@ export const LandlordLayout = () => {
     useSidebar('mailflow-landlord-sidebar-collapsed');
   const { pathname } = useLocation();
   const user = useAuthStore((s) => s.user);
+  const { logout, isLoggingOut } = useAuth();
 
   useEffect(() => close(), [pathname, close]);
 
@@ -62,9 +64,26 @@ export const LandlordLayout = () => {
           Cross-tenant
         </span>
 
-        <span className="ml-auto truncate text-[12.5px] text-muted-foreground">
+        {/* The console reuses none of the tenant Header, so it has to carry
+            its own account controls — without these an operator could sign in
+            and then had no way out. */}
+        <Link
+          to="/landlord/profile"
+          className="ml-auto max-w-[45vw] truncate text-[12.5px] text-muted-foreground hover:text-foreground sm:max-w-none"
+          title="Your account"
+        >
           {user?.email}
-        </span>
+        </Link>
+
+        <button
+          type="button"
+          onClick={() => logout()}
+          disabled={isLoggingOut}
+          className="flex flex-none items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground disabled:opacity-60"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Sign out'}</span>
+        </button>
       </header>
 
       <LandlordSidebar collapsed={collapsed} open={open} onNavigate={close} />

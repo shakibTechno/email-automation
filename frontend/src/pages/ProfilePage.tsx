@@ -59,8 +59,16 @@ export const ProfilePage = () => {
   };
 
   const onPasswordSubmit = (data: PasswordFormData) => {
-    changePassword(data as ChangePasswordData);
-    resetPasswordForm();
+    // The form names these current_password / new_password_confirmation; the
+    // API reads old_password / new_password_confirm. Mapped explicitly rather
+    // than cast: `as ChangePasswordData` is what hid this mismatch, and the
+    // same cast hid the identical bug in registration.
+    const payload: ChangePasswordData = {
+      old_password: data.current_password,
+      new_password: data.new_password,
+      new_password_confirm: data.new_password_confirmation,
+    };
+    changePassword(payload, { onSuccess: () => resetPasswordForm() });
   };
 
   return (

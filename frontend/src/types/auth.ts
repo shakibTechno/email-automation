@@ -69,10 +69,16 @@ export interface ResetPasswordData {
   password_confirmation: string;
 }
 
+/**
+ * Mirrors what `/auth/change-password/` actually reads. The form fields are
+ * named `current_password` and `new_password_confirmation`, so the submit
+ * handler maps them — the previous shape silently sent neither key the API
+ * looks for, and every attempt failed validation.
+ */
 export interface ChangePasswordData {
-  current_password: string;
+  old_password: string;
   new_password: string;
-  new_password_confirmation: string;
+  new_password_confirm: string;
 }
 
 export interface UpdateProfileData {
