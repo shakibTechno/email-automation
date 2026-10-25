@@ -335,14 +335,35 @@ class AcceptInvitationSerializer(serializers.Serializer):
 class TeamInvitationSerializer(serializers.ModelSerializer):
     """Serializer for team invitation details."""
     invited_by_name = serializers.SerializerMethodField()
+    email_sent = serializers.SerializerMethodField()
+    accept_url = serializers.SerializerMethodField()
 
     class Meta:
         model = TeamInvitation
         fields = [
             'id', 'email', 'role', 'status', 'invited_by_name',
+            'email_sent', 'email_sent_at', 'email_error', 'accept_url',
             'expires_at', 'created_at',
         ]
         read_only_fields = fields
+
+    def get_email_sent(self, obj):
+        return obj.email_sent_at is not None
+
+    def get_accept_url(self, obj):
+        """
+        The link, so an admin can pass it on when the email did not arrive.
+
+        Only for an invitation that is still usable, and only to someone who can
+        already see the invitation — an organization admin, per the view's
+        permissions. Handing it out for an accepted or cancelled invitation
+        would be a live credential for nothing.
+        """
+        if obj.status != 'pending' or not obj.is_valid:
+            return None
+        from .services import TeamService
+
+        return TeamService.invitation_url(obj)
 
     def get_invited_by_name(self, obj):
         if obj.invited_by:

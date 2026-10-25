@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import * as teamApi from '@/api/team';
-import type { InviteMemberData, ChangeRoleData, AcceptInvitationData } from '@/types/team';
+import type {
+  InviteMemberData,
+  ChangeRoleData,
+  AcceptInvitationData,
+  TeamInvitation,
+} from '@/types/team';
 
 export const teamKeys = {
   all: ['team'] as const,
@@ -43,10 +48,20 @@ export function useInviteMember() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: InviteMemberData) => teamApi.inviteMember(data),
-    onSuccess: () => {
+    onSuccess: (invitation: TeamInvitation) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.invitations() });
       queryClient.invalidateQueries({ queryKey: teamKeys.activity() });
-      toast.success('Invitation sent successfully');
+      // The invitation is valid either way, so this is not an error — but
+      // saying "sent" when it was not is how someone waits a week for an
+      // email that never left.
+      if (invitation?.email_sent === false) {
+        toast.warning(
+          'Invitation created, but the email could not be sent. Copy the link and send it yourself.',
+          { duration: 8000 }
+        );
+      } else {
+        toast.success('Invitation sent successfully');
+      }
     },
     onError: (error: any) => {
       toast.error(error?.error || error?.message || 'Failed to send invitation');
@@ -58,9 +73,16 @@ export function useResendInvitation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (invitationId: string) => teamApi.resendInvitation(invitationId),
-    onSuccess: () => {
+    onSuccess: (invitation: TeamInvitation) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.invitations() });
-      toast.success('Invitation resent');
+      if (invitation?.email_sent === false) {
+        toast.warning(
+          'Could not send the email. Copy the invitation link and send it yourself.',
+          { duration: 8000 }
+        );
+      } else {
+        toast.success('Invitation resent');
+      }
     },
     onError: () => {
       toast.error('Failed to resend invitation');

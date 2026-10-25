@@ -319,6 +319,13 @@ class TeamInvitation(TimeStampedModel):
     expires_at = models.DateTimeField()
     accepted_at = models.DateTimeField(null=True, blank=True)
 
+    # Whether the invitation email actually went out. Persisted rather than
+    # returned once, because an admin who invited someone yesterday still needs
+    # to know it never arrived — and because an invitation that silently fails
+    # to send looks identical to one the recipient ignored.
+    email_sent_at = models.DateTimeField(null=True, blank=True)
+    email_error = models.TextField(blank=True)
+
     class Meta:
         db_table = 'team_invitations'
         ordering = ['-created_at']

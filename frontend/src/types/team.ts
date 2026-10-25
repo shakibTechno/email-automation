@@ -18,6 +18,12 @@ export interface TeamInvitation {
   role: UserRole;
   status: 'pending' | 'accepted' | 'expired' | 'cancelled';
   invited_by_name: string | null;
+  /** False when the invitation exists but the email could not be sent. */
+  email_sent: boolean;
+  email_sent_at: string | null;
+  email_error: string;
+  /** The link to pass on by hand; null once the invitation is spent. */
+  accept_url: string | null;
   expires_at: string;
   created_at: string;
 }

@@ -1,0 +1,43 @@
+{% extends "accounts/email/base_email.html" %}
+
+{% block subject %}{{ inviter_name }} invited you to {{ organization_name }}{% endblock %}
+
+{% block content %}
+  <p style="margin:0 0 16px 0; font-size:19px; font-weight:700; color:#18181b;">
+    Join {{ organization_name }}
+  </p>
+
+  <p style="margin:0 0 16px 0;">
+    {{ inviter_name }}{% if inviter_email %} ({{ inviter_email }}){% endif %} has invited you to
+    join <strong>{{ organization_name }}</strong> on {{ product_name }} as
+    {{ role_article }} <strong>{{ role_label }}</strong>.
+  </p>
+
+  {# A bare <a> styled as a button: an image or a nested table here is what
+     makes a plain notice look like a campaign, and these go to people who were
+     not expecting mail from us. #}
+  <p style="margin:0 0 20px 0;">
+    <a href="{{ accept_url }}"
+       style="display:inline-block; padding:11px 20px; background-color:#18181b; color:#ffffff; font-size:14px; font-weight:600; text-decoration:none; border-radius:6px;">
+      Accept the invitation
+    </a>
+  </p>
+
+  <p style="margin:0 0 16px 0; font-size:13px; color:#52525b;">
+    The link expires on {{ expires_at|date:"j F Y" }}. If it has already expired,
+    ask {{ inviter_name }} to send a new one.
+  </p>
+
+  {# Spelled out because some clients strip the href from a styled link, and
+     because a recipient who is cautious about buttons can read where it goes. #}
+  <p style="margin:0; font-size:12px; color:#71717a; word-break:break-all;">
+    Or paste this into your browser:<br>
+    {{ accept_url }}
+  </p>
+{% endblock %}
+
+{% block footer %}
+  You are receiving this because {{ inviter_email|default:"someone" }} entered your
+  address when inviting a team member. If you were not expecting it, you can
+  ignore this message — nothing happens until you accept.
+{% endblock %}

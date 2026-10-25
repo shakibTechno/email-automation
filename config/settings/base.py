@@ -333,6 +333,9 @@ EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', default=False)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@example.com')
+
+# The product name as it appears in the platform's own transactional mail.
+APP_NAME = env('APP_NAME', default='MailFlow')
 SERVER_EMAIL = env('SERVER_EMAIL', default='admin@example.com')
 
 

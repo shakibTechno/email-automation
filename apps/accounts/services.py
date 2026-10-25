@@ -5,10 +5,13 @@ import secrets
 import logging
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from apps.core.mail import send_transactional_email
 
 from .models import TeamInvitation, ActivityLog, Organization
 
@@ -76,21 +79,82 @@ class TeamService:
             expires_at=timezone.now() + timedelta(days=7),
         )
 
-        # Log the invitation (email sending would go here in production)
+        # Not logged with the token. The old line here wrote it in plaintext,
+        # which made every application log a list of live invitations anyone
+        # with log access could accept.
         logger.info(
-            f"Team invitation sent: {email} invited to {organization.name} "
-            f"as {role} by {invited_by.email}, token: {invitation.token}"
+            "Team invitation created: %s invited to %s as %s by %s",
+            email, organization.name, role, invited_by.email,
         )
+
+        TeamService.send_invitation_email(invitation)
 
         ActivityLogService.log(
             organization=organization,
             user=invited_by,
             action='member_invited',
             target_email=email,
-            details={'role': role},
+            details={'role': role, 'email_sent': invitation.email_sent_at is not None},
         )
 
         return invitation
+
+    @staticmethod
+    def send_invitation_email(invitation):
+        """
+        Send the invitation. Returns whether the provider accepted it.
+
+        Reported rather than raised: the invitation row is already valid and the
+        link already works, so a failed send must not undo it. The admin is told
+        instead, and given the link to pass on by hand — which is the difference
+        between a feature that degrades and one that silently does nothing.
+        """
+        organization = invitation.organization
+        inviter = invitation.invited_by
+        inviter_name = (
+            (inviter.full_name or inviter.email) if inviter else organization.name
+        )
+        # TeamInvitation has its own narrower ROLE_CHOICES (no 'owner'), which
+        # is the right source for a label on an invitation.
+        role_label = dict(TeamInvitation.ROLE_CHOICES).get(invitation.role, invitation.role)
+
+        result = send_transactional_email(
+            subject=f'{inviter_name} invited you to {organization.name}',
+            template='accounts/email/team_invitation',
+            to_email=invitation.email,
+            organization=organization,
+            # Replies go to the person who invited them, not to a noreply
+            # address: the first question a recipient has is "is this real",
+            # and the answer is a reply to the colleague who sent it.
+            reply_to=inviter.email if inviter else None,
+            context={
+                'product_name': settings.APP_NAME,
+                'organization_name': organization.name,
+                'inviter_name': inviter_name,
+                'inviter_email': inviter.email if inviter else '',
+                'role_label': role_label,
+                'role_article': 'an' if role_label[:1].lower() in 'aeiou' else 'a',
+                'accept_url': TeamService.invitation_url(invitation),
+                'expires_at': invitation.expires_at,
+            },
+        )
+
+        invitation.email_sent_at = timezone.now() if result.ok else None
+        invitation.email_error = result.error
+        invitation.save(update_fields=['email_sent_at', 'email_error', 'updated_at'])
+        return result.ok
+
+    @staticmethod
+    def invitation_url(invitation):
+        """
+        The link the recipient follows.
+
+        Points at the SPA route that collects their name and password
+        (`/accept-invitation?token=`), not at the API — the token is useless
+        without that form.
+        """
+        frontend = settings.FRONTEND_URL.rstrip('/')
+        return f'{frontend}/accept-invitation?token={invitation.token}'
 
     @staticmethod
     def resend_invitation(invitation, resent_by):
@@ -98,16 +162,20 @@ class TeamService:
         invitation.expires_at = timezone.now() + timedelta(days=7)
         invitation.save(update_fields=['token', 'expires_at', 'updated_at'])
 
+        # Again, no token in the log line.
         logger.info(
-            f"Team invitation resent: {invitation.email} to {invitation.organization.name}, "
-            f"token: {invitation.token}"
+            "Team invitation resent: %s to %s",
+            invitation.email, invitation.organization.name,
         )
+
+        TeamService.send_invitation_email(invitation)
 
         ActivityLogService.log(
             organization=invitation.organization,
             user=resent_by,
             action='invitation_resent',
             target_email=invitation.email,
+            details={'email_sent': invitation.email_sent_at is not None},
         )
 
         return invitation

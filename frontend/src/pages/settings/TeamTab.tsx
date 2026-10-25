@@ -16,7 +16,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MoreHorizontal, Plus, Send, X, UserPlus } from 'lucide-react';
+import {
+  AlertTriangle,
+  Link as LinkIcon,
+  MoreHorizontal,
+  Plus,
+  Send,
+  X,
+  UserPlus,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { RoleBadge } from '@/components/team/RoleBadge';
 import { InviteDialog } from '@/components/team/InviteDialog';
 import { ChangeRoleDialog } from '@/components/team/ChangeRoleDialog';
@@ -171,7 +180,21 @@ export function TeamTab() {
                 <TableBody>
                   {invitations.map((inv) => (
                     <TableRow key={inv.id}>
-                      <TableCell className="font-medium">{inv.email}</TableCell>
+                      <TableCell className="font-medium">
+                        {inv.email}
+                        {/* An invitation whose email never left looks exactly
+                            like one the recipient is ignoring, so it has to say
+                            so here and not only in a toast that has gone. */}
+                        {inv.email_sent === false && (
+                          <span
+                            className="mt-0.5 flex items-center gap-1 text-[11.5px] font-normal text-warning"
+                            title={inv.email_error || undefined}
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                            Email not sent — send the link yourself
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell><RoleBadge role={inv.role} /></TableCell>
                       <TableCell className="text-muted-foreground">
                         {inv.invited_by_name || 'Unknown'}
@@ -181,6 +204,20 @@ export function TeamTab() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          {inv.accept_url && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                navigator.clipboard.writeText(inv.accept_url!);
+                                toast.success('Invitation link copied');
+                              }}
+                              title="Copy invitation link"
+                            >
+                              <LinkIcon className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"

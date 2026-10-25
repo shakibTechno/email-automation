@@ -1,0 +1,49 @@
+{% comment %}
+Shared shell for the platform's own transactional mail.
+
+Tables and inline styles on purpose: Outlook's rendering engine ignores most of
+a stylesheet, and `<style>` blocks are stripped outright by several webmail
+clients. This is not how the rest of the codebase writes markup, and it should
+not be — it is written for mail clients, not browsers.
+
+Deliberately plain. These messages carry an action, and a recipient who was not
+expecting one is quicker to trust something that looks like a notice than
+something that looks like marketing.
+{% endcomment %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block subject %}{% endblock %}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f4f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f5;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background-color:#ffffff; border:1px solid #e4e4e7; border-radius:8px;">
+          <tr>
+            <td style="padding:28px 28px 8px 28px;">
+              <p style="margin:0; font-size:13px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:#71717a;">
+                {{ product_name }}
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 28px 28px 28px; font-size:15px; line-height:1.55; color:#18181b;">
+              {% block content %}{% endblock %}
+            </td>
+          </tr>
+        </table>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+          <tr>
+            <td style="padding:16px 28px; font-size:12px; line-height:1.5; color:#71717a;" align="center">
+              {% block footer %}{% endblock %}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
