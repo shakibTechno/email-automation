@@ -131,7 +131,9 @@ class LandingPage(TimeStampedModel, SoftDeleteModel):
         """Return the public URL for this landing page."""
         # Landing pages are served by Django, so use BACKEND_URL (not FRONTEND_URL)
         backend_url = getattr(settings, 'BACKEND_URL', 'http://localhost:8000').rstrip('/')
-        return f"{backend_url}/p/{self.slug}"
+        # Organization-scoped: slugs are unique per tenant, so /p/<slug> alone
+        # identifies a page only while no other tenant has chosen the same one.
+        return f"{backend_url}/p/{self.organization.slug}/{self.slug}"
 
     @property
     def conversion_rate(self):

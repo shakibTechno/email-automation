@@ -12,6 +12,7 @@ from drf_spectacular.views import (
 )
 
 from apps.email_config.webhooks import postal_webhook
+from apps.landing_pages.views import PublicLandingPageView
 
 urlpatterns = [
     # Admin
@@ -59,10 +60,16 @@ urlpatterns = [
     path('webhooks/postal', postal_webhook, name='postal-webhook'),
     path('webhooks/postal/', postal_webhook, name='postal-webhook-slash'),
 
-    # Public landing page route
-    path('p/<slug:slug>/',
-         __import__('apps.landing_pages.views', fromlist=['PublicLandingPageView']).PublicLandingPageView.as_view(),
+    # Public landing pages. The organization-scoped form comes first and is the
+    # one `LandingPage.public_url` hands out: page slugs are unique per tenant,
+    # so the bare form below cannot identify a page once two tenants share a
+    # slug. It stays only for links published before this route existed.
+    path('p/<slug:org_slug>/<slug:slug>/',
+         PublicLandingPageView.as_view(),
          name='public-landing-page'),
+    path('p/<slug:slug>/',
+         PublicLandingPageView.as_view(),
+         name='public-landing-page-legacy'),
 
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

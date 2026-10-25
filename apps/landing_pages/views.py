@@ -322,24 +322,49 @@ class PublicLandingPageView(APIView):
     """
     View for rendering public landing pages.
 
-    GET /p/{slug}/ - Render published landing page
+    GET /p/{org_slug}/{slug}/ - Render published landing page
+    GET /p/{slug}/            - Legacy, unscoped form (see below)
+
+    Page slugs are unique per organization, not globally
+    (`LandingPage.Meta.unique_together`). The unscoped form therefore cannot
+    identify a page on its own: two tenants publishing "pricing" or
+    "black-friday" is not a corner case, it is the expected case. It is kept
+    only so links already in the wild keep resolving, and it refuses to guess.
     """
 
     permission_classes = [AllowAny]
 
-    def get(self, request, slug):
+    NOT_FOUND_HTML = '<html><body><h1>Page Not Found</h1></body></html>'
+
+    def _not_found(self):
+        return HttpResponse(self.NOT_FOUND_HTML, status=404, content_type='text/html')
+
+    def get(self, request, slug, org_slug=None):
         """Render a published landing page."""
-        try:
-            landing_page = LandingPage.objects.get(
-                slug=slug,
-                status='published'
-            )
-        except LandingPage.DoesNotExist:
-            return HttpResponse(
-                '<html><body><h1>Page Not Found</h1></body></html>',
-                status=404,
-                content_type='text/html'
-            )
+        pages = LandingPage.objects.select_related('organization').filter(
+            slug=slug,
+            status='published',
+        )
+
+        if org_slug is not None:
+            landing_page = pages.filter(organization__slug=org_slug).first()
+            if landing_page is None:
+                return self._not_found()
+        else:
+            # Deliberately not `.get()`: that raised MultipleObjectsReturned and
+            # returned a 500 as soon as any two tenants shared a slug. An
+            # ambiguous link is answered with the same 404 a missing one gets —
+            # a visitor must not be served another tenant's page, and must not
+            # learn from the response that other tenants exist.
+            matches = list(pages[:2])
+            if len(matches) != 1:
+                if matches:
+                    logger.warning(
+                        "Ambiguous unscoped landing page slug %r matches multiple "
+                        "organizations; the org-scoped URL is required.", slug,
+                    )
+                return self._not_found()
+            landing_page = matches[0]
 
         # Record page view
         LandingPageAnalyticsService.record_page_view(landing_page, request)
