@@ -168,9 +168,21 @@ const DomainCard = ({ domain }: { domain: LandingDomain }) => {
               </span>
               <span />
 
+              {/* The label, not the full hostname. Providers append the zone
+                  themselves, so a copy button next to "landing.soha.systems"
+                  produces "landing.soha.systems.soha.systems" — which is
+                  exactly what happened the first time someone used this. */}
               <span className="stat-label">Host</span>
               <span className="truncate font-mono">{record.host}</span>
               <CopyButton value={record.host} label="Host" />
+
+              <span />
+              <span className="col-span-2 text-[11px] text-subtle-foreground">
+                Your provider adds{' '}
+                <span className="font-mono">{record.zone}</span> itself, giving{' '}
+                <span className="font-mono">{record.full_host}</span>. Do not type the
+                full name.
+              </span>
 
               <span className="stat-label">
                 {record.type === 'A' ? 'Points to' : 'Target'}

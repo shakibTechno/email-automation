@@ -11,6 +11,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Organization, User
 from apps.landing_pages.domain_service import DomainError, LandingDomainService
+from apps.landing_pages.domains import doubled_name_candidate, split_zone
 from apps.email_config.models import SendingDomain
 from apps.landing_pages.models import LandingDomain, LandingPage
 
@@ -173,9 +174,9 @@ class DomainApiTests(TestCase):
         """
         domain = LandingDomainService.connect(self.org, 'go.alpha-example.com')
 
-        with patch('apps.landing_pages.domain_service.requests.get') as get:
-            exc = requests.exceptions.ConnectionError('boom')
-            exc.__cause__ = socket.gaierror(-2, 'Name or service not known')
+        exc = requests.exceptions.ConnectionError('boom')
+        exc.__cause__ = socket.gaierror(-2, 'Name or service not known')
+        with patch('apps.landing_pages.domain_service.requests.get') as get,                 patch('apps.landing_pages.domain_service.resolves', return_value=False):
             get.side_effect = exc
             result = LandingDomainService.verify(domain)
 
@@ -202,13 +203,16 @@ class DomainApiTests(TestCase):
         )
         domain = LandingDomainService.connect(self.org, 'news.alpha-example.com')
 
-        with patch('apps.landing_pages.domain_service.requests.get') as get:
-            exc = requests.exceptions.ConnectionError('boom')
-            exc.__cause__ = socket.gaierror(-2, 'Name or service not known')
+        exc = requests.exceptions.ConnectionError('boom')
+        exc.__cause__ = socket.gaierror(-2, 'Name or service not known')
+        # `resolves` patched out everywhere these run: a test that performs a
+        # real DNS lookup is slow, and fails or passes depending on the
+        # network rather than on the code.
+        with patch('apps.landing_pages.domain_service.requests.get') as get,                 patch('apps.landing_pages.domain_service.resolves', return_value=False):
             get.side_effect = exc
             result = LandingDomainService.verify(domain)
 
-        self.assertIn('also your email sending domain', result.last_check_error)
+        self.assertIn('also sends your email', result.last_check_error)
         self.assertIn('use the A record', result.last_check_error)
 
     def test_a_verified_domain_keeps_its_verified_at_through_a_blip(self):
@@ -426,3 +430,91 @@ class DnsFailureClassificationTests(TestCase):
         )
 
         self.assertFalse(_is_dns_failure(exc))
+
+
+class HostFieldTests(TestCase):
+    """
+    What the customer types into their DNS provider's Host field.
+
+    Providers append the zone themselves, so showing the full hostname next to
+    a copy button produced `landing.soha.systems.soha.systems` — a record that
+    looks correct where it was entered and resolves to nothing.
+    """
+
+    def test_the_label_is_split_from_the_zone(self):
+        self.assertEqual(split_zone('landing.soha.systems'), ('landing', 'soha.systems'))
+
+    def test_a_deeper_subdomain_keeps_its_full_label(self):
+        self.assertEqual(split_zone('go.eu.example.com'), ('go.eu', 'example.com'))
+
+    def test_a_bare_domain_uses_the_apex_marker(self):
+        """`@` is what every provider means by "the domain itself"."""
+        self.assertEqual(split_zone('example.com'), ('@', 'example.com'))
+
+    @override_settings(
+        PLATFORM_HOSTS=PLATFORM,
+        LANDING_DOMAIN_CNAME_TARGET='app.example.com',
+        LANDING_DOMAIN_A_TARGET='203.0.113.10',
+    )
+    def test_records_offer_the_label_and_keep_the_full_name_separate(self):
+        org = Organization.objects.create(name='Alpha', slug='alpha', plan='starter')
+        domain = LandingDomain.objects.create(
+            organization=org, domain='landing.alpha-example.com',
+        )
+
+        record = domain.dns_records[0]
+
+        self.assertEqual(record['host'], 'landing')
+        self.assertEqual(record['full_host'], 'landing.alpha-example.com')
+        self.assertEqual(record['zone'], 'alpha-example.com')
+
+    def test_the_doubled_name_is_the_one_a_provider_would_create(self):
+        self.assertEqual(
+            doubled_name_candidate('landing.soha.systems'),
+            'landing.soha.systems.soha.systems',
+        )
+
+
+@override_settings(PLATFORM_HOSTS=PLATFORM)
+class DoubledNameDiagnosisTests(TestCase):
+    """
+    Recognising a record that was saved at the wrong name.
+
+    The generic "no DNS record found" is true and useless here: the customer is
+    looking at a record that reads correctly in their provider's UI. Naming the
+    mistake is the difference between a fix and another three hours.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.org = Organization.objects.create(name='Alpha', slug='alpha', plan='starter')
+        self.domain = LandingDomain.objects.create(
+            organization=self.org, domain='landing.alpha-example.com',
+        )
+
+    def _verify_with_dns_failure(self):
+        exc = requests.exceptions.ConnectionError('boom')
+        exc.__cause__ = socket.gaierror(-2, 'Name or service not known')
+        with patch('apps.landing_pages.domain_service.requests.get') as get:
+            get.side_effect = exc
+            return LandingDomainService.verify(self.domain)
+
+    def test_it_names_the_doubled_record_when_that_one_resolves(self):
+        with patch('apps.landing_pages.domain_service.resolves') as resolves_mock:
+            resolves_mock.return_value = True
+            result = self._verify_with_dns_failure()
+
+        self.assertIn(
+            'landing.alpha-example.com.alpha-example.com', result.last_check_error,
+        )
+        self.assertIn('enter just "landing"', result.last_check_error)
+
+    def test_otherwise_it_still_says_which_field_to_correct(self):
+        with patch('apps.landing_pages.domain_service.resolves') as resolves_mock:
+            resolves_mock.return_value = False
+            result = self._verify_with_dns_failure()
+
+        self.assertIn('does not resolve', result.last_check_error)
+        self.assertIn('should be "landing"', result.last_check_error)
+        self.assertIn('adds "alpha-example.com" itself', result.last_check_error)

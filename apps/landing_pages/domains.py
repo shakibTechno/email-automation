@@ -128,3 +128,59 @@ def forget_domain(domain):
     domain = normalize_domain(domain)
     if domain:
         cache.delete(_cache_key(domain))
+
+
+def split_zone(domain):
+    """
+    Guess ('label', 'zone') for a hostname — what to type, and into which zone.
+
+    DNS providers ask for the record name *relative to the zone*: Namecheap,
+    Cloudflare and GoDaddy all append the domain to whatever is entered, so
+    `landing.soha.systems` in a Host field becomes
+    `landing.soha.systems.soha.systems`. Showing the full name with a copy
+    button next to it invites exactly that, and did.
+
+    The zone cut cannot be known without the public suffix list — `brand.co.uk`
+    is two labels of suffix, `soha.systems` is one — so this assumes the common
+    `label.domain.tld` shape and the caller shows the assumption alongside the
+    answer, letting the customer correct it rather than trusting us silently.
+    """
+    labels = normalize_domain(domain).split('.')
+    if len(labels) < 3:
+        return '@', '.'.join(labels)
+    return '.'.join(labels[:-2]), '.'.join(labels[-2:])
+
+
+def doubled_name_candidate(domain):
+    """
+    The name a record ends up at when the full hostname is typed into a Host
+    field: `landing.soha.systems` + zone `soha.systems`.
+
+    Used to recognise that specific mistake and name it, instead of reporting
+    the generic "does not resolve" that leaves someone re-reading a record
+    which looks exactly right where they put it.
+    """
+    _, zone = split_zone(domain)
+    if not zone or domain.endswith('.' + zone) is False:
+        return None
+    return f'{domain}.{zone}'
+
+
+def resolves(hostname):
+    """
+    Whether a hostname resolves to an address, following any CNAME.
+
+    `socket.getaddrinfo` rather than a DNS library: the question is only
+    "does this name lead to an address", the stdlib answers it, and
+    apps/email_config/services.py records why a dnspython-based check was
+    removed from this codebase before.
+    """
+    import socket
+
+    if not hostname:
+        return False
+    try:
+        socket.getaddrinfo(hostname, None)
+    except OSError:
+        return False
+    return True

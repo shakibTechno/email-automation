@@ -9,7 +9,14 @@ import requests
 from django.db import transaction
 from django.utils import timezone
 
-from .domains import forget_domain, normalize_domain, reserved_domain_error
+from .domains import (
+    doubled_name_candidate,
+    forget_domain,
+    normalize_domain,
+    reserved_domain_error,
+    resolves,
+    split_zone,
+)
 from .models import LandingDomain
 
 logger = logging.getLogger(__name__)
@@ -107,16 +114,7 @@ class LandingDomainService:
             # a customer three hours of waiting for propagation of a record
             # that had never been accepted. Say which it is.
             if _is_dns_failure(exc):
-                error = (
-                    'This hostname does not resolve — no DNS record for it was '
-                    'found. Check the record was saved, and that you used the '
-                    'record type shown here.'
-                )
-                if landing_domain.conflicting_sending_domain:
-                    error += (
-                        ' This hostname is also your email sending domain, so a '
-                        'CNAME cannot be added to it; use the A record.'
-                    )
+                error = _resolution_failure_message(landing_domain)
             else:
                 error = (
                     'The hostname resolves but refused the connection. It is '
@@ -216,3 +214,36 @@ def _is_dns_failure(exc):
             return True
         current = current.__cause__ or current.__context__
     return False
+
+
+def _resolution_failure_message(landing_domain):
+    """
+    Why the hostname does not resolve, as specifically as we can tell.
+
+    "No DNS record found" is true but unhelpful when the record *was* saved and
+    the provider silently put it somewhere else. Checking for the doubled name
+    turns a customer re-reading a correct-looking record into a customer who
+    knows which field to change.
+    """
+    domain = landing_domain.domain
+    label, zone = split_zone(domain)
+
+    doubled = doubled_name_candidate(domain)
+    if doubled and resolves(doubled):
+        return (
+            f'Your DNS record was created as "{doubled}" rather than "{domain}". '
+            f'Most providers add your domain to the Host field automatically, so '
+            f'enter just "{label}" there — not the full "{domain}".'
+        )
+
+    message = (
+        f'"{domain}" does not resolve — no DNS record for it was found. '
+        f'In your DNS provider the Host (or Name) field should be "{label}", '
+        f'not the full "{domain}", because the provider adds "{zone}" itself.'
+    )
+    if landing_domain.conflicting_sending_domain:
+        message += (
+            ' Note this hostname also sends your email, so it cannot take a '
+            'CNAME — use the A record.'
+        )
+    return message

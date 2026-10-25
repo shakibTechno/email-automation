@@ -171,7 +171,12 @@ export interface LandingDomain {
    *  impossible on a hostname that already carries other records. */
   dns_records: Array<{
     type: 'A' | 'CNAME';
+    /** What to type in the provider's Host/Name field, e.g. "landing". */
     host: string;
+    /** The resulting full hostname, for confirmation only. */
+    full_host: string;
+    /** The zone the provider appends, e.g. "soha.systems". */
+    zone: string;
     value: string;
     recommended: boolean;
     note: string;

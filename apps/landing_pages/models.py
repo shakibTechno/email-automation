@@ -117,15 +117,23 @@ class LandingDomain(TimeStampedModel):
         telling some customers to add a record their DNS host will refuse, and
         then leaving them to wait for propagation that was never coming.
         """
+        from .domains import split_zone
+
         cname_target = getattr(settings, 'LANDING_DOMAIN_CNAME_TARGET', '') or ''
         a_target = getattr(settings, 'LANDING_DOMAIN_A_TARGET', '') or ''
         cname_possible = not self.conflicting_sending_domain
+        # What to type, and the zone it is typed into. Providers append
+        # the zone themselves, so the full name belongs in a caption and
+        # never in the field.
+        host_label, zone = split_zone(self.domain)
 
         records = []
         if a_target:
             records.append({
                 'type': 'A',
-                'host': self.domain,
+                'host': host_label,
+                'full_host': self.domain,
+                'zone': zone,
                 'value': a_target,
                 'recommended': not cname_possible,
                 'note': (
@@ -139,7 +147,9 @@ class LandingDomain(TimeStampedModel):
         if cname_target:
             records.append({
                 'type': 'CNAME',
-                'host': self.domain,
+                'host': host_label,
+                'full_host': self.domain,
+                'zone': zone,
                 'value': cname_target,
                 'recommended': cname_possible,
                 'note': (
