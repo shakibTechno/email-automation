@@ -176,7 +176,7 @@ export const TenantDetailPage = () => {
           }
         />
         <StatTile
-          label="Emails this period"
+          label="Quota this billing month"
           value={full(tenant.emails_used)}
           deltaLabel={
             quotaPct === null

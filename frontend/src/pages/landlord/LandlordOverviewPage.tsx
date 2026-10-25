@@ -96,7 +96,7 @@ export const LandlordOverviewPage = () => {
               }
             />
             <StatTile
-              label={`Emails sent (${days}d)`}
+              label={`Recipients mailed (${days}d)`}
               value={compact(data.emails.sent)}
               deltaLabel={`${full(data.emails.delivered)} delivered`}
             />

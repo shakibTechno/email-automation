@@ -160,7 +160,10 @@ export const TenantListPage = () => {
                     <TableHead>State</TableHead>
                     <TableHead className="text-right">Users</TableHead>
                     <TableHead className="text-right">Contacts</TableHead>
-                    <TableHead className="text-right">Emails</TableHead>
+                    {/* "Quota", not "Emails": this is the billing-month
+                        counter against the plan limit, which is a different
+                        figure from the overview's emails sent in a period. */}
+                    <TableHead className="text-right">Quota</TableHead>
                     <TableHead className="text-right">Bounce</TableHead>
                   </TableRow>
                 </TableHeader>
