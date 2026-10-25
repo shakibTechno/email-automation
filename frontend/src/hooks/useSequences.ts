@@ -1,4 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+
 import { sequencesApi } from '@/api/sequences';
 import type { CreateSequenceData, CreateStepData } from '@/types/sequence';
 
@@ -90,25 +92,44 @@ export function useStepMutations(sequenceId: string) {
     qc.invalidateQueries({ queryKey: ['sequence', sequenceId] });
   };
 
+  // Every one of these had onSuccess and no onError, so a failed request
+  // changed nothing on screen and said nothing — indistinguishable from the
+  // button not being wired up, which is how long this took to pin down.
+  const onError = (error: { message?: string }, fallback: string) =>
+    toast.error(error?.message || fallback);
+
   const createStep = useMutation({
     mutationFn: (data: CreateStepData) => sequencesApi.createStep(data),
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      invalidate();
+      toast.success('Step added.');
+    },
+    onError: (e: { message?: string }) => onError(e, 'Could not add that step'),
   });
 
   const updateStep = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateStepData> }) =>
       sequencesApi.updateStep(id, data),
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      invalidate();
+      toast.success('Step saved.');
+    },
+    onError: (e: { message?: string }) => onError(e, 'Could not save that step'),
   });
 
   const deleteStep = useMutation({
     mutationFn: (id: string) => sequencesApi.deleteStep(id),
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      invalidate();
+      toast.success('Step removed.');
+    },
+    onError: (e: { message?: string }) => onError(e, 'Could not remove that step'),
   });
 
   const reorderSteps = useMutation({
     mutationFn: (stepIds: string[]) => sequencesApi.reorderSteps(sequenceId, stepIds),
     onSuccess: () => invalidate(),
+    onError: (e: { message?: string }) => onError(e, 'Could not reorder the steps'),
   });
 
   return { createStep, updateStep, deleteStep, reorderSteps };

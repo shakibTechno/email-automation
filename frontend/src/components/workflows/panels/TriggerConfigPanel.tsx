@@ -13,6 +13,10 @@ import { formsApi } from '@/api/forms';
 import apiClient from '@/api/client';
 import { crmApi } from '@/api/crm';
 
+// Stands in for "no filter". Radix reserves the empty string for a cleared
+// Select and throws if a SelectItem uses it, which crashed this panel.
+const ANY = '__any';
+
 interface TriggerConfigPanelProps {
   nodeType: TriggerNodeType;
   config: Record<string, unknown>;
@@ -218,16 +222,16 @@ export default function TriggerConfigPanel({
           <div>
             <Label>From Stage (optional)</Label>
             <Select
-              value={(config.from_stage_id as string) || ''}
+              value={(config.from_stage_id as string) || ANY}
               onValueChange={(value) =>
-                onChange({ ...config, from_stage_id: value || undefined })
+                onChange({ ...config, from_stage_id: value === ANY ? undefined : value })
               }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Any stage" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Any stage</SelectItem>
+                <SelectItem value={ANY}>Any stage</SelectItem>
                 {stages.map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
@@ -237,16 +241,16 @@ export default function TriggerConfigPanel({
           <div>
             <Label>To Stage (optional)</Label>
             <Select
-              value={(config.to_stage_id as string) || ''}
+              value={(config.to_stage_id as string) || ANY}
               onValueChange={(value) =>
-                onChange({ ...config, to_stage_id: value || undefined })
+                onChange({ ...config, to_stage_id: value === ANY ? undefined : value })
               }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Any stage" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Any stage</SelectItem>
+                <SelectItem value={ANY}>Any stage</SelectItem>
                 {stages.map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
@@ -266,17 +270,21 @@ export default function TriggerConfigPanel({
       <div>
         <Label>Pipeline (optional filter)</Label>
         <Select
-          value={(config.pipeline_id as string) || ''}
+          value={(config.pipeline_id as string) || ANY}
           onValueChange={(value) => {
             const pipeline = pipelines.find((p) => p.id === value);
-            onChange({ ...config, pipeline_id: value || undefined, pipeline_name: pipeline?.name || '' });
+            onChange({
+              ...config,
+              pipeline_id: value === ANY ? undefined : value,
+              pipeline_name: pipeline?.name || '',
+            });
           }}
         >
           <SelectTrigger>
             <SelectValue placeholder="Any pipeline" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Any pipeline</SelectItem>
+            <SelectItem value={ANY}>Any pipeline</SelectItem>
             {pipelines.map((p) => (
               <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
             ))}

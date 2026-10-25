@@ -32,6 +32,14 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/api/client';
 import type { CreateSequenceData, SequenceStep } from '@/types/sequence';
 
+/**
+ * Stands in for "no template chosen".
+ *
+ * Radix's Select reserves the empty string for a cleared value and throws if a
+ * SelectItem uses it, so every optional Select needs a sentinel instead.
+ */
+const NO_TEMPLATE = '__none';
+
 interface StepDialogState {
   open: boolean;
   step: SequenceStep | null;
@@ -325,15 +333,21 @@ export default function SequenceBuilderPage() {
             </div>
             <div>
               <Label>Email Template</Label>
+              {/* NO_TEMPLATE rather than "": Radix throws on a SelectItem with
+                  an empty-string value, because it reserves that value for
+                  "cleared". Rendering one crashed this dialog outright, which
+                  is why adding a step did nothing at all. */}
               <Select
-                value={stepForm.template}
-                onValueChange={(v) => setStepForm({ ...stepForm, template: v })}
+                value={stepForm.template || NO_TEMPLATE}
+                onValueChange={(v) =>
+                  setStepForm({ ...stepForm, template: v === NO_TEMPLATE ? '' : v })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a template" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No template</SelectItem>
+                  <SelectItem value={NO_TEMPLATE}>No template</SelectItem>
                   {templates.map((t: any) => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                   ))}

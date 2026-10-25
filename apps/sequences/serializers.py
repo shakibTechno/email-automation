@@ -7,14 +7,49 @@ from .models import EmailSequence, SequenceStep, SequenceEnrollment, SequenceSte
 
 class SequenceStepSerializer(serializers.ModelSerializer):
     template_name = serializers.SerializerMethodField()
+    # Declared, and scoped to the caller's own sequences.
+    #
+    # It was absent from `fields` entirely, so the sequence a step belongs to
+    # was read straight out of `request.data` by the viewset and looked up with
+    # an unguarded .get() — a missing or unknown id raised DoesNotExist and
+    # answered 500. As a real field, DRF validates it and answers 400 with a
+    # message, and the queryset keeps one tenant from adding steps to another's
+    # sequence.
+    sequence = serializers.PrimaryKeyRelatedField(queryset=EmailSequence.objects.none())
 
     class Meta:
         model = SequenceStep
         fields = [
-            'id', 'position', 'subject', 'template', 'template_name',
+            'id', 'sequence', 'position', 'subject', 'template', 'template_name',
             'delay_days', 'delay_hours', 'total_delay_hours',
         ]
-        read_only_fields = ['id', 'template_name', 'total_delay_hours']
+        # `position` is the server's to assign, not the client's: a step is
+        # appended on create and moved by the dedicated reorder endpoint.
+        read_only_fields = ['id', 'position', 'template_name', 'total_delay_hours']
+
+        # The model's unique_together on (sequence, position) stays — it is
+        # what keeps two steps off the same position. What is dropped is DRF's
+        # automatic validator for it, and this is the bug that made adding a
+        # second step impossible:
+        #
+        # `position` defaulted to 0 on every create, so the validator checked
+        # (sequence, 0), found the step already there, and answered 400 before
+        # perform_create could assign the real position. The first step always
+        # saved and every one after it always failed.
+        #
+        # Safe to drop because the client no longer supplies the value: the
+        # server computes it, and the database constraint is still there if it
+        # ever computes a duplicate.
+        validators = []
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        organization = getattr(getattr(request, 'user', None), 'organization', None)
+        if organization is not None:
+            self.fields['sequence'].queryset = EmailSequence.objects.filter(
+                organization=organization, deleted_at__isnull=True,
+            )
 
     def get_template_name(self, obj):
         return obj.template.name if obj.template else None

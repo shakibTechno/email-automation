@@ -142,13 +142,24 @@ class SequenceStepViewSet(viewsets.ModelViewSet):
         ).select_related('template')
 
     def perform_create(self, serializer):
-        sequence_id = self.request.data.get('sequence')
-        sequence = EmailSequence.objects.get(
-            id=sequence_id, organization=self.request.user.organization
-        )
-        # Auto-position at end
-        max_pos = sequence.steps.count()
-        serializer.save(sequence=sequence, position=max_pos)
+        """
+        Append the new step to the end of its sequence.
+
+        The sequence itself is validated by the serializer against the
+        caller's own sequences. This used to read it from `request.data` and
+        look it up with an unguarded `.get()`, so a missing or unknown id
+        raised DoesNotExist and the API answered 500.
+        """
+        from django.db.models import Max
+
+        sequence = serializer.validated_data['sequence']
+        # max + 1, not count(). After any step is deleted from the middle,
+        # count() returns a position that is already taken — three steps at
+        # 0,1,2, delete the middle one, and count() is 2 while position 2
+        # still exists, so the next create hits the unique constraint as an
+        # IntegrityError 500.
+        highest = sequence.steps.aggregate(top=Max('position'))['top']
+        serializer.save(position=0 if highest is None else highest + 1)
 
     @action(detail=False, methods=['post'])
     def reorder(self, request):

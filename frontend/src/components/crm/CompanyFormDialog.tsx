@@ -22,6 +22,10 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Company, CreateCompanyData } from '@/types/crm';
 
+// Radix reserves the empty string for a cleared Select and throws if a
+// SelectItem uses it, so an optional Select needs a sentinel.
+const NONE = '__none';
+
 const INDUSTRIES = [
   { value: 'technology', label: 'Technology' },
   { value: 'financial_services', label: 'Financial Services' },
@@ -173,12 +177,15 @@ export const CompanyFormDialog = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Industry</Label>
-              <Select value={watch('industry') || ''} onValueChange={(v) => setValue('industry', v)}>
+              <Select
+                value={watch('industry') || NONE}
+                onValueChange={(v) => setValue('industry', v === NONE ? '' : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select industry" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value={NONE}>None</SelectItem>
                   {INDUSTRIES.map((i) => (
                     <SelectItem key={i.value} value={i.value}>{i.label}</SelectItem>
                   ))}
@@ -187,12 +194,15 @@ export const CompanyFormDialog = ({
             </div>
             <div>
               <Label>Company Size</Label>
-              <Select value={watch('size') || ''} onValueChange={(v) => setValue('size', v)}>
+              <Select
+                value={watch('size') || NONE}
+                onValueChange={(v) => setValue('size', v === NONE ? '' : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select size" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value={NONE}>None</SelectItem>
                   {SIZES.map((s) => (
                     <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                   ))}
