@@ -7,17 +7,38 @@ class EmailConfigurationAdmin(admin.ModelAdmin):
     list_display = ['organization', 'provider', 'from_email', 'sending_paused_due_to_threshold', 'updated_at']
     list_filter = ['provider', 'sending_paused_due_to_threshold']
     search_fields = ['organization__name', 'from_email']
-    readonly_fields = ['id', 'created_at', 'updated_at']
+    readonly_fields = [
+        'id', 'created_at', 'updated_at', 'smtp_password_set', 'api_key_set',
+    ]
+
+    @admin.display(boolean=True, description='SMTP password set')
+    def smtp_password_set(self, obj):
+        return bool(obj.smtp_password)
+
+    @admin.display(boolean=True, description='API key set')
+    def api_key_set(self, obj):
+        return bool(obj.api_key)
     fieldsets = (
         ('Organization', {'fields': ('id', 'organization')}),
         ('Sending Identity', {'fields': ('from_name', 'from_email', 'reply_to_email')}),
+        # smtp_password and api_key are stored in plaintext and are the
+        # customer's own credentials with their own provider. They are omitted
+        # here so that staff access to this console is not also access to every
+        # tenant's mail account; the `*_set` booleans show whether one is
+        # configured, which is what an operator actually needs to know.
+        # Credentials are changed by the customer through Settings → Email.
         ('Provider', {'fields': (
-            'provider', 'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password',
-            'smtp_use_tls', 'smtp_use_ssl', 'api_key', 'provider_domain', 'provider_region',
+            'provider', 'smtp_host', 'smtp_port', 'smtp_username',
+            'smtp_password_set', 'api_key_set',
+            'smtp_use_tls', 'smtp_use_ssl', 'provider_domain', 'provider_region',
         )}),
         ('Compliance', {'fields': ('physical_address', 'email_footer_text', 'unsubscribe_redirect_url')}),
         ('Limits', {'fields': ('daily_send_limit', 'hourly_send_limit')}),
-        ('Thresholds', {'fields': ('bounce_threshold_pct', 'complaint_threshold_pct', 'sending_paused_due_to_threshold')}),
+        ('Sending pause', {'fields': (
+            'bounce_threshold_pct', 'complaint_threshold_pct',
+            'sending_paused_due_to_threshold', 'sending_pause_reason',
+            'sending_paused_at',
+        )}),
         ('Timestamps', {'fields': ('created_at', 'updated_at')}),
     )
 

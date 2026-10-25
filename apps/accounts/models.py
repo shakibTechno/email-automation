@@ -52,7 +52,15 @@ class Organization(TimeStampedModel, SoftDeleteModel):
     slug = models.SlugField(max_length=255, unique=True)
     domain = models.CharField(max_length=255, blank=True)
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='free')
+
+    # Account-level suspension. False blocks login and the whole tenant API
+    # while leaving the data intact, so a suspension applied in error costs
+    # nothing to undo. Sending is suspended separately and independently — see
+    # EmailConfiguration.sending_paused_due_to_threshold — because stopping a
+    # tenant's mail is a far more common action than locking them out.
     is_active = models.BooleanField(default=True)
+    suspended_at = models.DateTimeField(null=True, blank=True)
+    suspension_reason = models.TextField(blank=True)
 
     # Contact information
     email = models.EmailField(blank=True)
@@ -384,6 +392,13 @@ class ActivityLog(TimeStampedModel):
         ('invitation_resent', 'Invitation Resent'),
         ('ownership_transferred', 'Ownership Transferred'),
         ('org_settings_updated', 'Organization Settings Updated'),
+        # Platform-operator actions from the landlord console. Recorded against
+        # the affected organization, with the operator in `user`, so a tenant
+        # disputing a suspension can be answered from its own activity log.
+        ('sending_suspended', 'Sending Suspended by Platform'),
+        ('sending_resumed', 'Sending Resumed by Platform'),
+        ('account_suspended', 'Account Suspended by Platform'),
+        ('account_restored', 'Account Restored by Platform'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

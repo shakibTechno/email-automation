@@ -19,6 +19,7 @@ import {
   Sparkles,
   ArrowRight,
   ChevronDown,
+  ShieldAlert,
 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -152,6 +153,24 @@ export const Sidebar = ({ collapsed, open, onNavigate }: SidebarProps) => {
       </nav>
 
       <div className="flex flex-none flex-col gap-3">
+        {/* The only way into the cross-tenant console from the tenant app.
+            Hidden entirely for customers — they have no reason to know it
+            exists, and the API refuses them regardless. */}
+        {user?.is_staff && (
+          <Link
+            to="/landlord"
+            onClick={onNavigate}
+            title={collapsed ? 'Platform console' : undefined}
+            className={cn(
+              'flex items-center gap-2.5 rounded-md border border-warning/40 bg-warning/[.08] py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-warning/[.14]',
+              collapsed ? 'justify-center px-0' : 'px-2.5'
+            )}
+          >
+            <ShieldAlert className="h-4 w-4 flex-none text-warning" />
+            {!collapsed && <span className="truncate">Platform console</span>}
+          </Link>
+        )}
+
         {!collapsed && (
           <div className="rounded-[var(--radius)] border bg-secondary/60 p-3.5 text-center [background-image:radial-gradient(130%_90%_at_50%_0%,hsl(var(--brand-dim)/.20),transparent_62%)]">
             <span className="mx-auto mb-2 grid h-7 w-7 place-items-center rounded-lg bg-brand-fill text-brand-ink">

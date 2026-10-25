@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'apps.sequences',
     'apps.email_config',
     'apps.ai_assistant',
+    'apps.landlord',
 ]
 
 MIDDLEWARE = [

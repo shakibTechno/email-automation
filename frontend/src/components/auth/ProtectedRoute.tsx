@@ -6,7 +6,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { isAuthenticated, accessToken, _hasHydrated } = useAuthStore();
+  const { user, isAuthenticated, accessToken, _hasHydrated } = useAuthStore();
   const location = useLocation();
 
   // Wait for Zustand to rehydrate from localStorage
@@ -19,6 +19,14 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   if (!isAuthenticated && !hasToken) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Platform staff belong to no tenant, so every screen in here would ask the
+  // API for an organization they do not have and render a wall of errors. Send
+  // them to the console that is actually theirs. Staff who also own a tenant
+  // (the bootstrap account does) keep the normal app.
+  if (user?.is_staff && !user.organization) {
+    return <Navigate to="/landlord" replace />;
   }
 
   return <>{children}</>;

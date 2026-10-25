@@ -35,12 +35,16 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'first_name', 'last_name', 'full_name',
             'organization', 'role', 'is_active', 'is_email_verified',
+            # Platform staff, who have no organization and use the landlord
+            # console instead of the tenant app. The frontend has no other way
+            # to tell the two apart — `role` is organization-scoped.
+            'is_staff',
             'phone', 'avatar', 'timezone', 'language',
             'created_at', 'updated_at', 'last_login'
         ]
         read_only_fields = [
             'id', 'created_at', 'updated_at', 'last_login',
-            'is_email_verified'
+            'is_email_verified', 'is_staff',
         ]
 
 
@@ -133,6 +137,18 @@ class LoginSerializer(serializers.Serializer):
 
         if user.deleted_at:
             raise serializers.ValidationError("User account has been deleted.")
+
+        # Account-level suspension. Platform staff have no organization and are
+        # unaffected — otherwise suspending a tenant could lock out the operator
+        # who needs to unsuspend it.
+        organization = getattr(user, 'organization', None)
+        if organization is not None and not organization.is_active:
+            reason = (organization.suspension_reason or '').strip()
+            raise serializers.ValidationError(
+                f"This account has been suspended. {reason}".strip()
+                if reason else
+                "This account has been suspended. Contact support to restore access."
+            )
 
         data['user'] = user
         return data

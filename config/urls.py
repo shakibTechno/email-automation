@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/v1/', include('apps.sequences.urls')),
     path('api/v1/', include('apps.email_config.urls')),
     path('api/v1/', include('apps.ai_assistant.urls')),
+    path('api/v1/', include('apps.landlord.urls')),
 
     # Public email tracking routes (no auth)
     path('track/', include('apps.campaigns.tracking_urls')),

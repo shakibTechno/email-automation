@@ -14,8 +14,16 @@ export interface User {
   first_name: string;
   last_name: string;
   full_name?: string;
-  organization: Organization;
+  /**
+   * Null for platform staff, who belong to no tenant and use the landlord
+   * console. The API has always been able to return null here; declaring it
+   * non-nullable made that a type lie rather than preventing it.
+   */
+  organization: Organization | null;
+  /** Organization-scoped. Says nothing about platform access — see is_staff. */
   role: 'owner' | 'admin' | 'member' | 'viewer';
+  /** Platform operator. The only thing that grants the landlord console. */
+  is_staff?: boolean;
   is_active?: boolean;
   is_email_verified?: boolean;
   phone?: string;

@@ -92,19 +92,33 @@ class UserAdmin(BaseUserAdmin):
 @admin.register(PasswordResetToken)
 class PasswordResetTokenAdmin(admin.ModelAdmin):
     """Admin for PasswordResetToken model."""
-    list_display = ['user', 'token', 'is_used', 'expires_at', 'created_at']
+    # The token is deliberately absent from list_display and search_fields:
+    # it is a live credential, and anyone holding one can take over the
+    # account it belongs to without knowing the password. Staff need to see
+    # that a token exists and whether it was used, not its value.
+    list_display = ['user', 'is_used', 'expires_at', 'created_at']
     list_filter = ['is_used', 'expires_at', 'created_at']
-    search_fields = ['user__email', 'token']
-    readonly_fields = ['id', 'token', 'created_at', 'updated_at']
+    search_fields = ['user__email']
+    # A readonly field is still rendered on the change form, so the value
+    # has to be excluded outright rather than merely made uneditable.
+    exclude = ['token']
+    readonly_fields = ['id', 'created_at', 'updated_at']
 
 
 @admin.register(EmailVerificationToken)
 class EmailVerificationTokenAdmin(admin.ModelAdmin):
     """Admin for EmailVerificationToken model."""
-    list_display = ['user', 'token', 'is_used', 'expires_at', 'created_at']
+    # The token is deliberately absent from list_display and search_fields:
+    # it is a live credential, and anyone holding one can take over the
+    # account it belongs to without knowing the password. Staff need to see
+    # that a token exists and whether it was used, not its value.
+    list_display = ['user', 'is_used', 'expires_at', 'created_at']
     list_filter = ['is_used', 'expires_at', 'created_at']
-    search_fields = ['user__email', 'token']
-    readonly_fields = ['id', 'token', 'created_at', 'updated_at']
+    search_fields = ['user__email']
+    # A readonly field is still rendered on the change form, so the value
+    # has to be excluded outright rather than merely made uneditable.
+    exclude = ['token']
+    readonly_fields = ['id', 'created_at', 'updated_at']
 
 
 @admin.register(TeamInvitation)

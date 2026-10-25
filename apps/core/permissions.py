@@ -9,13 +9,27 @@ class IsOrganizationMember(permissions.BasePermission):
     Permission to check if user is a member of the organization.
     """
     message = 'You must be a member of an organization to perform this action.'
+    suspended_message = (
+        'This account has been suspended. Contact support to restore access.'
+    )
 
     def has_permission(self, request, view):
-        return (
-            request.user and
-            request.user.is_authenticated and
-            getattr(request.user, 'organization', None) is not None
-        )
+        if not (request.user and request.user.is_authenticated):
+            return False
+
+        organization = getattr(request.user, 'organization', None)
+        if organization is None:
+            return False
+
+        # A suspended organization keeps its data but loses API access. Checked
+        # here rather than only at login, because an access token issued before
+        # the suspension stays valid for an hour and would otherwise keep
+        # working against every endpoint.
+        if not organization.is_active:
+            self.message = self.suspended_message
+            return False
+
+        return True
 
     def has_object_permission(self, request, view, obj):
         if hasattr(obj, 'organization'):
@@ -31,9 +45,16 @@ class IsOrganizationAdmin(permissions.BasePermission):
     message = 'You must be an admin of this organization.'
 
     def has_permission(self, request, view):
+        # The organization check is not redundant with the role check.
+        # create_superuser() sets role='owner' and platform staff have no
+        # organization, so testing role alone admitted an org-less staff user
+        # to tenant endpoints, which then misbehaved on
+        # request.user.organization. Membership is a precondition of
+        # administering anything.
         return (
             request.user and
             request.user.is_authenticated and
+            getattr(request.user, 'organization', None) is not None and
             request.user.role in ['admin', 'owner']
         )
 
@@ -97,9 +118,12 @@ class IsOrganizationOwner(permissions.BasePermission):
     message = 'You must be the owner of this organization.'
 
     def has_permission(self, request, view):
+        # See IsOrganizationAdmin: role alone is not enough, because an
+        # org-less platform-staff account carries role='owner'.
         return (
             request.user and
             request.user.is_authenticated and
+            getattr(request.user, 'organization', None) is not None and
             request.user.role == 'owner'
         )
 

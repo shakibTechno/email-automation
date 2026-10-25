@@ -9,7 +9,13 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   _hasHydrated: boolean;
-  setAuth: (user: User, organization: Organization, accessToken: string, refreshToken?: string) => void;
+  /** `organization` is null for platform staff, who belong to no tenant. */
+  setAuth: (
+    user: User,
+    organization: Organization | null,
+    accessToken: string,
+    refreshToken?: string,
+  ) => void;
   clearAuth: () => void;
   updateUser: (user: User) => void;
   setHasHydrated: (hasHydrated: boolean) => void;

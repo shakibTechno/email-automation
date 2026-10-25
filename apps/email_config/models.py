@@ -73,8 +73,14 @@ class EmailConfiguration(TimeStampedModel):
         max_digits=5, decimal_places=2, default=0.10,
         help_text='Auto-pause sending if complaint rate exceeds this %.'
     )
-    # Set to True by admin when thresholds are breached
+    # Sending-level suspension. Set automatically by the deliverability
+    # guardrails when bounce or complaint rates breach, and manually by the
+    # landlord console. One flag rather than two, because two mechanisms for
+    # "this tenant may not send" would drift apart; the reason below records
+    # which set it.
     sending_paused_due_to_threshold = models.BooleanField(default=False)
+    sending_pause_reason = models.TextField(blank=True)
+    sending_paused_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'org_email_configs'

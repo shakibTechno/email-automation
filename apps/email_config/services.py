@@ -228,13 +228,23 @@ class EmailConfigService:
         from .models import EmailConfiguration
         from apps.campaigns.models import CampaignRecipient
 
+        # Account suspension implies sending suspension. Checked before the
+        # EmailConfiguration lookup so it applies even to an organization that
+        # has never opened the email settings page.
+        if not organization.is_active:
+            reason = (organization.suspension_reason or '').strip()
+            return False, f'Account suspended. {reason}'.strip()
+
         try:
             config = EmailConfiguration.objects.get(organization=organization)
         except EmailConfiguration.DoesNotExist:
             return True, ''
 
         if config.sending_paused_due_to_threshold:
-            return False, 'Sending paused: bounce or complaint rate exceeded threshold.'
+            return False, (
+                config.sending_pause_reason
+                or 'Sending paused: bounce or complaint rate exceeded threshold.'
+            )
 
         now = timezone.now()
 

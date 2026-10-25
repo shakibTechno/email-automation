@@ -96,6 +96,17 @@ import {
   SequenceDetailPage,
 } from '@/pages/sequences';
 
+// Landlord console (platform staff only, cross-tenant)
+import { LandlordRoute } from '@/components/auth/LandlordRoute';
+import { LandlordLayout } from '@/components/layout/LandlordLayout';
+import {
+  LandlordOverviewPage,
+  TenantListPage,
+  TenantDetailPage,
+  DeliverabilityPage,
+  RevenuePage,
+} from '@/pages/landlord';
+
 // Other Pages
 import { ProfilePage } from '@/pages/ProfilePage';
 
@@ -243,6 +254,23 @@ function App() {
             {/* Other routes */}
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+          </Route>
+
+          {/* Landlord console. Its own layout and its own guard: every screen
+              beneath it reads across tenants, so it must not share a shell
+              whose navigation assumes the signed-in user has an organization. */}
+          <Route
+            element={
+              <LandlordRoute>
+                <LandlordLayout />
+              </LandlordRoute>
+            }
+          >
+            <Route path="/landlord" element={<LandlordOverviewPage />} />
+            <Route path="/landlord/tenants" element={<TenantListPage />} />
+            <Route path="/landlord/tenants/:id" element={<TenantDetailPage />} />
+            <Route path="/landlord/deliverability" element={<DeliverabilityPage />} />
+            <Route path="/landlord/revenue" element={<RevenuePage />} />
           </Route>
 
           {/* 404 */}

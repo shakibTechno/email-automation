@@ -18,6 +18,7 @@ from django.urls import get_resolver
 from rest_framework.viewsets import ViewSetMixin
 
 from apps.core.viewsets import OrganizationScopedQuerysetMixin
+from apps.landlord.viewsets import PlatformScopedMixin
 
 # Viewsets that legitimately do not filter by organization. Each needs a reason
 # — this list is the only way past the check, so it should stay short and every
@@ -77,6 +78,15 @@ class TenantIsolationGuardTestCase(TestCase):
                 continue
             if issubclass(cls, OrganizationScopedQuerysetMixin):
                 continue
+            # Landlord views read across every tenant on purpose. Accepting the
+            # declaration rather than listing each one by name keeps the
+            # distinction meaningful: "deliberately cross-tenant and restricted
+            # to platform staff" is a different statement from "someone forgot
+            # the filter", and an allowlist of names cannot tell them apart.
+            # PlatformScopedMixin carries IsPlatformStaff, so this is not a way
+            # to opt out of authorization — only out of tenant scoping.
+            if issubclass(cls, PlatformScopedMixin):
+                continue
 
             get_queryset = getattr(cls, 'get_queryset', None)
             if get_queryset is None:
@@ -100,6 +110,28 @@ class TenantIsolationGuardTestCase(TestCase):
             'or add the class to ALLOWED_UNSCOPED with a reason if it is '
             'genuinely public.'
         )
+
+    def test_cross_tenant_views_are_restricted_to_platform_staff(self):
+        """
+        PlatformScopedMixin exempts a view from tenant scoping, so it must not
+        also be a way to skip authorization. Every routed view carrying it has
+        to demand platform staff — DRF's project default is a bare
+        IsAuthenticated, which would leave a cross-tenant endpoint readable by
+        every customer.
+        """
+        from apps.landlord.permissions import IsPlatformStaff
+
+        cross_tenant = [
+            (name, cls) for name, cls in _routed_viewsets().items()
+            if issubclass(cls, PlatformScopedMixin)
+        ]
+
+        for name, cls in cross_tenant:
+            with self.subTest(viewset=name):
+                self.assertIn(
+                    IsPlatformStaff, tuple(cls.permission_classes),
+                    f'{name} reads across tenants but does not require platform staff',
+                )
 
     def test_the_guard_actually_catches_an_unscoped_viewset(self):
         """
