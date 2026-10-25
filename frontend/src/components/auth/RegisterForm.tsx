@@ -67,8 +67,14 @@ export const RegisterForm = () => {
   };
 
   const onSubmit = (data: RegisterFormData) => {
-    const { password_confirmation, ...registerData } = data;
-    registerUser(registerData as RegisterData);
+    // The form field is password_confirmation; the API expects password_confirm
+    // and requires it. This previously destructured the value out and sent the
+    // rest, so registration failed for everyone with a 400 — and the
+    // `as RegisterData` cast on the payload suppressed the type error that
+    // would otherwise have caught the missing field at compile time.
+    const { password_confirmation, ...rest } = data;
+    const payload: RegisterData = { ...rest, password_confirm: password_confirmation };
+    registerUser(payload);
   };
 
   return (
