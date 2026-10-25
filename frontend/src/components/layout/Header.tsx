@@ -1,6 +1,4 @@
 import {
-  Search,
-  SlidersHorizontal,
   Sun,
   Moon,
   User,
@@ -76,24 +74,12 @@ export const Header = ({ collapsed, onToggleCollapsed, onToggleDrawer }: HeaderP
         <Menu className="h-3.5 w-3.5" />
       </button>
 
+      {/* Pushes the account controls right. The global search box and Filter
+          button that used to sit here were removed: neither was wired to
+          anything — no state, no handler, no form — so they invited people to
+          type a query that went nowhere. Each list screen has its own working
+          search and filters. */}
       <div className="flex-1" />
-
-      <label className="hidden min-w-[180px] items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-[12.5px] text-subtle-foreground xl:flex">
-        <Search className="h-3.5 w-3.5 flex-none" />
-        <input
-          id="global-search"
-          type="search"
-          placeholder="Search contacts, campaigns…"
-          className="w-full bg-transparent outline-none placeholder:text-subtle-foreground"
-        />
-      </label>
-
-      <button
-        type="button"
-        className="hidden items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-[12.5px] text-muted-foreground hover:text-foreground xl:flex"
-      >
-        <SlidersHorizontal className="h-3.5 w-3.5" /> Filter
-      </button>
 
       <NotificationBell />
 
