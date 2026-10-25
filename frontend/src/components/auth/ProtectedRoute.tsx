@@ -24,7 +24,8 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   // Platform staff belong to no tenant, so every screen in here would ask the
   // API for an organization they do not have and render a wall of errors. Send
   // them to the console that is actually theirs. Staff who also own a tenant
-  // (the bootstrap account does) keep the normal app.
+  // (the bootstrap account does) keep the normal app. Their own profile and
+  // password live at /landlord/profile, inside the console's own shell.
   if (user?.is_staff && !user.organization) {
     return <Navigate to="/landlord" replace />;
   }

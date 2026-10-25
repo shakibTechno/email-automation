@@ -5,8 +5,10 @@ import {
   CreditCard,
   LayoutDashboard,
   ShieldAlert,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/authStore';
 
 interface NavItem {
   name: string;
@@ -34,6 +36,9 @@ interface LandlordSidebarProps {
 
 export const LandlordSidebar = ({ collapsed, open, onNavigate }: LandlordSidebarProps) => {
   const { pathname } = useLocation();
+  // An operator with no tenant of their own has nowhere to leave to: the
+  // tenant app would redirect them straight back here.
+  const hasOwnTenant = !!useAuthStore((s) => s.user?.organization);
 
   // `/landlord` would otherwise light up for every child route beneath it.
   const isActive = (href: string) =>
@@ -94,17 +99,40 @@ export const LandlordSidebar = ({ collapsed, open, onNavigate }: LandlordSidebar
         )}
 
         <Link
-          to="/dashboard"
+          to="/landlord/profile"
           onClick={onNavigate}
-          title={collapsed ? 'Leave console' : undefined}
+          title={collapsed ? 'Your account' : undefined}
           className={cn(
-            'flex items-center gap-2.5 rounded-md border border-transparent py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground',
-            collapsed ? 'justify-center px-0' : 'px-2.5'
+            'flex items-center gap-2.5 rounded-md border border-transparent py-2 text-[13px] font-medium transition-colors hover:bg-card hover:text-foreground',
+            collapsed ? 'justify-center px-0' : 'px-2.5',
+            pathname === '/landlord/profile'
+              ? 'border-border bg-accent font-semibold text-foreground'
+              : 'text-muted-foreground'
           )}
         >
-          <ArrowLeft className="h-4 w-4 flex-none text-subtle-foreground" />
-          {!collapsed && <span className="truncate">Leave console</span>}
+          <UserCog
+            className={cn(
+              'h-4 w-4 flex-none',
+              pathname === '/landlord/profile' ? 'text-brand' : 'text-subtle-foreground'
+            )}
+          />
+          {!collapsed && <span className="truncate">Your account</span>}
         </Link>
+
+        {hasOwnTenant && (
+          <Link
+            to="/dashboard"
+            onClick={onNavigate}
+            title={collapsed ? 'Leave console' : undefined}
+            className={cn(
+              'flex items-center gap-2.5 rounded-md border border-transparent py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground',
+              collapsed ? 'justify-center px-0' : 'px-2.5'
+            )}
+          >
+            <ArrowLeft className="h-4 w-4 flex-none text-subtle-foreground" />
+            {!collapsed && <span className="truncate">Leave console</span>}
+          </Link>
+        )}
       </div>
     </aside>
   );

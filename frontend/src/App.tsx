@@ -271,6 +271,11 @@ function App() {
             <Route path="/landlord/tenants/:id" element={<TenantDetailPage />} />
             <Route path="/landlord/deliverability" element={<DeliverabilityPage />} />
             <Route path="/landlord/revenue" element={<RevenuePage />} />
+            {/* The operator's own account. It lives in here rather than at
+                /profile because an org-less staff user is redirected out of
+                the tenant app, and this is the only place they can change
+                the password their account was created with. */}
+            <Route path="/landlord/profile" element={<ProfilePage />} />
           </Route>
 
           {/* 404 */}

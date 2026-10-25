@@ -76,7 +76,9 @@ export const ProfilePage = () => {
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="password">Password</TabsTrigger>
-          <TabsTrigger value="organization">Organization</TabsTrigger>
+          {/* Platform staff belong to no tenant, so this tab would show an
+              empty card. Their reason for being here is the password tab. */}
+          {organization && <TabsTrigger value="organization">Organization</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-4">
