@@ -19,7 +19,8 @@ class CSVExportService:
     DEFAULT_FIELDS = [
         'email', 'first_name', 'last_name', 'phone',
         'company', 'job_title', 'lead_score',
-        'engagement_level', 'is_subscribed', 'is_verified',
+        'engagement_level', 'status', 'is_subscribed', 'is_verified',
+        'city', 'country', 'lifecycle_stage',
         'source', 'created_at', 'last_activity_at'
     ]
 

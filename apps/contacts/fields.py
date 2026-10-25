@@ -83,6 +83,58 @@ _SPECS = (
     _spec('company', 'Company', 'string', writable_by=(IMPORT, FORM, WORKFLOW)),
     _spec('job_title', 'Job Title', 'string', writable_by=(IMPORT, FORM, WORKFLOW)),
 
+    _spec('salutation', 'Salutation', 'string', writable_by=(IMPORT, FORM)),
+    _spec('middle_name', 'Middle Name', 'string', writable_by=(IMPORT, FORM)),
+    _spec(
+        'preferred_name', 'Preferred Name', 'string',
+        writable_by=(IMPORT, FORM, WORKFLOW),
+    ),
+    _spec('mobile_phone', 'Mobile Phone', 'phone', writable_by=(IMPORT, FORM)),
+    _spec('website', 'Website', 'url', writable_by=(IMPORT, FORM)),
+    _spec('linkedin_url', 'LinkedIn URL', 'url', writable_by=(IMPORT, FORM)),
+    # Drives the Birthday workflow template, which shipped without a field.
+    _spec('date_of_birth', 'Date of Birth', 'date', writable_by=(IMPORT, FORM)),
+
+    # ── Address and locale ──────────────────────────────────────────────────
+    _spec('address_line1', 'Address Line 1', 'string', writable_by=(IMPORT, FORM)),
+    _spec('address_line2', 'Address Line 2', 'string', writable_by=(IMPORT, FORM)),
+    _spec('city', 'City', 'string', writable_by=(IMPORT, FORM)),
+    _spec('region', 'State / Region', 'string', writable_by=(IMPORT, FORM)),
+    _spec('postal_code', 'Postal Code', 'string', writable_by=(IMPORT, FORM)),
+    _spec('country', 'Country', 'string', writable_by=(IMPORT, FORM)),
+    _spec('timezone', 'Time Zone', 'string', writable_by=(IMPORT, FORM)),
+    _spec('locale', 'Language', 'string', writable_by=(IMPORT, FORM)),
+
+    # ── Consent ─────────────────────────────────────────────────────────────
+    # Importable: a customer migrating from another platform has to bring the
+    # consent record with them, or they arrive unable to prove any of it.
+    _spec('consent_at', 'Consent Given At', 'datetime', writable_by=(IMPORT,)),
+    _spec('consent_source', 'Consent Source', 'string', writable_by=(IMPORT,)),
+    _spec('double_opt_in_at', 'Double Opt-in At', 'datetime', writable_by=(IMPORT,)),
+    # Not importable: an IP address is evidence, and evidence that any CSV can
+    # assert is not evidence. Set by the form that captured it.
+    _spec('opt_in_ip', 'Opt-in IP', 'string', writable_by=()),
+    _spec('external_id', 'External ID', 'string', writable_by=(IMPORT,)),
+
+    # ── Lifecycle ───────────────────────────────────────────────────────────
+    _spec(
+        'lifecycle_stage', 'Lifecycle Stage', 'select',
+        options=('subscriber', 'lead', 'qualified', 'customer', 'evangelist'),
+        writable_by=(IMPORT, WORKFLOW),
+    ),
+    # Derived from the flags below by Contact.save(), so nothing may write it.
+    # Segmentable because that is what the builder always offered.
+    _spec(
+        'status', 'Status', 'select',
+        options=('active', 'unsubscribed', 'bounced', 'complained'),
+        writable_by=(),
+    ),
+    _spec(
+        'bounce_type', 'Bounce Type', 'select', options=('soft', 'hard'),
+        writable_by=(),
+    ),
+    _spec('complained_at', 'Complained At', 'datetime', writable_by=()),
+
     # ── Subscription ─────────────────────────────────────────────────────────
     # Writable by a workflow so an automation can unsubscribe someone, but never
     # by an import: a CSV should not be able to resurrect an unsubscribed

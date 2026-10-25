@@ -34,12 +34,14 @@ class FieldDefinitionContractTests(TestCase):
 
         self.assertEqual(sorted(offered - model_names), [])
 
-    def test_status_is_no_longer_offered(self):
+    def test_status_is_offered_and_now_actually_exists(self):
         """
-        It never existed. Named explicitly so that re-adding it to the segment
-        list without adding the column fails here rather than in production.
+        The field the builder always advertised. It was a phantom until the
+        column was added; this asserts the pairing rather than either half, so
+        offering it again without the column fails here.
         """
-        self.assertNotIn('status', FIELD_DEFINITIONS)
+        self.assertIn('status', FIELD_DEFINITIONS)
+        Contact.objects.filter(status='active').exists()
 
     def test_the_offered_list_is_the_registrys_segmentable_set(self):
         self.assertEqual(
@@ -73,7 +75,7 @@ class UnknownFieldTests(TestCase):
 
     def test_building_a_query_on_an_unknown_field_raises_our_own_error(self):
         with self.assertRaises(UnknownSegmentField):
-            SegmentEvaluator.build_query(self._rules('status'))
+            SegmentEvaluator.build_query(self._rules('no_such_field'))
 
     def test_the_error_names_the_field(self):
         with self.assertRaises(UnknownSegmentField) as caught:
@@ -85,13 +87,67 @@ class UnknownFieldTests(TestCase):
         from rest_framework.exceptions import ValidationError
 
         with self.assertRaises(ValidationError):
-            SegmentService.preview_rules(self.org, self._rules('status'))
+            SegmentService.preview_rules(self.org, self._rules('no_such_field'))
 
     def test_validation_rejects_an_unknown_field_at_save_time(self):
-        errors = SegmentService.validate_rules(self._rules('status'))
+        errors = SegmentService.validate_rules(self._rules('no_such_field'))
 
         self.assertTrue(errors)
-        self.assertIn('status', ' '.join(errors))
+        self.assertIn('no_such_field', ' '.join(errors))
+
+
+class StatusSegmentTests(TestCase):
+    """
+    The bug that started this, closed properly.
+
+    A rule on "Status" used to raise FieldError because the column did not
+    exist. It does now, and it is derived from the subscription flags rather
+    than maintained beside them.
+    """
+
+    def setUp(self):
+        self.org = Organization.objects.create(name='Mine', slug='mine')
+        self.active = Contact.objects.create(
+            organization=self.org, email='active@example.com',
+        )
+        self.gone = Contact.objects.create(
+            organization=self.org, email='gone@example.com',
+        )
+        self.gone.unsubscribe()
+
+    def test_a_rule_on_status_returns_the_right_contacts(self):
+        query = SegmentEvaluator.build_query({
+            'match': 'all',
+            'conditions': [
+                {'field': 'status', 'operator': 'equals', 'value': 'unsubscribed'},
+            ],
+        })
+
+        matched = Contact.objects.filter(organization=self.org).filter(query)
+
+        self.assertEqual([c.email for c in matched], ['gone@example.com'])
+
+    def test_status_follows_the_flags_without_being_set(self):
+        self.assertEqual(self.active.status, 'active')
+        self.gone.refresh_from_db()
+        self.assertEqual(self.gone.status, 'unsubscribed')
+
+        self.gone.resubscribe()
+        self.gone.refresh_from_db()
+        self.assertEqual(self.gone.status, 'active')
+
+    def test_a_complaint_outranks_an_unsubscribe(self):
+        self.gone.mark_complained()
+        self.gone.refresh_from_db()
+
+        self.assertEqual(self.gone.status, 'complained')
+
+    def test_a_bounce_outranks_an_unsubscribe(self):
+        self.gone.mark_bounced('hard')
+        self.gone.refresh_from_db()
+
+        self.assertEqual(self.gone.status, 'bounced')
+        self.assertEqual(self.gone.bounce_type, 'hard')
 
 
 class TypeDispatchTests(TestCase):

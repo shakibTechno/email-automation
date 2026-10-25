@@ -15,28 +15,75 @@ import Papa from 'papaparse';
 import { contactsApi } from '@/api/contacts';
 import { cn } from '@/lib/utils';
 
+/**
+ * The targets a column may be mapped to.
+ *
+ * The server validates every target against its own registry and refuses
+ * anything not writable by an import, so this list decides what is *offered*,
+ * not what is permitted — it can no longer be the thing standing between a
+ * crafted request and another tenant's data.
+ */
 const CONTACT_FIELDS = [
-  { value: '',          label: '(Skip column)' },
-  { value: 'email',     label: 'Email (required)' },
-  { value: 'first_name', label: 'First Name' },
-  { value: 'last_name', label: 'Last Name' },
-  { value: 'phone',     label: 'Phone' },
-  { value: 'company',   label: 'Company' },
-  { value: 'job_title', label: 'Job Title' },
+  { value: '',               label: '(Skip column)' },
+  { value: 'email',          label: 'Email (required)' },
+  { value: 'first_name',     label: 'First Name' },
+  { value: 'last_name',      label: 'Last Name' },
+  { value: 'phone',          label: 'Phone' },
+  { value: 'company',        label: 'Company' },
+  { value: 'job_title',      label: 'Job Title' },
+
+  { value: 'salutation',     label: 'Salutation' },
+  { value: 'middle_name',    label: 'Middle Name' },
+  { value: 'preferred_name', label: 'Preferred Name' },
+  { value: 'mobile_phone',   label: 'Mobile Phone' },
+  { value: 'date_of_birth',  label: 'Date of Birth' },
+  { value: 'website',        label: 'Website' },
+  { value: 'linkedin_url',   label: 'LinkedIn URL' },
+
+  { value: 'address_line1',  label: 'Address Line 1' },
+  { value: 'address_line2',  label: 'Address Line 2' },
+  { value: 'city',           label: 'City' },
+  { value: 'region',         label: 'State / Region' },
+  { value: 'postal_code',    label: 'Postal Code' },
+  { value: 'country',        label: 'Country' },
+  { value: 'timezone',       label: 'Time Zone' },
+  { value: 'locale',         label: 'Language' },
+
+  { value: 'lifecycle_stage', label: 'Lifecycle Stage' },
+  // A customer migrating from another platform has to bring their consent
+  // record with them, or they arrive unable to prove any of it.
+  { value: 'consent_at',      label: 'Consent Given At' },
+  { value: 'consent_source',  label: 'Consent Source' },
+  { value: 'double_opt_in_at', label: 'Double Opt-in At' },
+  { value: 'external_id',     label: 'External ID' },
 ];
 
 const ALIASES: Record<string, string> = {
   mail: 'email', e_mail: 'email',
   firstname: 'first_name', first: 'first_name', fname: 'first_name',
   lastname: 'last_name', last: 'last_name', lname: 'last_name', surname: 'last_name',
-  telephone: 'phone', tel: 'phone', mobile: 'phone',
+  telephone: 'phone', tel: 'phone',
+  mobile: 'mobile_phone', cell: 'mobile_phone', cellphone: 'mobile_phone',
   organization: 'company', org: 'company',
   title: 'job_title', position: 'job_title', role: 'job_title',
+  dob: 'date_of_birth', birthday: 'date_of_birth', birth_date: 'date_of_birth',
+  address: 'address_line1', address_1: 'address_line1', street: 'address_line1',
+  address_2: 'address_line2',
+  state: 'region', province: 'region', county: 'region',
+  zip: 'postal_code', zipcode: 'postal_code', postcode: 'postal_code',
+  country_code: 'country',
+  tz: 'timezone', time_zone: 'timezone',
+  language: 'locale', lang: 'locale',
+  url: 'website', homepage: 'website', linkedin: 'linkedin_url',
+  stage: 'lifecycle_stage',
+  id: 'external_id', crm_id: 'external_id',
 };
 
 function autoMap(col: string): string {
   const key = col.toLowerCase().replace(/[\s\-.]/g, '_');
-  const known = ['email', 'first_name', 'last_name', 'phone', 'company', 'job_title'];
+  // Derived from the offered list rather than a second hardcoded array, which
+  // is what let the two drift apart in the first place.
+  const known = CONTACT_FIELDS.map((f) => f.value).filter(Boolean);
   return ALIASES[key] ?? (known.includes(key) ? key : '');
 }
 

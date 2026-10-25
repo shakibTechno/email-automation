@@ -28,8 +28,35 @@ class Contact(TimeStampedModel, SoftDeleteModel):
         ('none', 'None'),
     ]
 
-    SOURCE_CHOICES = [
-        ('manual', 'Manual Entry'),
+    # Derived from is_subscribed/bounced_at/complained_at, never set directly
+    # — see save(). A column rather than a property so it can be indexed and
+    # used in a segment rule, which is what the segment builder already
+    # assumed existed.
+    STATUS_ACTIVE = 'active'
+    STATUS_UNSUBSCRIBED = 'unsubscribed'
+    STATUS_BOUNCED = 'bounced'
+    STATUS_COMPLAINED = 'complained'
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, 'Active'),
+        (STATUS_UNSUBSCRIBED, 'Unsubscribed'),
+        (STATUS_BOUNCED, 'Bounced'),
+        (STATUS_COMPLAINED, 'Complained'),
+    ]
+
+    BOUNCE_TYPE_CHOICES = [
+        ('soft', 'Soft'),
+        ('hard', 'Hard'),
+    ]
+
+    LIFECYCLE_STAGE_CHOICES = [
+        ('subscriber', 'Subscriber'),
+        ('lead', 'Lead'),
+        ('qualified', 'Qualified Lead'),
+        ('customer', 'Customer'),
+        ('evangelist', 'Evangelist'),
+    ]
+
+    SOURCE_CHOICES = [        ('manual', 'Manual Entry'),
         ('import', 'CSV Import'),
         ('api', 'API'),
         ('form', 'Web Form'),
@@ -72,6 +99,64 @@ class Contact(TimeStampedModel, SoftDeleteModel):
     unsubscribed_at = models.DateTimeField(null=True, blank=True)
     bounced_at = models.DateTimeField(null=True, blank=True)
 
+    # ── Lifecycle ────────────────────────────────────────────────────────────
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE,
+    )
+    bounce_type = models.CharField(
+        max_length=10, choices=BOUNCE_TYPE_CHOICES, blank=True,
+        help_text='Soft bounces may recover; a hard bounce should not be retried.',
+    )
+    complained_at = models.DateTimeField(null=True, blank=True)
+    lifecycle_stage = models.CharField(
+        max_length=20, choices=LIFECYCLE_STAGE_CHOICES, default='subscriber',
+    )
+
+    # ── Address and locale ──────────────────────────────────────────────────
+    address_line1 = models.CharField(max_length=255, blank=True)
+    address_line2 = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    region = models.CharField(
+        max_length=120, blank=True, help_text='State, province or region.',
+    )
+    postal_code = models.CharField(max_length=20, blank=True)
+    country = models.CharField(
+        max_length=2, blank=True, help_text='ISO-3166 alpha-2, e.g. GB.',
+    )
+    # Send-time localisation is impossible without these, and the platform
+    # sends both campaigns and sequences.
+    timezone = models.CharField(
+        max_length=64, blank=True, help_text='IANA name, e.g. Europe/London.',
+    )
+    locale = models.CharField(
+        max_length=10, blank=True, help_text='BCP-47 tag, e.g. en-GB.',
+    )
+
+    # ── Consent ─────────────────────────────────────────────────────────────
+    # is_verified records that consent exists; these record how and when, which
+    # is what has to be produced when consent is challenged.
+    consent_at = models.DateTimeField(null=True, blank=True)
+    consent_source = models.CharField(
+        max_length=255, blank=True,
+        help_text='Where consent was given — a form URL, an import file, a contract.',
+    )
+    opt_in_ip = models.GenericIPAddressField(null=True, blank=True)
+    double_opt_in_at = models.DateTimeField(null=True, blank=True)
+    # The upstream system's identifier, so repeated syncs update rather than
+    # duplicate. Unique per organization, not globally.
+    external_id = models.CharField(max_length=255, blank=True, default='')
+
+    # ── Personal ────────────────────────────────────────────────────────────
+    salutation = models.CharField(max_length=20, blank=True)
+    middle_name = models.CharField(max_length=150, blank=True)
+    preferred_name = models.CharField(
+        max_length=150, blank=True, help_text='What to call them in an email.',
+    )
+    date_of_birth = models.DateField(null=True, blank=True)
+    mobile_phone = models.CharField(max_length=20, blank=True)
+    website = models.URLField(max_length=255, blank=True)
+    linkedin_url = models.URLField(max_length=255, blank=True)
+
     # Custom Fields (JSON)
     custom_fields = models.JSONField(default=dict, blank=True)
 
@@ -99,8 +184,20 @@ class Contact(TimeStampedModel, SoftDeleteModel):
         db_table = 'contacts'
         ordering = ['-created_at']
         unique_together = [['organization', 'email']]
+        constraints = [
+            # Per organization, and only for rows that have one: a blank
+            # external_id is the normal case and must not collide.
+            models.UniqueConstraint(
+                fields=['organization', 'external_id'],
+                condition=models.Q(external_id__gt=''),
+                name='unique_org_external_id',
+            ),
+        ]
         indexes = [
             models.Index(fields=['organization', 'email']),
+            models.Index(fields=['organization', 'status']),
+            models.Index(fields=['organization', 'lifecycle_stage']),
+            models.Index(fields=['organization', 'country']),
             models.Index(fields=['organization', 'is_subscribed']),
             models.Index(fields=['organization', 'engagement_level']),
             models.Index(fields=['email']),
@@ -119,6 +216,44 @@ class Contact(TimeStampedModel, SoftDeleteModel):
             return f"{self.first_name} {self.last_name}".strip()
         return self.email
 
+    @property
+    def derived_status(self):
+        """
+        The contact's state, from the flags that actually record it.
+
+        Ordered worst-first: a contact who complained is not merely
+        unsubscribed, and a hard bounce is not merely inactive. `status` exists
+        as a column so it can be indexed and segmented, but it is computed here
+        and written only by save(), because a status maintained alongside the
+        flags is a second definition of the same fact — exactly the split that
+        made "delivered" mean two different numbers.
+        """
+        if self.complained_at:
+            return self.STATUS_COMPLAINED
+        if self.bounced_at:
+            return self.STATUS_BOUNCED
+        if not self.is_subscribed:
+            return self.STATUS_UNSUBSCRIBED
+        return self.STATUS_ACTIVE
+
+    def save(self, *args, **kwargs):
+        self.status = self.derived_status
+        # Callers that save a narrow set of fields (unsubscribe(),
+        # mark_bounced()) would otherwise leave the derived column behind.
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            fields = set(update_fields)
+            if fields & {'is_subscribed', 'bounced_at', 'complained_at'}:
+                fields.add('status')
+                kwargs['update_fields'] = tuple(fields)
+        super().save(*args, **kwargs)
+
+    def mark_complained(self):
+        """A spam complaint. Harsher than an unsubscribe and never automatic."""
+        self.complained_at = timezone.now()
+        self.is_subscribed = False
+        self.save(update_fields=['complained_at', 'is_subscribed'])
+
     def unsubscribe(self):
         """Unsubscribe the contact."""
         self.is_subscribed = False
@@ -131,10 +266,17 @@ class Contact(TimeStampedModel, SoftDeleteModel):
         self.unsubscribed_at = None
         self.save(update_fields=['is_subscribed', 'unsubscribed_at'])
 
-    def mark_bounced(self):
-        """Mark the contact as bounced."""
+    def mark_bounced(self, bounce_type='hard'):
+        """
+        Mark the contact as bounced.
+
+        The type matters: a soft bounce is a full mailbox and may recover, a
+        hard bounce is an address that does not exist and must not be retried.
+        Treating them alike is how a sender's reputation erodes.
+        """
         self.bounced_at = timezone.now()
-        self.save(update_fields=['bounced_at'])
+        self.bounce_type = bounce_type
+        self.save(update_fields=['bounced_at', 'bounce_type'])
 
     def update_activity(self):
         """Update the last activity timestamp."""

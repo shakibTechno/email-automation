@@ -249,3 +249,91 @@ class CoercionTests(TestCase):
             contact_fields.coerce_value(
                 'select', 'platinum', label='Source', options=('manual', 'import'),
             )
+
+
+class StatusBackfillTests(TestCase):
+    """
+    The data migration that derives `status` for contacts older than the column.
+
+    The schema migration gives every row the `active` default, which is wrong
+    for anyone who had already unsubscribed or bounced — and subscription state
+    is the one thing here with legal weight. This exercises the migration's own
+    function rather than a reimplementation of it.
+    """
+
+    def setUp(self):
+        from django.utils import timezone
+
+        self.org = Organization.objects.create(name='Mine', slug='mine')
+        self.now = timezone.now()
+
+        # Written with .update() so Contact.save() does not derive status for
+        # us; this is the pre-migration state the backfill has to repair.
+        self.active = Contact.objects.create(organization=self.org, email='a@x.test')
+        self.unsub = Contact.objects.create(organization=self.org, email='u@x.test')
+        self.bounced = Contact.objects.create(organization=self.org, email='b@x.test')
+        self.complained = Contact.objects.create(organization=self.org, email='c@x.test')
+        self.both = Contact.objects.create(organization=self.org, email='d@x.test')
+
+        Contact.objects.filter(pk=self.unsub.pk).update(
+            is_subscribed=False, status='active',
+        )
+        Contact.objects.filter(pk=self.bounced.pk).update(
+            bounced_at=self.now, status='active',
+        )
+        Contact.objects.filter(pk=self.complained.pk).update(
+            complained_at=self.now, status='active',
+        )
+        # Unsubscribed *and* complained: precedence has to be unambiguous.
+        Contact.objects.filter(pk=self.both.pk).update(
+            is_subscribed=False, complained_at=self.now, status='active',
+        )
+
+    def _run_backfill(self):
+        """
+        Call the migration's own function.
+
+        import_module rather than a plain import because the module name
+        starts with a digit, and the real function rather than a copy of its
+        logic — a test that reimplements the thing it checks proves nothing.
+        """
+        from importlib import import_module
+
+        from django.apps import apps as django_apps
+
+        module = import_module('apps.contacts.migrations.0005_backfill_contact_status')
+        module.backfill_status(django_apps, None)
+
+    def test_each_prior_state_gets_the_right_status(self):
+        self._run_backfill()
+
+        for contact, expected in (
+            (self.active, 'active'),
+            (self.unsub, 'unsubscribed'),
+            (self.bounced, 'bounced'),
+            (self.complained, 'complained'),
+            (self.both, 'complained'),
+        ):
+            with self.subTest(email=contact.email):
+                contact.refresh_from_db()
+                self.assertEqual(contact.status, expected)
+
+    def test_the_backfill_agrees_with_the_live_derivation(self):
+        """
+        The migration and Contact.derived_status must not disagree, or every
+        row saved after the migration drifts from every row it backfilled.
+        """
+        self._run_backfill()
+
+        for contact in Contact.objects.filter(organization=self.org):
+            with self.subTest(email=contact.email):
+                self.assertEqual(contact.status, contact.derived_status)
+
+    def test_no_subscription_flag_is_altered(self):
+        """It derives; it must not decide anything."""
+        self._run_backfill()
+
+        self.unsub.refresh_from_db()
+        self.assertFalse(self.unsub.is_subscribed)
+        self.active.refresh_from_db()
+        self.assertTrue(self.active.is_subscribed)

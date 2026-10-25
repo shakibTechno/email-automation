@@ -100,6 +100,13 @@ class ContactSerializer(serializers.ModelSerializer):
             'lead_score', 'engagement_level',
             'is_subscribed', 'is_verified',
             'unsubscribed_at', 'bounced_at',
+            'salutation', 'middle_name', 'preferred_name', 'date_of_birth',
+            'mobile_phone', 'website', 'linkedin_url',
+            'address_line1', 'address_line2', 'city', 'region',
+            'postal_code', 'country', 'timezone', 'locale',
+            'lifecycle_stage', 'status', 'bounce_type', 'complained_at',
+            'consent_at', 'consent_source', 'opt_in_ip', 'double_opt_in_at',
+            'external_id',
             'custom_fields', 'source', 'last_activity_at',
             'assigned_to', 'assigned_to_name',
             'tags', 'tag_details',
@@ -107,7 +114,10 @@ class ContactSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'full_name', 'tag_details', 'assigned_to_name',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at',
+            # Derived by Contact.save() or owned by the delivery pipeline.
+            # Writable here would be a second way to set the same fact.
+            'status', 'bounce_type', 'complained_at',
         ]
 
     def get_tag_details(self, obj):
@@ -195,6 +205,13 @@ class ContactCreateSerializer(serializers.ModelSerializer):
             'email', 'first_name', 'last_name',
             'phone', 'company', 'job_title',
             'lead_score', 'engagement_level',
+            'salutation', 'middle_name', 'preferred_name', 'date_of_birth',
+            'mobile_phone', 'website', 'linkedin_url',
+            'address_line1', 'address_line2', 'city', 'region',
+            'postal_code', 'country', 'timezone', 'locale',
+            'lifecycle_stage',
+            'consent_at', 'consent_source', 'opt_in_ip', 'double_opt_in_at',
+            'external_id',
             'is_subscribed', 'custom_fields',
             'source', 'tags', 'assigned_to'
         ]
@@ -239,6 +256,13 @@ class ContactUpdateSerializer(serializers.ModelSerializer):
             'email', 'first_name', 'last_name',
             'phone', 'company', 'job_title',
             'lead_score', 'engagement_level',
+            'salutation', 'middle_name', 'preferred_name', 'date_of_birth',
+            'mobile_phone', 'website', 'linkedin_url',
+            'address_line1', 'address_line2', 'city', 'region',
+            'postal_code', 'country', 'timezone', 'locale',
+            'lifecycle_stage',
+            'consent_at', 'consent_source', 'opt_in_ip', 'double_opt_in_at',
+            'external_id',
             'is_subscribed', 'custom_fields',
             'tags', 'assigned_to'
         ]

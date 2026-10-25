@@ -13,6 +13,45 @@ export interface Contact {
   is_verified?: boolean;
   unsubscribed_at?: string;
   bounced_at?: string;
+
+  // Lifecycle. `status`, `bounce_type` and `complained_at` are derived by the
+  // server from the subscription flags and are read-only here — an editable
+  // copy would be a second definition of the same fact.
+  status?: 'active' | 'unsubscribed' | 'bounced' | 'complained';
+  bounce_type?: 'soft' | 'hard' | '';
+  complained_at?: string | null;
+  lifecycle_stage?: 'subscriber' | 'lead' | 'qualified' | 'customer' | 'evangelist';
+
+  // Personal
+  salutation?: string;
+  middle_name?: string;
+  preferred_name?: string;
+  date_of_birth?: string | null;
+  mobile_phone?: string;
+  website?: string;
+  linkedin_url?: string;
+
+  // Address and locale
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  region?: string;
+  postal_code?: string;
+  /** ISO-3166 alpha-2. */
+  country?: string;
+  /** IANA name, e.g. Europe/London. */
+  timezone?: string;
+  /** BCP-47 tag, e.g. en-GB. */
+  locale?: string;
+
+  // Consent provenance — what has to be produced if consent is challenged.
+  consent_at?: string | null;
+  consent_source?: string;
+  opt_in_ip?: string | null;
+  double_opt_in_at?: string | null;
+  /** Identifier in an upstream system, making integration sync idempotent. */
+  external_id?: string;
+
   source?: string;
   last_activity_at?: string;
   assigned_to?: string | null;
