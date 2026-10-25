@@ -65,6 +65,14 @@ ALLOWED_HOSTS = ['*']
 # The CNAME value a customer publishes to point their domain at this platform.
 LANDING_DOMAIN_CNAME_TARGET = env('LANDING_DOMAIN_CNAME_TARGET', default='')
 
+# The A-record alternative, needed more often than it looks. A CNAME cannot
+# legally coexist with any other record at the same name (RFC 1034/2181), so it
+# is impossible on a hostname that already carries records — an email sending
+# domain with its SPF TXT, or a root domain. An A record has no such
+# restriction. Without this the only instructions we could give were ones that
+# some customers physically cannot follow.
+LANDING_DOMAIN_A_TARGET = env('LANDING_DOMAIN_A_TARGET', default='')
+
 
 # Application definition
 

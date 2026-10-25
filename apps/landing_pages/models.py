@@ -88,12 +88,71 @@ class LandingDomain(TimeStampedModel):
 
     @property
     def dns_record(self):
-        """The record the customer publishes, rendered by the settings page."""
-        return {
-            'type': 'CNAME',
-            'host': self.domain,
-            'value': getattr(settings, 'LANDING_DOMAIN_CNAME_TARGET', '') or '',
-        }
+        """Kept for callers that want only the preferred record."""
+        records = self.dns_records
+        return records[0] if records else None
+
+    @property
+    def conflicting_sending_domain(self):
+        """
+        True when this hostname is also an email sending domain.
+
+        It matters because a CNAME cannot coexist with any other record at the
+        same name, and a sending domain always carries at least an SPF TXT. The
+        customer must use the A record here; a CNAME would be rejected by their
+        DNS host, or would break their email if it were accepted.
+        """
+        from apps.email_config.models import SendingDomain
+
+        return SendingDomain.objects.filter(domain=self.domain).exists()
+
+    @property
+    def dns_records(self):
+        """
+        The records the customer may publish, preferred one first.
+
+        Two options rather than one, because a CNAME is impossible on a name
+        that already has records — which is not an edge case: it is every
+        sending domain and every root domain. Offering only the CNAME meant
+        telling some customers to add a record their DNS host will refuse, and
+        then leaving them to wait for propagation that was never coming.
+        """
+        cname_target = getattr(settings, 'LANDING_DOMAIN_CNAME_TARGET', '') or ''
+        a_target = getattr(settings, 'LANDING_DOMAIN_A_TARGET', '') or ''
+        cname_possible = not self.conflicting_sending_domain
+
+        records = []
+        if a_target:
+            records.append({
+                'type': 'A',
+                'host': self.domain,
+                'value': a_target,
+                'recommended': not cname_possible,
+                'note': (
+                    'Required here: this hostname already has DNS records for '
+                    'email, and a CNAME cannot coexist with them.'
+                    if not cname_possible else
+                    'Use this if the hostname already has other DNS records, '
+                    'or if it is your root domain.'
+                ),
+            })
+        if cname_target:
+            records.append({
+                'type': 'CNAME',
+                'host': self.domain,
+                'value': cname_target,
+                'recommended': cname_possible,
+                'note': (
+                    'Not possible here: a CNAME cannot coexist with the email '
+                    'records already on this hostname. Use the A record above.'
+                    if not cname_possible else
+                    'Preferred — it follows the platform automatically if its '
+                    'address ever changes.'
+                ),
+            })
+
+        records.sort(key=lambda r: not r['recommended'])
+        return records
 
     def clean(self):
         from .domains import normalize_domain, reserved_domain_error

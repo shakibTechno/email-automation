@@ -167,7 +167,17 @@ export interface LandingDomain {
   status: 'pending' | 'verified' | 'failed';
   is_verified: boolean;
   is_primary: boolean;
-  dns_record: { type: string; host: string; value: string };
+  /** Record options, preferred first. More than one because a CNAME is
+   *  impossible on a hostname that already carries other records. */
+  dns_records: Array<{
+    type: 'A' | 'CNAME';
+    host: string;
+    value: string;
+    recommended: boolean;
+    note: string;
+  }>;
+  /** True when this hostname is also an email sending domain. */
+  conflicts_with_email: boolean;
   verification_url: string;
   verified_at: string | null;
   last_check_at: string | null;

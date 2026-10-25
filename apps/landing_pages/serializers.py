@@ -18,7 +18,10 @@ from .models import (
 class LandingDomainSerializer(serializers.ModelSerializer):
     """A connected domain as the settings page renders it."""
 
-    dns_record = serializers.DictField(read_only=True)
+    dns_records = serializers.ListField(read_only=True)
+    conflicts_with_email = serializers.BooleanField(
+        source='conflicting_sending_domain', read_only=True,
+    )
     verification_url = serializers.CharField(read_only=True)
     is_verified = serializers.BooleanField(read_only=True)
     page_count = serializers.SerializerMethodField()
@@ -27,7 +30,7 @@ class LandingDomainSerializer(serializers.ModelSerializer):
         model = LandingDomain
         fields = [
             'id', 'domain', 'status', 'is_verified', 'is_primary',
-            'dns_record', 'verification_url',
+            'dns_records', 'conflicts_with_email', 'verification_url',
             'verified_at', 'last_check_at', 'last_check_error', 'last_seen_at',
             'page_count', 'created_at',
         ]

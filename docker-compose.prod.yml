@@ -42,6 +42,11 @@ x-django-env: &django-env
   # this server; a dedicated name such as pages.<your domain> is tidier than
   # reusing the app host, because it can be repointed without moving the app.
   LANDING_DOMAIN_CNAME_TARGET: ${LANDING_DOMAIN_CNAME_TARGET:-}
+  # The A-record alternative. Needed whenever the customer's hostname
+  # already carries DNS records — an email sending domain or a root
+  # domain — because a CNAME cannot coexist with them. Set it to this
+  # server's public IP.
+  LANDING_DOMAIN_A_TARGET: ${LANDING_DOMAIN_A_TARGET:-}
 
 services:
   backend:

@@ -1,6 +1,7 @@
 """
 Connecting, verifying and choosing between landing-page domains.
 """
+import socket
 from unittest.mock import patch
 
 import requests
@@ -10,6 +11,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Organization, User
 from apps.landing_pages.domain_service import DomainError, LandingDomainService
+from apps.email_config.models import SendingDomain
 from apps.landing_pages.models import LandingDomain, LandingPage
 
 PLATFORM = ['localhost', '127.0.0.1', 'testserver', 'backend', 'app.example.com']
@@ -163,15 +165,51 @@ class DomainApiTests(TestCase):
         self.assertFalse(result.is_verified)
         self.assertIn('another service', result.last_check_error)
 
-    def test_an_unreachable_domain_reports_dns_rather_than_failing(self):
+    def test_a_hostname_that_does_not_resolve_says_so(self):
+        """
+        Distinct from "resolves but refuses". Reporting the wrong one sent
+        someone to wait three hours on propagation of a record their DNS host
+        had refused.
+        """
         domain = LandingDomainService.connect(self.org, 'go.alpha-example.com')
 
         with patch('apps.landing_pages.domain_service.requests.get') as get:
-            get.side_effect = requests.exceptions.ConnectionError()
+            exc = requests.exceptions.ConnectionError('boom')
+            exc.__cause__ = socket.gaierror(-2, 'Name or service not known')
+            get.side_effect = exc
             result = LandingDomainService.verify(domain)
 
         self.assertFalse(result.is_verified)
-        self.assertIn('CNAME', result.last_check_error)
+        self.assertIn('does not resolve', result.last_check_error)
+
+    def test_a_refused_connection_says_it_points_elsewhere(self):
+        domain = LandingDomainService.connect(self.org, 'go.alpha-example.com')
+
+        with patch('apps.landing_pages.domain_service.requests.get') as get:
+            get.side_effect = requests.exceptions.ConnectionError(
+                '[Errno 111] Connection refused'
+            )
+            result = LandingDomainService.verify(domain)
+
+        self.assertFalse(result.is_verified)
+        self.assertIn('refused the connection', result.last_check_error)
+
+    def test_a_sending_domain_that_does_not_resolve_is_told_why(self):
+        """The exact case that failed: the CNAME could never have been added."""
+        SendingDomain.objects.create(
+            organization=self.org, domain='news.alpha-example.com',
+            status=SendingDomain.STATUS_VERIFIED,
+        )
+        domain = LandingDomainService.connect(self.org, 'news.alpha-example.com')
+
+        with patch('apps.landing_pages.domain_service.requests.get') as get:
+            exc = requests.exceptions.ConnectionError('boom')
+            exc.__cause__ = socket.gaierror(-2, 'Name or service not known')
+            get.side_effect = exc
+            result = LandingDomainService.verify(domain)
+
+        self.assertIn('also your email sending domain', result.last_check_error)
+        self.assertIn('use the A record', result.last_check_error)
 
     def test_a_verified_domain_keeps_its_verified_at_through_a_blip(self):
         domain = LandingDomainService.connect(self.org, 'go.alpha-example.com')
@@ -262,3 +300,129 @@ class PublicUrlTests(TestCase):
         )
 
         self.assertIn('/p/alpha/black-friday', self.page.platform_url)
+
+
+@override_settings(
+    PLATFORM_HOSTS=PLATFORM,
+    LANDING_DOMAIN_CNAME_TARGET='app.example.com',
+    LANDING_DOMAIN_A_TARGET='203.0.113.10',
+)
+class DnsInstructionTests(TestCase):
+    """
+    Which record a customer is told to publish.
+
+    A CNAME cannot coexist with any other record at the same name
+    (RFC 1034/2181), so on a hostname that already carries records it is
+    impossible — not merely discouraged. The first version of this feature
+    offered only a CNAME, which meant telling the owner of a sending domain to
+    add a record their DNS host would refuse, and then showing them a
+    "has it propagated yet" message while they waited for nothing.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.org = Organization.objects.create(name='Alpha', slug='alpha', plan='starter')
+
+    def _domain(self, name):
+        return LandingDomain.objects.create(organization=self.org, domain=name)
+
+    def test_a_plain_hostname_is_told_to_use_the_cname(self):
+        records = self._domain('go.alpha-example.com').dns_records
+
+        self.assertEqual(records[0]['type'], 'CNAME')
+        self.assertTrue(records[0]['recommended'])
+        self.assertEqual(records[0]['value'], 'app.example.com')
+
+    def test_an_a_record_is_always_offered_as_well(self):
+        types = [r['type'] for r in self._domain('go.alpha-example.com').dns_records]
+
+        self.assertIn('A', types)
+
+    def test_a_sending_domain_is_told_to_use_the_a_record(self):
+        """The case that broke: news.soha.systems was already sending email."""
+        SendingDomain.objects.create(
+            organization=self.org, domain='news.alpha-example.com',
+            status=SendingDomain.STATUS_VERIFIED,
+        )
+        domain = self._domain('news.alpha-example.com')
+
+        records = domain.dns_records
+
+        self.assertTrue(domain.conflicting_sending_domain)
+        self.assertEqual(records[0]['type'], 'A')
+        self.assertTrue(records[0]['recommended'])
+        # And the CNAME is still shown, marked as impossible, rather than
+        # hidden — otherwise the reason is invisible.
+        cname = next(r for r in records if r['type'] == 'CNAME')
+        self.assertFalse(cname['recommended'])
+        self.assertIn('cannot coexist', cname['note'])
+
+    def test_a_sending_domain_for_another_tenant_also_conflicts(self):
+        """
+        DNS does not care which tenant owns the row. If the hostname has email
+        records, a CNAME on it is impossible regardless of who added them.
+        """
+        other = Organization.objects.create(name='Beta', slug='beta')
+        SendingDomain.objects.create(organization=other, domain='news.shared.example.com')
+
+        self.assertTrue(self._domain('news.shared.example.com').conflicting_sending_domain)
+
+    def test_the_api_reports_the_conflict(self):
+        SendingDomain.objects.create(organization=self.org, domain='news.alpha-example.com')
+        user = User.objects.create_user(
+            email='owner@alpha.test', password='x', organization=self.org, role='owner',
+        )
+        api = APIClient()
+        api.force_authenticate(user=user)
+        self._domain('news.alpha-example.com')
+
+        row = api.get('/api/v1/landing-domains/').data['results'][0]
+
+        self.assertTrue(row['conflicts_with_email'])
+        self.assertEqual(row['dns_records'][0]['type'], 'A')
+
+    def test_only_configured_record_types_are_offered(self):
+        with override_settings(LANDING_DOMAIN_A_TARGET=''):
+            types = [r['type'] for r in self._domain('go.alpha-example.com').dns_records]
+
+        self.assertEqual(types, ['CNAME'])
+
+
+class DnsFailureClassificationTests(TestCase):
+    """
+    Telling "does not resolve" apart from "resolves but refuses".
+
+    They have different fixes, and reporting the second for the first is what
+    sent someone to wait on propagation of a record that was never accepted.
+    """
+
+    def test_a_resolution_failure_is_recognised(self):
+        from apps.landing_pages.domain_service import _is_dns_failure
+
+        inner = socket.gaierror(-2, 'Name or service not known')
+        exc = requests.exceptions.ConnectionError('wrapped')
+        exc.__cause__ = inner
+
+        self.assertTrue(_is_dns_failure(exc))
+
+    def test_a_resolution_failure_is_recognised_from_the_message(self):
+        """urllib3 often stringifies the cause rather than chaining it."""
+        from apps.landing_pages.domain_service import _is_dns_failure
+
+        exc = requests.exceptions.ConnectionError(
+            'HTTPSConnectionPool(host=\'x.test\', port=443): Max retries exceeded '
+            '(Caused by NameResolutionError("Failed to resolve \'x.test\'"))'
+        )
+
+        self.assertTrue(_is_dns_failure(exc))
+
+    def test_a_refused_connection_is_not_a_resolution_failure(self):
+        from apps.landing_pages.domain_service import _is_dns_failure
+
+        exc = requests.exceptions.ConnectionError(
+            'HTTPSConnectionPool(host=\'x.test\', port=443): '
+            '[Errno 111] Connection refused'
+        )
+
+        self.assertFalse(_is_dns_failure(exc))

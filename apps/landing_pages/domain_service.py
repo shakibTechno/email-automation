@@ -3,6 +3,7 @@ Connecting, verifying and retiring a customer's landing-page domain.
 """
 import logging
 import secrets
+import socket
 
 import requests
 from django.db import transaction
@@ -100,11 +101,27 @@ class LandingDomainService:
                 'The domain resolved but the HTTPS certificate is not ready yet. '
                 'This usually clears within a minute of the DNS record going live.'
             )
-        except requests.exceptions.ConnectionError:
-            error = (
-                'Could not reach the domain. Check that the CNAME record has been '
-                'published and has had time to propagate.'
-            )
+        except requests.exceptions.ConnectionError as exc:
+            # "Does not resolve" and "resolves but refuses the connection" are
+            # different problems with different fixes, and conflating them cost
+            # a customer three hours of waiting for propagation of a record
+            # that had never been accepted. Say which it is.
+            if _is_dns_failure(exc):
+                error = (
+                    'This hostname does not resolve — no DNS record for it was '
+                    'found. Check the record was saved, and that you used the '
+                    'record type shown here.'
+                )
+                if landing_domain.conflicting_sending_domain:
+                    error += (
+                        ' This hostname is also your email sending domain, so a '
+                        'CNAME cannot be added to it; use the A record.'
+                    )
+            else:
+                error = (
+                    'The hostname resolves but refused the connection. It is '
+                    'probably pointing somewhere other than this platform.'
+                )
         except requests.exceptions.Timeout:
             error = 'The domain did not respond in time.'
         except requests.RequestException as exc:  # pragma: no cover - defensive
@@ -167,3 +184,35 @@ class LandingDomainService:
             ).order_by('-status', 'created_at').first()
             if replacement is not None:
                 LandingDomainService.set_primary(replacement)
+
+
+def _is_dns_failure(exc):
+    """
+    Whether a ConnectionError was name resolution failing, not a refused socket.
+
+    requests wraps urllib3 wraps socket, so the useful detail is in the chain of
+    causes rather than on the exception itself. Matching on the text is crude,
+    but the alternative is resolving the name ourselves just to classify an
+    error we have already hit.
+    """
+    seen = set()
+    current = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, socket.gaierror):
+            return True
+        text = str(current).lower()
+        if any(
+            marker in text for marker in (
+                'name or service not known',
+                'nodename nor servname',
+                'temporary failure in name resolution',
+                'failed to resolve',
+                'name resolution',
+                'getaddrinfo failed',
+                'no address associated with hostname',
+            )
+        ):
+            return True
+        current = current.__cause__ or current.__context__
+    return False

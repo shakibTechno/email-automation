@@ -73,7 +73,7 @@ const StatusPill = ({ domain }: { domain: LandingDomain }) => {
 const DomainCard = ({ domain }: { domain: LandingDomain }) => {
   const { verify, setPrimary, disconnect, isBusy } = useLandingDomainActions();
   const [confirmRemove, setConfirmRemove] = useState(false);
-  const record = domain.dns_record;
+  const records = domain.dns_records ?? [];
 
   return (
     <div className="rounded-lg border bg-card p-4 shadow-card">
@@ -126,29 +126,65 @@ const DomainCard = ({ domain }: { domain: LandingDomain }) => {
         </div>
       </div>
 
-      {/* The record to publish stays visible after verification: a customer who
-          changes DNS providers needs it again, and hiding it would mean
-          disconnecting the domain just to read it. */}
-      <div className="mt-3 overflow-hidden rounded-md border bg-muted/40">
-        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1 p-3 text-[12.5px]">
-          <span className="stat-label">Type</span>
-          <span className="font-mono">{record?.type ?? 'CNAME'}</span>
-          <span />
-
-          <span className="stat-label">Host</span>
-          <span className="truncate font-mono">{record?.host ?? domain.domain}</span>
-          <CopyButton value={record?.host ?? domain.domain} label="Host" />
-
-          <span className="stat-label">Points to</span>
-          <span className="truncate font-mono">
-            {record?.value || (
-              <span className="text-muted-foreground">
-                Ask your administrator for the target hostname
-              </span>
-            )}
+      {domain.conflicts_with_email && (
+        <div className="mt-3 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/[.08] p-2.5 text-[12px]">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+          <span>
+            This hostname also sends your email. Use the <b>A</b> record below — a CNAME
+            cannot coexist with the DNS records email needs, so your DNS host will refuse
+            it, and adding one would stop your email working.
           </span>
-          {record?.value ? <CopyButton value={record.value} label="Target" /> : <span />}
         </div>
+      )}
+
+      {/* Both record options stay visible after verification: a customer who
+          changes DNS provider needs them again, and hiding them would mean
+          disconnecting the domain just to read them. */}
+      <div className="mt-3 flex flex-col gap-2">
+        {records.length === 0 && (
+          <p className="rounded-md border bg-muted/40 p-2.5 text-[12px] text-muted-foreground">
+            No DNS target is configured on this platform yet. Ask your administrator to set
+            one before connecting a domain.
+          </p>
+        )}
+        {records.map((record) => (
+          <div
+            key={record.type}
+            className={cn(
+              'overflow-hidden rounded-md border bg-muted/40',
+              record.recommended && 'border-brand/50 bg-brand/[.05]',
+              !record.recommended && 'opacity-70'
+            )}
+          >
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1 p-3 text-[12.5px]">
+              <span className="stat-label">Type</span>
+              <span className="font-mono">
+                {record.type}
+                {record.recommended && (
+                  <span className="ml-2 rounded bg-brand/[.14] px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-brand">
+                    Use this
+                  </span>
+                )}
+              </span>
+              <span />
+
+              <span className="stat-label">Host</span>
+              <span className="truncate font-mono">{record.host}</span>
+              <CopyButton value={record.host} label="Host" />
+
+              <span className="stat-label">
+                {record.type === 'A' ? 'Points to' : 'Target'}
+              </span>
+              <span className="truncate font-mono">{record.value}</span>
+              <CopyButton value={record.value} label="Target" />
+            </div>
+            {record.note && (
+              <p className="border-t px-3 py-2 text-[11.5px] text-muted-foreground">
+                {record.note}
+              </p>
+            )}
+          </div>
+        ))}
       </div>
 
       {!domain.is_verified && domain.last_check_error && (
