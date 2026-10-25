@@ -148,6 +148,17 @@ function App() {
             }
           >
             <Route path="/checkout/demo" element={<DemoCheckoutPage />} />
+
+            {/* The page builder owns the window. Inside AppLayout its
+                `h-screen` was measured against a viewport it only started 70px
+                into, so the editor overflowed the page and its panels ran off
+                the bottom; the app rail also competed with the editor's own
+                panels for a canvas that had already shrunk to 57% of the
+                width. It keeps its own back arrow as the way out. */}
+            <Route
+              path="/landing-pages/:id/edit"
+              element={<LandingPageBuilderPage />}
+            />
           </Route>
 
           {/* Protected routes */}
@@ -188,7 +199,6 @@ function App() {
             {/* Landing Page routes */}
             <Route path="/landing-pages" element={<LandingPageListPage />} />
             <Route path="/landing-pages/:id" element={<LandingPageDetailPage />} />
-            <Route path="/landing-pages/:id/edit" element={<LandingPageBuilderPage />} />
             <Route path="/landing-pages/:id/preview" element={<LandingPagePreviewPage />} />
 
             {/* Workflow routes */}

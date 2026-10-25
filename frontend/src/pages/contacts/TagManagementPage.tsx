@@ -1,285 +1,380 @@
-import { useState } from 'react';
-import { ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { MoreVertical, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { TagChip } from '@/components/contacts/TagChip';
+import { TagFormDialog } from '@/components/contacts/TagFormDialog';
 import { useTags } from '@/hooks/useTags';
-import { CreateTagData, UpdateTagData } from '@/types/contact';
+import { cn } from '@/lib/utils';
+import type { CreateTagData, Tag } from '@/types/contact';
 
-const COLOR_OPTIONS: { value: string; hex: string }[] = [
-  { value: 'blue', hex: '#3B82F6' },
-  { value: 'green', hex: '#10B981' },
-  { value: 'yellow', hex: '#F59E0B' },
-  { value: 'red', hex: '#EF4444' },
-  { value: 'purple', hex: '#8B5CF6' },
-  { value: 'pink', hex: '#EC4899' },
-  { value: 'orange', hex: '#F97316' },
-  { value: 'gray', hex: '#6B7280' },
+const countFmt = (n: number) => new Intl.NumberFormat('en').format(n ?? 0);
+
+const usageOf = (tag: Tag) => tag.contact_count ?? 0;
+
+const formatDate = (value?: string) =>
+  value
+    ? new Date(value).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    : '—';
+
+/**
+ * The tiles are the filter, as on Contacts: the figure and the control are the
+ * same object, so there is nothing to keep in sync. "Unused" is the one most
+ * worth surfacing — an unused tag is the only tag that is safe to delete, and
+ * it was invisible on the old grid of identical coloured pills.
+ */
+type ViewKey = 'all' | 'in_use' | 'unused';
+
+const VIEW_LABELS: Array<{ key: ViewKey; label: string; hint: string }> = [
+  { key: 'all', label: 'All tags', hint: 'Every tag in the organization' },
+  { key: 'in_use', label: 'In use', hint: 'Applied to at least one contact' },
+  { key: 'unused', label: 'Unused', hint: 'Applied to nobody' },
 ];
 
-const getColorHex = (colorName: string): string => {
-  return COLOR_OPTIONS.find((c) => c.value === colorName)?.hex || colorName;
-};
+type SortKey = 'name' | 'usage' | 'newest';
 
 export const TagManagementPage = () => {
-  const navigate = useNavigate();
-  const { tags, createTag, updateTag, deleteTag, isCreating, isUpdating, isDeleting } = useTags();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [selectedTag, setSelectedTag] = useState<{ id: string; name: string; color: string } | null>(null);
-  const [formData, setFormData] = useState({ name: '', color: COLOR_OPTIONS[0].value });
+  const { tags, isLoading, createTag, updateTag, deleteTag, isCreating, isUpdating, isDeleting } =
+    useTags();
 
-  const handleCreate = () => {
-    if (formData.name.trim()) {
-      createTag(formData as CreateTagData);
-      setIsCreateOpen(false);
-      setFormData({ name: '', color: COLOR_OPTIONS[0].value });
+  const [search, setSearch] = useState('');
+  const [view, setView] = useState<ViewKey>('all');
+  const [sort, setSort] = useState<SortKey>('name');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Tag | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Tag | null>(null);
+
+  const counts = useMemo(
+    () => ({
+      all: tags.length,
+      in_use: tags.filter((tag) => usageOf(tag) > 0).length,
+      unused: tags.filter((tag) => usageOf(tag) === 0).length,
+    }),
+    [tags]
+  );
+
+  // Every tag is already in memory — the endpoint is unpaginated reference
+  // data — so filtering and sorting here keeps the list instant and avoids a
+  // request per keystroke.
+  const visible = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    const filtered = tags.filter((tag) => {
+      if (view === 'in_use' && usageOf(tag) === 0) return false;
+      if (view === 'unused' && usageOf(tag) > 0) return false;
+      if (!needle) return true;
+      return (
+        tag.name.toLowerCase().includes(needle) ||
+        (tag.description ?? '').toLowerCase().includes(needle)
+      );
+    });
+
+    const sorted = [...filtered];
+    if (sort === 'name') {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sort === 'usage') {
+      sorted.sort((a, b) => usageOf(b) - usageOf(a) || a.name.localeCompare(b.name));
+    } else {
+      sorted.sort((a, b) => new Date(b.created_at).valueOf() - new Date(a.created_at).valueOf());
+    }
+    return sorted;
+  }, [tags, search, view, sort]);
+
+  const isFiltered = view !== 'all' || search.trim().length > 0;
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (tag: Tag) => {
+    setEditing(tag);
+    setFormOpen(true);
+  };
+
+  // Closing on success rather than on click: a name that clashes with an
+  // existing tag is rejected by the server, and the old page threw that away
+  // by closing and clearing the form regardless.
+  const handleSubmit = (data: CreateTagData) => {
+    if (editing) {
+      updateTag(editing.id, data, { onSuccess: () => setFormOpen(false) });
+    } else {
+      createTag(data, { onSuccess: () => setFormOpen(false) });
     }
   };
 
-  const handleEdit = () => {
-    if (selectedTag && formData.name.trim()) {
-      updateTag(selectedTag.id, formData as UpdateTagData);
-      setIsEditOpen(false);
-      setSelectedTag(null);
-      setFormData({ name: '', color: COLOR_OPTIONS[0].value });
-    }
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    deleteTag(pendingDelete.id, { onSuccess: () => setPendingDelete(null) });
   };
 
-  const handleDelete = () => {
-    if (selectedTag) {
-      deleteTag(selectedTag.id);
-      setIsDeleteOpen(false);
-      setSelectedTag(null);
-    }
-  };
-
-  const openEditDialog = (tag: { id: string; name: string; color: string }) => {
-    setSelectedTag(tag);
-    setFormData({ name: tag.name, color: tag.color });
-    setIsEditOpen(true);
-  };
-
-  const openDeleteDialog = (tag: { id: string; name: string; color: string }) => {
-    setSelectedTag(tag);
-    setIsDeleteOpen(true);
-  };
+  const deleteUsage = pendingDelete ? usageOf(pendingDelete) : 0;
 
   return (
-    <div className="w-full space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/contacts')}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Tag Management</h1>
-            <p className="text-muted-foreground">
-              Create and manage tags for organizing contacts
-            </p>
-          </div>
+    <div className="w-full space-y-3.5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Tags</h1>
+          <p className="text-[13px] text-muted-foreground">
+            Labels you apply to contacts, and how widely each one is used.
+          </p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Tag
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="h-3.5 w-3.5" /> New tag
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Tags</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {tags.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground mb-4">
-                No tags created yet. Create your first tag to get started.
+      <div className="grid gap-3.5 sm:grid-cols-3">
+        {VIEW_LABELS.map((tile) => {
+          const active = view === tile.key;
+          return (
+            <button
+              key={tile.key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setView(tile.key)}
+              className={cn(
+                'rounded-lg border bg-card p-4 text-left shadow-card transition-colors hover:border-brand/40',
+                active && 'border-brand bg-brand/[.06]'
+              )}
+            >
+              <span className="stat-label">{tile.label}</span>
+              <p className="stat-value text-[22px]">{countFmt(counts[tile.key])}</p>
+              <p className="delta">
+                {active ? <b className="text-brand">Filtering</b> : <span>{tile.hint}</span>}
               </p>
-              <Button onClick={() => setIsCreateOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Tag
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {tags.map((tag) => (
-                <div
-                  key={tag.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50"
-                >
-                  <Badge
-                    style={{ backgroundColor: getColorHex(tag.color) }}
-                    className="text-white px-3 py-1"
-                  >
-                    {tag.name}
-                  </Badge>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEditDialog(tag)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openDeleteDialog(tag)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="rounded-lg border bg-card shadow-card">
+        <div className="flex flex-wrap items-center gap-2 border-b p-3">
+          <Input
+            placeholder="Search tags…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 max-w-xs flex-1"
+          />
+          <Select value={sort} onValueChange={(value) => setSort(value as SortKey)}>
+            <SelectTrigger className="h-8 w-[170px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Name A–Z</SelectItem>
+              <SelectItem value="usage">Most used</SelectItem>
+              <SelectItem value="newest">Newest first</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {isFiltered && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => {
+                setView('all');
+                setSearch('');
+              }}
+            >
+              Clear filter
+            </Button>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Create Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Tag</DialogTitle>
-            <DialogDescription>
-              Add a new tag to organize your contacts
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Tag Name</Label>
-              <Input
-                id="name"
-                placeholder="Enter tag name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Color</Label>
-              <div className="flex flex-wrap gap-2">
-                {COLOR_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={`w-8 h-8 rounded-full border-2 ${
-                      formData.color === opt.value ? 'border-foreground' : 'border-transparent'
-                    }`}
-                    style={{ backgroundColor: opt.hex }}
-                    onClick={() => setFormData({ ...formData, color: opt.value })}
-                  />
-                ))}
-              </div>
-              <Badge
-                style={{ backgroundColor: getColorHex(formData.color) }}
-                className="text-white mt-2"
-              >
-                {formData.name || 'Preview'}
-              </Badge>
+          <span className="ml-auto font-mono text-[11px] text-subtle-foreground">
+            {countFmt(visible.length)} shown
+          </span>
+        </div>
+
+        {isLoading ? (
+          <div className="flex flex-col gap-2 p-3">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-11 w-full rounded-md" />
+            ))}
+          </div>
+        ) : visible.length === 0 ? (
+          <div className="px-4 py-14 text-center">
+            <Tags className="mx-auto mb-3 h-6 w-6 text-subtle-foreground" />
+            <h3 className="mb-1 text-[14px] font-semibold">
+              {isFiltered ? 'No tags match this view' : 'No tags yet'}
+            </h3>
+            <p className="mb-4 text-[12.5px] text-muted-foreground">
+              {isFiltered
+                ? 'Try clearing the search or the filter above.'
+                : 'Tags let you group contacts by interest, source or lifecycle stage, then segment on them.'}
+            </p>
+            <div className="flex justify-center gap-2">
+              {isFiltered ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setView('all');
+                    setSearch('');
+                  }}
+                >
+                  Clear filter
+                </Button>
+              ) : (
+                <Button size="sm" onClick={openCreate}>
+                  <Plus className="h-3.5 w-3.5" /> Create your first tag
+                </Button>
+              )}
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreate} disabled={isCreating || !formData.name.trim()}>
-              {isCreating ? 'Creating...' : 'Create Tag'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Tag</DialogTitle>
-            <DialogDescription>Update tag information</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Tag Name</Label>
-              <Input
-                id="edit-name"
-                placeholder="Enter tag name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Color</Label>
-              <div className="flex flex-wrap gap-2">
-                {COLOR_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={`w-8 h-8 rounded-full border-2 ${
-                      formData.color === opt.value ? 'border-foreground' : 'border-transparent'
-                    }`}
-                    style={{ backgroundColor: opt.hex }}
-                    onClick={() => setFormData({ ...formData, color: opt.value })}
-                  />
-                ))}
-              </div>
-              <Badge
-                style={{ backgroundColor: getColorHex(formData.color) }}
-                className="text-white mt-2"
-              >
-                {formData.name || 'Preview'}
-              </Badge>
-            </div>
+        ) : (
+          <div className="p-1">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tag</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Contacts</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="w-10" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visible.map((tag) => {
+                  const usage = usageOf(tag);
+                  return (
+                    <TableRow key={tag.id}>
+                      <TableCell>
+                        <TagChip tag={tag} />
+                      </TableCell>
+                      <TableCell className="max-w-[320px]">
+                        {tag.description ? (
+                          <span className="line-clamp-2 text-[12.5px] text-muted-foreground">
+                            {tag.description}
+                          </span>
+                        ) : (
+                          <span className="text-[12.5px] text-subtle-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {/* An unused tag is the actionable case, so it reads as a
+                          word rather than as the figure zero. */}
+                      <TableCell className="text-right">
+                        {usage > 0 ? (
+                          <span className="font-medium">{countFmt(usage)}</span>
+                        ) : (
+                          <span className="text-subtle-foreground">Unused</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-[12.5px] text-muted-foreground">
+                        {formatDate(tag.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Actions for ${tag.name}`}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(tag)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setPendingDelete(tag)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEdit} disabled={isUpdating || !formData.name.trim()}>
-              {isUpdating ? 'Updating...' : 'Update Tag'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        )}
+      </div>
 
-      {/* Delete Dialog */}
-      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Tag</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this tag? This will remove it from all contacts.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TagFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        tag={editing}
+        onSubmit={handleSubmit}
+        isSubmitting={editing ? isUpdating : isCreating}
+        existingNames={tags.filter((tag) => tag.id !== editing?.id).map((tag) => tag.name)}
+      />
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{pendingDelete?.name}”?</AlertDialogTitle>
+            {/* The old copy warned about "all contacts" whether or not the tag
+                was on any. The real number is what decides it. */}
+            <AlertDialogDescription>
+              {deleteUsage > 0
+                ? `This tag is applied to ${countFmt(deleteUsage)} ${
+                    deleteUsage === 1 ? 'contact' : 'contacts'
+                  }. Deleting it removes it from all of them, and from any segment or workflow that refers to it. This cannot be undone.`
+                : 'This tag is not applied to any contact. Deleting it cannot be undone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                // Keep the dialog open until the request lands, so a failure is
+                // visible instead of the row quietly staying put.
+                e.preventDefault();
+                confirmDelete();
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting…' : 'Delete tag'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

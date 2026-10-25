@@ -3,16 +3,35 @@ Services for the Landing Pages app.
 """
 import hashlib
 import logging
+import re
 from datetime import timedelta
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
 from .models import LandingPage, LandingPageTemplate, PageView
 
 logger = logging.getLogger(__name__)
+
+# Matches the src of a form embed, which the builder writes as an iframe
+# pointing at the public form route. Keying on the `/f/<uuid>` shape rather
+# than parsing the document keeps this precise without pulling in an HTML
+# parser: that path is ours, and nothing else in a page looks like it.
+FORM_EMBED_SRC_RE = re.compile(
+    r"""(?P<head>\ssrc=["'])"""
+    r"""(?P<origin>https?://[^"'/]+)?"""
+    r"""/f/(?P<form_id>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}"""
+    r"""-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"""
+    r"""(?P<query>\?[^"']*)?"""
+    r"""(?P<tail>["'])"""
+)
+
+# Query parameter carrying the landing page a form was submitted from.
+LANDING_PAGE_PARAM = 'lp'
 
 
 class LandingPageService:
@@ -105,6 +124,71 @@ class LandingPageService:
         return clone
 
     @staticmethod
+    def _embedded_form_body(landing_page: LandingPage) -> str:
+        """
+        Return the page body with every embedded form's iframe URL corrected.
+
+        The builder writes the embed with `window.location.origin` baked in, so
+        the saved HTML carries whatever origin the page happened to be edited
+        from -- in development that freezes the Vite dev server into the stored
+        markup. Rewriting at render time means the published page always points
+        at the configured frontend, and existing pages are fixed without having
+        to touch their saved HTML.
+
+        The same pass tags each embed with the landing page it is served from,
+        which is what lets a submission be attributed back here as a conversion.
+        """
+        frontend_url = settings.FRONTEND_URL.rstrip('/')
+
+        def rewrite(match: 're.Match') -> str:
+            query = parse_qs(match.group('query')[1:]) if match.group('query') else {}
+            query[LANDING_PAGE_PARAM] = [str(landing_page.id)]
+            return (
+                f"{match.group('head')}"
+                f"{frontend_url}/f/{match.group('form_id')}"
+                f"?{urlencode(query, doseq=True)}"
+                f"{match.group('tail')}"
+            )
+
+        return FORM_EMBED_SRC_RE.sub(rewrite, landing_page.html_content or '')
+
+    @staticmethod
+    def record_form_conversion(organization, source_url: str) -> bool:
+        """
+        Count a form submission as a conversion on the page it came from.
+
+        `source_url` is the address of the page the form was submitted from,
+        which for an embedded form is the form route carrying `?lp=<page id>`
+        (see `_embedded_form_body`). Scoped to the submitting form's own
+        organization so a hand-edited `lp` cannot touch another tenant's page.
+
+        Returns True when a page was credited. Never raises: a conversion that
+        cannot be attributed must not cost the visitor their submission.
+        """
+        if not source_url:
+            return False
+
+        try:
+            page_ids = parse_qs(urlparse(source_url).query).get(LANDING_PAGE_PARAM)
+            if not page_ids:
+                return False
+
+            updated = LandingPage.objects.filter(
+                id=page_ids[0],
+                organization=organization,
+            ).update(conversion_count=F('conversion_count') + 1)
+
+            if updated:
+                logger.info(
+                    f"Recorded landing page conversion: {page_ids[0]}"
+                )
+            return bool(updated)
+        except (ValueError, TypeError, ValidationError) as exc:
+            # A malformed or non-UUID `lp` is visitor-supplied data, not a bug.
+            logger.debug(f"Could not attribute conversion from {source_url!r}: {exc}")
+            return False
+
+    @staticmethod
     def render_page_html(landing_page: LandingPage) -> str:
         """
         Render the complete HTML document for a landing page.
@@ -118,6 +202,7 @@ class LandingPageService:
         title = landing_page.seo_title or landing_page.name
         description = landing_page.seo_description or ''
         keywords = landing_page.seo_keywords or ''
+        body_html = LandingPageService._embedded_form_body(landing_page)
 
         # Build favicon tag
         favicon_tag = ''
@@ -191,7 +276,7 @@ class LandingPageService:
     </style>
 </head>
 <body>
-    {landing_page.html_content}
+    {body_html}
     {landing_page.custom_body_code}
 </body>
 </html>'''

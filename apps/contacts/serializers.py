@@ -9,13 +9,24 @@ from .models import Contact, Tag, ContactTag, CustomField
 class TagSerializer(serializers.ModelSerializer):
     """Serializer for Tag model."""
 
+    # A tag is only meaningful through what it is applied to, so the usage
+    # count travels with the tag rather than costing the client one request
+    # per row to discover it. The list comes from TagViewSet's annotation;
+    # create/update responses serialize a saved instance that carries no
+    # annotation, hence the fallback.
+    contact_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Tag
         fields = [
-            'id', 'name', 'color', 'description',
+            'id', 'name', 'color', 'description', 'contact_count',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'contact_count', 'created_at', 'updated_at']
+
+    def get_contact_count(self, obj) -> int:
+        annotated = getattr(obj, 'contact_count', None)
+        return annotated if annotated is not None else obj.contact_tags.count()
 
 
 class CustomFieldSerializer(serializers.ModelSerializer):

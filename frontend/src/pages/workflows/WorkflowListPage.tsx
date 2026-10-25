@@ -124,122 +124,134 @@ export default function WorkflowListPage() {
           </Button>
         </div>
       ) : (
-        <div className="rounded-lg border bg-card shadow-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Entered</TableHead>
-                <TableHead className="text-right">Completed</TableHead>
-                <TableHead className="text-right">Goal Reached</TableHead>
-                <TableHead>Last Updated</TableHead>
-                <TableHead className="w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {workflows.map((workflow) => (
-                <TableRow
-                  key={workflow.id}
-                  className="cursor-pointer"
-                  onClick={() => navigate(`/workflows/${workflow.id}`)}
-                >
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{workflow.name}</p>
-                      {workflow.description && (
-                        <p className="text-sm text-muted-foreground truncate max-w-[300px]">
-                          {workflow.description}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={workflow.status} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {workflow.contacts_entered}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {workflow.contacts_completed}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {workflow.contacts_goal_reached}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDistanceToNow(new Date(workflow.updated_at), {
-                      addSuffix: true,
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/workflows/${workflow.id}/edit`);
-                          }}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        {workflow.status === 'active' ? (
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deactivateWorkflow.mutate(workflow.id);
-                            }}
-                          >
-                            <Pause className="h-4 w-4 mr-2" />
-                            Pause
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              activateWorkflow.mutate(workflow.id);
-                            }}
-                          >
-                            <Play className="h-4 w-4 mr-2" />
-                            Activate
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            duplicateWorkflow.mutate(workflow.id);
-                          }}
-                        >
-                          <Copy className="h-4 w-4 mr-2" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteWorkflow(workflow);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+        <div className="overflow-hidden rounded-lg border bg-card shadow-card">
+          {/* TableHead/TableCell carry `px-0` with a `pr-4` gutter, so they
+              expect the parent to supply the left inset. Without it the first
+              column sits hard against the card border and the "Name" header is
+              clipped by it. The padding goes here, and the last column's own
+              right gutter is zeroed so the inset matches on both sides. */}
+          <div className="px-4 pb-2 pt-3 [&_tr>*:last-child]:pr-0 [&_tr>*:not(:first-child)]:whitespace-nowrap">
+            <Table>
+              {/* Name takes the slack; the wrapper keeps every other column
+                  to one line so the figures and the date are not squeezed into
+                  two rows by it. */}
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-full">Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Entered</TableHead>
+                  <TableHead className="text-right">Completed</TableHead>
+                  <TableHead className="text-right">Goal Reached</TableHead>
+                  <TableHead>Last Updated</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {workflows.map((workflow) => (
+                  <TableRow
+                    key={workflow.id}
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/workflows/${workflow.id}`)}
+                  >
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{workflow.name}</p>
+                        {workflow.description && (
+                          <p className="text-sm text-muted-foreground truncate max-w-[300px]">
+                            {workflow.description}
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={workflow.status} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {workflow.contacts_entered}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {workflow.contacts_completed}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {workflow.contacts_goal_reached}
+                    </TableCell>
+                    {/* "about 2 months ago" breaks across lines once Name holds
+                        the slack. */}
+                    <TableCell className="text-muted-foreground">
+                      {formatDistanceToNow(new Date(workflow.updated_at), {
+                        addSuffix: true,
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/workflows/${workflow.id}/edit`);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          {workflow.status === 'active' ? (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deactivateWorkflow.mutate(workflow.id);
+                              }}
+                            >
+                              <Pause className="h-4 w-4 mr-2" />
+                              Pause
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                activateWorkflow.mutate(workflow.id);
+                              }}
+                            >
+                              <Play className="h-4 w-4 mr-2" />
+                              Activate
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              duplicateWorkflow.mutate(workflow.id);
+                            }}
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteWorkflow(workflow);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
 

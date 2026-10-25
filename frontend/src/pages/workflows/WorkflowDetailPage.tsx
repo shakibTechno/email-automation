@@ -243,68 +243,77 @@ export default function WorkflowDetailPage() {
           </Card>
         ) : (
           <>
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Current Step</TableHead>
-                    <TableHead className="text-center">Steps</TableHead>
-                    <TableHead>Goal</TableHead>
-                    <TableHead>Started</TableHead>
-                    <TableHead>Completed</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {executions.map((execution) => (
-                    <TableRow
-                      key={execution.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => setSelectedExecutionId(execution.id)}
-                    >
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-sm">{execution.contact_name}</p>
-                          <p className="text-xs text-muted-foreground">{execution.contact_email}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={`text-xs ${EXEC_STATUS_STYLES[execution.status]}`}
-                        >
-                          {execution.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">
-                        {execution.current_node_label || '—'}
-                      </TableCell>
-                      <TableCell className="text-center text-sm tabular-nums">
-                        {execution.step_count}
-                      </TableCell>
-                      <TableCell>
-                        {execution.goal_reached ? (
-                          <span className="inline-flex items-center text-success text-xs font-medium">
-                            <Target className="h-3.5 w-3.5 mr-1" />
-                            Reached
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {formatDistanceToNow(new Date(execution.started_at), { addSuffix: true })}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {execution.completed_at
-                          ? format(new Date(execution.completed_at), 'MMM d, yyyy')
-                          : '—'}
-                      </TableCell>
+            {/* TableHead/TableCell carry `px-0` with a `pr-4` gutter and
+                expect the parent to supply the left inset; without it the
+                Contact column sits hard against the border. The last column's
+                own right gutter is zeroed so the inset matches on both sides. */}
+            <div className="overflow-hidden rounded-lg border bg-card">
+              <div className="px-4 pb-2 pt-3 [&_tr>*:last-child]:pr-0 [&_tr>*:not(:first-child)]:whitespace-nowrap">
+                <Table>
+                  {/* Contact takes the slack; the wrapper keeps every other
+                      column to one line so the dates are not squeezed into two
+                      rows by it. */}
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-full">Contact</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Current Step</TableHead>
+                      <TableHead className="text-center">Steps</TableHead>
+                      <TableHead>Goal</TableHead>
+                      <TableHead>Started</TableHead>
+                      <TableHead>Completed</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {executions.map((execution) => (
+                      <TableRow
+                        key={execution.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setSelectedExecutionId(execution.id)}
+                      >
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{execution.contact_name}</p>
+                            <p className="text-xs text-muted-foreground">{execution.contact_email}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${EXEC_STATUS_STYLES[execution.status]}`}
+                          >
+                            {execution.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">
+                          {execution.current_node_label || '—'}
+                        </TableCell>
+                        <TableCell className="text-center text-sm tabular-nums">
+                          {execution.step_count}
+                        </TableCell>
+                        <TableCell>
+                          {execution.goal_reached ? (
+                            <span className="inline-flex items-center text-success text-xs font-medium">
+                              <Target className="h-3.5 w-3.5 mr-1" />
+                              Reached
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {formatDistanceToNow(new Date(execution.started_at), { addSuffix: true })}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {execution.completed_at
+                            ? format(new Date(execution.completed_at), 'MMM d, yyyy')
+                            : '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
 
             {/* pagination */}

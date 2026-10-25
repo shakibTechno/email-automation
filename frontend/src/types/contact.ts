@@ -29,6 +29,8 @@ export interface Tag {
   name: string;
   color: string;
   description?: string;
+  /** Contacts currently carrying this tag, annotated by the tags endpoint. */
+  contact_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -124,6 +126,7 @@ export interface ImportContactData {
 export interface CreateTagData {
   name: string;
   color: string;
+  description?: string;
 }
 
 export interface UpdateTagData extends Partial<CreateTagData> {}

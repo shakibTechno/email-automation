@@ -2,12 +2,21 @@ import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef, useSta
 import grapesjs, { Editor } from 'grapesjs';
 import 'grapesjs/dist/css/grapes.min.css';
 import 'grapesjs-preset-webpage';
-import { LayoutGrid, Layers, Palette, SlidersHorizontal, ChevronLeft, ChevronRight, ClipboardList, Plus, ExternalLink } from 'lucide-react';
+import { LayoutGrid, Layers, Palette, SlidersHorizontal, ChevronLeft, ChevronRight, ChevronDown, ClipboardList, Plus, ExternalLink, MousePointerClick } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface GrapesJSEditorRef {
   save: () => void;
   setDevice: (device: 'Desktop' | 'Tablet' | 'Mobile') => void;
+  undo: () => void;
+  redo: () => void;
+}
+
+/** What the toolbar needs to describe the editor's state to the user. */
+export interface EditorStatus {
+  isDirty: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 export interface EmbeddableForm {
@@ -27,12 +36,72 @@ interface GrapesJSEditorProps {
   }) => void;
   onLoad?: () => void;
   forms?: EmbeddableForm[];
+  /** Fires whenever the user changes the design, or undo/redo depth moves. */
+  onStatusChange?: (status: EditorStatus) => void;
 }
 
+/** The content that actually gets persisted, as one comparable string. */
+const snapshot = (editor: Editor) => `${editor.getHtml() || ''}|${editor.getCss() || ''}`;
+
+/** Nodes GrapesJS appends its managers into, which it never cleans up itself. */
+const PANEL_MOUNT_IDS = [
+  'blocks-container',
+  'layers-container',
+  'styles-container',
+  'traits-container',
+  'selectors-container',
+];
+
+const clearPanelMounts = () => {
+  PANEL_MOUNT_IDS.forEach((id) => {
+    const node = document.getElementById(id);
+    if (node) node.innerHTML = '';
+  });
+};
+
 export const GrapesJSEditor = forwardRef<GrapesJSEditorRef, GrapesJSEditorProps>(
-  ({ initialHtml = '', initialCss = '', initialData, onSave, onLoad, forms = [] }, ref) => {
+  (
+    {
+      initialHtml = '',
+      initialCss = '',
+      initialData,
+      onSave,
+      onLoad,
+      forms = [],
+      onStatusChange,
+    },
+    ref
+  ) => {
     const editorRef = useRef<Editor | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    // Autosave reads this, so it must not be state: a stale closure would make
+    // the interval save forever or never.
+    const isDirtyRef = useRef(false);
+    // True while the saved design is being loaded into the editor.
+    const isLoadingRef = useRef(true);
+    // Pending editor teardown; see the init effect for why it is deferred.
+    const teardownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // The content as of the last save, and the debounce handle for comparing
+    // against it.
+    const savedSnapshotRef = useRef<string | null>(null);
+    const dirtyCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const onStatusChangeRef = useRef(onStatusChange);
+    onStatusChangeRef.current = onStatusChange;
+    // Same reason: the init effect must not re-run because a parent re-rendered
+    // with a new callback identity.
+    const onLoadRef = useRef(onLoad);
+    onLoadRef.current = onLoad;
+
+    /** Something changed? Tell the toolbar, with undo depth included. */
+    const publishStatus = useCallback((dirty: boolean) => {
+      isDirtyRef.current = dirty;
+      const um = editorRef.current?.UndoManager;
+      onStatusChangeRef.current?.({
+        isDirty: dirty,
+        canUndo: um ? um.hasUndo() : false,
+        canRedo: um ? um.hasRedo() : false,
+      });
+    }, []);
 
     const handleSave = useCallback(() => {
       if (!editorRef.current) return;
@@ -42,8 +111,10 @@ export const GrapesJSEditor = forwardRef<GrapesJSEditorRef, GrapesJSEditorProps>
       const css = editor.getCss() || '';
       const designJson = editor.getProjectData();
 
+      savedSnapshotRef.current = `${html}|${css}`;
+      publishStatus(false);
       onSave({ html, css, designJson });
-    }, [onSave]);
+    }, [onSave, publishStatus]);
 
     // Expose save + setDevice to parent via ref
     useImperativeHandle(ref, () => ({
@@ -51,20 +122,40 @@ export const GrapesJSEditor = forwardRef<GrapesJSEditorRef, GrapesJSEditorProps>
       setDevice: (device: 'Desktop' | 'Tablet' | 'Mobile') => {
         editorRef.current?.Devices.select(device);
       },
-    }), [handleSave]);
+      // Undo can land you back on the saved content, so recompute rather than
+      // assume stepping through history leaves unsaved work behind.
+      undo: () => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        editor.UndoManager.undo();
+        publishStatus(snapshot(editor) !== savedSnapshotRef.current);
+      },
+      redo: () => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        editor.UndoManager.redo();
+        publishStatus(snapshot(editor) !== savedSnapshotRef.current);
+      },
+    }), [handleSave, publishStatus]);
 
     // Panel tab state
     const [leftTab, setLeftTab] = useState<'blocks' | 'layers' | 'forms'>('blocks');
     const [rightTab, setRightTab] = useState<'style' | 'properties'>('style');
+    const [hasSelection, setHasSelection] = useState(false);
+    const [showAdvanced, setShowAdvanced] = useState(false);
     const [leftCollapsed, setLeftCollapsed] = useState(false);
 
     // Insert a form as an iframe block into the canvas
     const handleInsertForm = (form: EmbeddableForm) => {
       if (!editorRef.current) return;
       const formTypeLabel = form.form_type.replace(/_/g, ' ');
-      // Use absolute URL so the iframe resolves correctly when the page is
-      // served by Django (which has no /f/ route — only the React SPA does).
-      const formUrl = `${window.location.origin}/f/${form.id}`;
+      // Root-relative on purpose. Baking `window.location.origin` in froze
+      // whichever host the page was edited from into the saved markup — the
+      // Vite dev server, in development. Relative resolves correctly in the
+      // builder's own preview, and the published page rewrites it to the
+      // configured frontend (see LandingPageService._embedded_form_body),
+      // which is also where the conversion-tracking parameter is added.
+      const formUrl = `/f/${form.id}`;
       editorRef.current.addComponents(`
         <div class="ea-form-embed" data-form-id="${form.id}" style="width:100%;max-width:640px;margin:0 auto;padding:16px 0;">
           <div style="margin-bottom:8px;display:flex;align-items:center;gap:6px;">
@@ -85,7 +176,19 @@ export const GrapesJSEditor = forwardRef<GrapesJSEditorRef, GrapesJSEditorProps>
     };
 
     useEffect(() => {
+      // StrictMode runs this effect twice (setup, cleanup, setup), which built
+      // a whole second editor only to throw the first away — expensive, and it
+      // left the first one's asynchronous renders to land in our mount nodes
+      // after the fact. Defer teardown by a tick instead: a StrictMode re-run
+      // cancels it and reuses the live editor, while a real unmount lets it
+      // through.
+      if (teardownRef.current) {
+        clearTimeout(teardownRef.current);
+        teardownRef.current = null;
+      }
       if (!containerRef.current || editorRef.current) return;
+
+      clearPanelMounts();
 
       const editor = grapesjs.init({
         container: containerRef.current,
@@ -129,22 +232,22 @@ export const GrapesJSEditor = forwardRef<GrapesJSEditorRef, GrapesJSEditorProps>
           appendTo: '#styles-container',
           sectors: [
             {
-              name: 'General',
+              name: 'Layout',
               open: false,
               buildProps: ['float', 'display', 'position', 'top', 'right', 'left', 'bottom'],
             },
             {
-              name: 'Flex',
+              name: 'Arrangement',
               open: false,
               buildProps: ['flex-direction', 'flex-wrap', 'justify-content', 'align-items', 'align-content', 'order', 'flex-basis', 'flex-grow', 'flex-shrink', 'align-self'],
             },
             {
-              name: 'Dimension',
-              open: false,
+              name: 'Size & Spacing',
+              open: true,
               buildProps: ['width', 'height', 'max-width', 'min-width', 'min-height', 'max-height', 'margin', 'padding'],
             },
             {
-              name: 'Typography',
+              name: 'Text',
               open: false,
               buildProps: [
                 'font-family', 'font-size', 'font-weight', 'letter-spacing',
@@ -152,12 +255,12 @@ export const GrapesJSEditor = forwardRef<GrapesJSEditorRef, GrapesJSEditorProps>
               ],
             },
             {
-              name: 'Decorations',
+              name: 'Background & Border',
               open: false,
               buildProps: ['background', 'background-color', 'background-image', 'background-size', 'background-position', 'border-radius', 'border', 'box-shadow'],
             },
             {
-              name: 'Extra',
+              name: 'Effects',
               open: false,
               buildProps: ['opacity', 'transition', 'transform', 'cursor', 'overflow'],
             },
@@ -1374,23 +1477,52 @@ export const GrapesJSEditor = forwardRef<GrapesJSEditorRef, GrapesJSEditorProps>
       // (the page is already full-window, so this is a no-op fullscreen)
       editor.Commands.add('fullscreen', { run: () => {}, stop: () => {} });
 
-      if (onLoad) {
-        onLoad();
-      }
+      // What counts as "unsaved" is whether the content differs from what was
+      // last written — not whether an event fired. GrapesJS emits
+      // `component:update` for things that are not edits at all, selection
+      // among them, so simply reacting to events marked the page dirty when
+      // the user clicked a heading, and told autosave to write it back.
+      // Comparing the rendered output is exact; debouncing keeps it cheap on
+      // pages whose markup runs to a hundred kilobytes.
+      const checkDirty = () => {
+        if (dirtyCheckRef.current) clearTimeout(dirtyCheckRef.current);
+        dirtyCheckRef.current = setTimeout(() => {
+          if (isLoadingRef.current || !editorRef.current) return;
+          publishStatus(snapshot(editorRef.current) !== savedSnapshotRef.current);
+        }, 400);
+      };
+      editor.on('component:add', checkDirty);
+      editor.on('component:remove', checkDirty);
+      editor.on('component:update', checkDirty);
+      editor.on('styleable:change', checkDirty);
+
+      // Right panel needs to know whether anything is selected so it can say
+      // so rather than presenting empty controls.
+      const syncSelection = () => setHasSelection(!!editor.getSelected());
+      editor.on('component:selected', syncSelection);
+      editor.on('component:deselected', syncSelection);
+
+      onLoadRef.current?.();
 
       return () => {
-        if (editorRef.current) {
-          editorRef.current.destroy();
-          editorRef.current = null;
-        }
+        if (dirtyCheckRef.current) clearTimeout(dirtyCheckRef.current);
+        teardownRef.current = setTimeout(() => {
+          teardownRef.current = null;
+          if (editorRef.current) {
+            editorRef.current.destroy();
+            editorRef.current = null;
+          }
+          clearPanelMounts();
+        }, 0);
       };
-    }, []);
+    }, [publishStatus]);
 
     // Load content when data becomes available
     useEffect(() => {
       if (!editorRef.current) return;
 
       const editor = editorRef.current;
+      isLoadingRef.current = true;
 
       // Load initial content
       if (initialData && Object.keys(initialData).length > 0) {
@@ -1401,16 +1533,50 @@ export const GrapesJSEditor = forwardRef<GrapesJSEditorRef, GrapesJSEditorProps>
           editor.setStyle(initialCss);
         }
       }
-    }, [initialData, initialHtml, initialCss]);
 
-    // Auto-save every 30 seconds
+      // Let the load's own events drain before listening for real edits, and
+      // drop the history it generated so the first Undo cannot rewind the page
+      // to empty.
+      const settle = setTimeout(() => {
+        isLoadingRef.current = false;
+        editor.UndoManager.clear();
+        savedSnapshotRef.current = snapshot(editor);
+        publishStatus(false);
+
+        // GrapesJS renders the selector manager into its `appendTo` target
+        // twice — one editor, two identical "Classes / - State -" panels
+        // stacked in the sidebar. Nothing in our setup asks for the second,
+        // and there is no option to stop it, so drop the extras once the
+        // editor has settled.
+        const selectors = document.getElementById('selectors-container');
+        while (selectors && selectors.children.length > 1) {
+          selectors.removeChild(selectors.lastElementChild!);
+        }
+      }, 0);
+
+      return () => clearTimeout(settle);
+    }, [initialData, initialHtml, initialCss, publishStatus]);
+
+    // Autosave every 30 seconds — but only when the design has actually
+    // changed. It used to fire unconditionally, so an idle builder wrote to the
+    // server (and toasted "Design saved") every 30 seconds forever, and on a
+    // published page those writes went straight to the live site.
+    //
+    // The interval is set up once and reaches the current save through a ref.
+    // Depending on `handleSave` instead means every parent re-render restarts
+    // the timer, and since the toolbar re-renders on its own 30-second tick to
+    // keep the "saved 2 minutes ago" label honest, a 30-second timer that
+    // restarts every 30 seconds never gets to fire at all.
+    const handleSaveRef = useRef(handleSave);
+    handleSaveRef.current = handleSave;
+
     useEffect(() => {
       const interval = setInterval(() => {
-        handleSave();
+        if (isDirtyRef.current) handleSaveRef.current();
       }, 30000);
 
       return () => clearInterval(interval);
-    }, [handleSave]);
+    }, []);
 
     return (
       <div className="flex h-full overflow-hidden relative">
@@ -1574,25 +1740,63 @@ export const GrapesJSEditor = forwardRef<GrapesJSEditorRef, GrapesJSEditorProps>
             </button>
           </div>
 
-          {/* Style tab: selectors + style manager */}
+          {/* Nothing selected: say so. The panel used to render its full set
+              of controls against no target, which reads as broken rather than
+              as waiting for input. The managers stay mounted underneath —
+              GrapesJS appends into them — so this covers rather than replaces. */}
+          {!hasSelection && (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
+              <MousePointerClick className="h-5 w-5 text-gray-400" />
+              <p className="text-xs font-medium text-gray-600">Nothing selected</p>
+              <p className="text-[11px] leading-relaxed text-gray-400">
+                Click any element on the page to change how it looks.
+              </p>
+            </div>
+          )}
+
+          {/* Style tab: style manager, with the CSS selector controls folded
+              away. "Classes" and "- State -" are the vocabulary of a
+              stylesheet, not of someone editing a headline, so they sit behind
+              Advanced instead of being the first thing in the panel. */}
           <div
             className={cn(
               'flex flex-col flex-1 overflow-hidden',
-              rightTab !== 'style' && 'hidden'
+              (rightTab !== 'style' || !hasSelection) && 'hidden'
             )}
           >
-            <div
-              id="selectors-container"
-              className="px-3 py-2 border-b border-gray-100 bg-gray-50/50 shrink-0 min-h-[44px]"
-            />
-            <div id="styles-container" className="flex-1 overflow-y-auto" />
+            <div className="flex-1 overflow-y-auto">
+              <div id="styles-container" />
+
+              <div className="border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                  className="flex w-full items-center justify-between px-3 py-2 text-[11px] font-medium text-gray-500 hover:text-gray-700"
+                >
+                  Advanced
+                  <ChevronDown
+                    className={cn(
+                      'h-3 w-3 transition-transform',
+                      showAdvanced && 'rotate-180'
+                    )}
+                  />
+                </button>
+                <div
+                  id="selectors-container"
+                  className={cn(
+                    'px-3 pb-3',
+                    !showAdvanced && 'hidden'
+                  )}
+                />
+              </div>
+            </div>
           </div>
 
           {/* Properties tab: traits */}
           <div
             className={cn(
               'flex-1 overflow-y-auto',
-              rightTab !== 'properties' && 'hidden'
+              (rightTab !== 'properties' || !hasSelection) && 'hidden'
             )}
           >
             <div id="traits-container" className="p-3" />

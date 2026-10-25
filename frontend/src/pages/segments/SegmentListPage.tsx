@@ -183,113 +183,130 @@ export default function SegmentListPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border bg-card shadow-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="text-right">Contacts</TableHead>
-              <TableHead>Last Updated</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="w-10"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
+      {/* TableHead/TableCell carry `px-0` and a `pr-4` gutter, so they expect the
+          parent to supply the left inset. This card gave none, which put the
+          first column hard against the border — the "Name" header was clipped
+          by it. The padding goes here, and the last column's own right gutter
+          is zeroed so the inset is equal on both sides. */}
+      <div className="overflow-hidden rounded-lg border bg-card shadow-card">
+        <div className="px-4 pb-2 pt-3 [&_tr>*:last-child]:pr-0">
+          <Table>
+            {/* Name takes all the slack so the remaining columns sit at their
+                content width, instead of the table spreading them out and
+                leaving a gap between Type and Contacts. */}
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  Loading segments...
-                </TableCell>
+                <TableHead className="w-full">Name</TableHead>
+                <TableHead className="whitespace-nowrap">Type</TableHead>
+                <TableHead className="whitespace-nowrap text-right">Contacts</TableHead>
+                <TableHead className="whitespace-nowrap">Last Updated</TableHead>
+                <TableHead className="whitespace-nowrap">Created</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
-            ) : error ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-destructive">
-                  Failed to load segments
-                </TableCell>
-              </TableRow>
-            ) : segments.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  <div className="text-muted-foreground">
-                    {search || typeFilter !== 'all'
-                      ? 'No segments match your filters'
-                      : 'No segments yet. Create your first segment!'}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              segments.map((segment) => (
-                <TableRow key={segment.id}>
-                  <TableCell>
-                    <Link
-                      to={`/segments/${segment.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {segment.name}
-                    </Link>
-                    {segment.description && (
-                      <p className="text-sm text-muted-foreground truncate max-w-xs">
-                        {segment.description}
-                      </p>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <SegmentTypeBadge type={segment.segment_type} />
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatNumber(segment.contact_count)}
-                  </TableCell>
-                  <TableCell>{formatDate(segment.last_calculated_at)}</TableCell>
-                  <TableCell>{formatDate(segment.created_at)}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => navigate(`/segments/${segment.id}`)}
-                        >
-                          <Users className="mr-2 h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => navigate(`/segments/${segment.id}/edit`)}
-                        >
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleRefresh(segment)}>
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Refresh Count
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDuplicate(segment)}>
-                          <Copy className="mr-2 h-4 w-4" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport(segment)}>
-                          <Download className="mr-2 h-4 w-4" />
-                          Export Contacts
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => setDeleteId(segment.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    Loading segments...
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : error ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-destructive">
+                    Failed to load segments
+                  </TableCell>
+                </TableRow>
+              ) : segments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      {search || typeFilter !== 'all'
+                        ? 'No segments match your filters'
+                        : 'No segments yet. Create your first segment!'}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                segments.map((segment) => (
+                  <TableRow key={segment.id}>
+                    <TableCell>
+                      <Link
+                        to={`/segments/${segment.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {segment.name}
+                      </Link>
+                      {segment.description && (
+                        <p className="text-sm text-muted-foreground truncate max-w-xs">
+                          {segment.description}
+                        </p>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <SegmentTypeBadge type={segment.segment_type} />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-right font-medium">
+                      {formatNumber(segment.contact_count)}
+                    </TableCell>
+                    {/* Dates must not wrap: Name holds the slack, so without
+                        this these columns get squeezed and "Feb 6, 2026"
+                        breaks across two lines. */}
+                    <TableCell className="whitespace-nowrap">
+                      {formatDate(segment.last_calculated_at)}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {formatDate(segment.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => navigate(`/segments/${segment.id}`)}
+                          >
+                            <Users className="mr-2 h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => navigate(`/segments/${segment.id}/edit`)}
+                          >
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleRefresh(segment)}>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Refresh Count
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(segment)}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleExport(segment)}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Export Contacts
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setDeleteId(segment.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}

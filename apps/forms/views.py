@@ -332,6 +332,19 @@ class PublicFormViewSet(viewsets.GenericViewSet):
             submission.gdpr_consent_given = True
             submission.save(update_fields=['gdpr_consent_given'])
 
+        # A form embedded in a landing page is submitted from a URL carrying
+        # that page's id, which is what makes the page's conversion figure
+        # real rather than decorative. Best-effort by design: a submission the
+        # visitor completed must never fail over attribution bookkeeping.
+        try:
+            from apps.landing_pages.services import LandingPageService
+            LandingPageService.record_form_conversion(
+                organization=form.organization,
+                source_url=serializer.validated_data.get('source_url', ''),
+            )
+        except Exception:
+            logger.exception('Failed to record landing page conversion')
+
         # Notify org admins of new submission
         try:
             from apps.notifications.services import NotificationService

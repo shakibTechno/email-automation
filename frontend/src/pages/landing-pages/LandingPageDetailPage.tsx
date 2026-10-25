@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LandingPageStatusBadge } from '@/components/landing-pages/LandingPageStatusBadge';
+import { HtmlPreview } from '@/components/landing-pages/HtmlPreview';
 import {
   useLandingPage,
   usePublishLandingPage,
@@ -22,6 +23,7 @@ import {
   Calendar,
   Copy,
   Check,
+  Settings,
 } from 'lucide-react';
 
 export const LandingPageDetailPage = () => {
@@ -35,6 +37,15 @@ export const LandingPageDetailPage = () => {
     id || '',
     days
   );
+
+  // The builder stamps `data-form-id` on each embed it places, so the saved
+  // markup is the source of truth for what this page can capture.
+  const embeddedFormCount = useMemo(() => {
+    const html = landingPage?.html_content || '';
+    return new Set(
+      Array.from(html.matchAll(/data-form-id=["']([^"']+)["']/g), (m) => m[1])
+    ).size;
+  }, [landingPage?.html_content]);
   const publishMutation = usePublishLandingPage();
   const unpublishMutation = useUnpublishLandingPage();
 
@@ -238,14 +249,43 @@ export const LandingPageDetailPage = () => {
                   <p className="mt-1">/p/{landingPage.slug}</p>
                 </div>
 
-                {landingPage.form_name && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Embedded Form
-                    </label>
-                    <p className="mt-1">{landingPage.form_name}</p>
+                {/* The page is the thing being discussed; showing it beats
+                    describing it. Costs nothing extra — the detail payload
+                    already carries the markup. */}
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Preview
+                  </label>
+                  <div className="mt-1 overflow-hidden rounded-lg border">
+                    <HtmlPreview
+                      html={landingPage.html_content}
+                      css={landingPage.css_content}
+                      height={200}
+                      placeholder={
+                        <span className="text-[12.5px] text-muted-foreground">
+                          Nothing designed yet
+                        </span>
+                      }
+                    />
                   </div>
-                )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Embedded Forms
+                  </label>
+                  {embeddedFormCount > 0 ? (
+                    <p className="mt-1">
+                      {embeddedFormCount} form{embeddedFormCount === 1 ? '' : 's'} on this
+                      page — submissions count as conversions here.
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      None. Without a form this page can be viewed but cannot capture
+                      anyone — add one from the Forms tab in the builder.
+                    </p>
+                  )}
+                </div>
 
                 {landingPage.created_by_name && (
                   <div>
@@ -278,7 +318,9 @@ export const LandingPageDetailPage = () => {
                     Meta Description
                   </label>
                   <p className="mt-1 text-sm">
-                    {landingPage.seo_description || 'Not set'}
+                    {landingPage.seo_description || (
+                      <span className="text-subtle-foreground">Not set</span>
+                    )}
                   </p>
                 </div>
 
@@ -287,9 +329,26 @@ export const LandingPageDetailPage = () => {
                     Keywords
                   </label>
                   <p className="mt-1 text-sm">
-                    {landingPage.seo_keywords || 'Not set'}
+                    {landingPage.seo_keywords || (
+                      <span className="text-subtle-foreground">Not set</span>
+                    )}
                   </p>
                 </div>
+
+                {/* Reporting a gap without offering a way to close it just
+                    leaves the user hunting for where SEO lives — it is behind
+                    the settings icon inside the builder, which is not
+                    guessable from here. */}
+                {(!landingPage.seo_description || !landingPage.seo_keywords) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/landing-pages/${landingPage.id}/edit`)}
+                  >
+                    <Settings className="mr-2 h-3.5 w-3.5" />
+                    Add SEO details
+                  </Button>
+                )}
 
                 {(landingPage.google_analytics_id ||
                   landingPage.facebook_pixel_id) && (

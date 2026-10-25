@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, lazy, Suspense } from 'react';
+import { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,7 +10,7 @@ import {
 import { LandingPageStatusBadge } from '@/components/landing-pages/LandingPageStatusBadge';
 import { SettingsPanel } from '@/components/landing-pages/SettingsPanel';
 import { SaveAsTemplateDialog } from '@/components/landing-pages/SaveAsTemplateDialog';
-import type { GrapesJSEditorRef } from '@/components/landing-pages/GrapesJSEditor';
+import type { GrapesJSEditorRef, EditorStatus } from '@/components/landing-pages/GrapesJSEditor';
 import {
   useLandingPage,
   useSaveDesign,
@@ -33,6 +33,10 @@ import {
   MoreHorizontal,
   FileText,
   Loader2,
+  Undo2,
+  Redo2,
+  Check,
+  AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -59,6 +63,32 @@ export const LandingPageBuilderPage = () => {
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeDevice, setActiveDevice] = useState<'Desktop' | 'Tablet' | 'Mobile'>('Desktop');
+  const [status, setStatus] = useState<EditorStatus>({
+    isDirty: false,
+    canUndo: false,
+    canRedo: false,
+  });
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  // Re-renders the relative "Saved 2m ago" label without touching save logic.
+  const [, setNow] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow((n) => n + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Closing the tab mid-edit should cost a prompt, not the work. React Router
+  // navigation is already a deliberate click on our own back arrow, which the
+  // toolbar guards separately.
+  useEffect(() => {
+    if (!status.isDirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [status.isDirty]);
 
   const handleDeviceChange = (device: 'Desktop' | 'Tablet' | 'Mobile') => {
     setActiveDevice(device);
@@ -79,9 +109,13 @@ export const LandingPageBuilderPage = () => {
             design_json: data.designJson,
           },
         });
-        toast.success('Design saved');
+        // No success toast: autosave fires on a timer, and a toast every time
+        // it lands turns a quiet background action into a notification queue.
+        // The toolbar carries the state instead. Failures still shout.
+        setLastSavedAt(new Date());
       } catch (error) {
         toast.error('Failed to save design');
+        setStatus((s) => ({ ...s, isDirty: true }));
       } finally {
         setIsSaving(false);
       }
@@ -118,6 +152,26 @@ export const LandingPageBuilderPage = () => {
     if (landingPage) {
       window.open(`/landing-pages/${id}/preview`, '_blank');
     }
+  };
+
+  const handleBack = () => {
+    if (
+      status.isDirty &&
+      !window.confirm('You have unsaved changes. Leave the builder anyway?')
+    ) {
+      return;
+    }
+    navigate('/landing-pages');
+  };
+
+  const savedLabel = () => {
+    if (isSaving) return 'Saving…';
+    if (status.isDirty) return 'Unsaved changes';
+    if (!lastSavedAt) return 'All changes saved';
+    const mins = Math.floor((Date.now() - lastSavedAt.getTime()) / 60000);
+    if (mins < 1) return 'Saved just now';
+    if (mins === 1) return 'Saved 1 min ago';
+    return `Saved ${mins} mins ago`;
   };
 
   if (isNew) {
@@ -158,7 +212,7 @@ export const LandingPageBuilderPage = () => {
             variant="ghost"
             size="icon"
             className="h-8 w-8 shrink-0"
-            onClick={() => navigate('/landing-pages')}
+            onClick={handleBack}
             title="Back to landing pages"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -168,12 +222,47 @@ export const LandingPageBuilderPage = () => {
             {landingPage.name}
           </span>
           <LandingPageStatusBadge status={landingPage.status} />
-          {isSaving && (
-            <span className="hidden sm:flex items-center gap-1 text-xs text-subtle-foreground ml-1">
+
+          {/* Persistent save state. This was a "Saving" flash that appeared for
+              a few hundred milliseconds every 30 seconds and told you nothing
+              the rest of the time. */}
+          <span className="ml-1 hidden items-center gap-1 text-xs text-subtle-foreground sm:flex">
+            {isSaving ? (
               <Loader2 className="h-3 w-3 animate-spin" />
-              Saving
-            </span>
-          )}
+            ) : status.isDirty ? (
+              <AlertCircle className="h-3 w-3 text-warning" />
+            ) : (
+              <Check className="h-3 w-3 text-success" />
+            )}
+            {savedLabel()}
+          </span>
+        </div>
+
+        {/* Undo/redo. GrapesJS tracked history all along, but the only way to
+            reach it was a keyboard shortcut nobody was told about. */}
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            title="Undo (Ctrl+Z)"
+            aria-label="Undo"
+            disabled={!status.canUndo}
+            onClick={() => editorRef.current?.undo()}
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            title="Redo (Ctrl+Shift+Z)"
+            aria-label="Redo"
+            disabled={!status.canRedo}
+            onClick={() => editorRef.current?.redo()}
+          >
+            <Redo2 className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Center zone: device toggle pill */}
@@ -256,18 +345,26 @@ export const LandingPageBuilderPage = () => {
             </Button>
           )}
 
+          {/* On a published page, saving *is* publishing — the public URL
+              serves this content directly. The button says so rather than
+              letting the user discover it. */}
           <Button
             size="sm"
             className="h-8 text-xs"
             onClick={handleSaveClick}
             disabled={isSaving}
+            title={
+              landingPage.status === 'published'
+                ? 'This page is live. Saving updates it for visitors immediately.'
+                : 'Save your changes'
+            }
           >
             {isSaving ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
             ) : (
               <Save className="h-3.5 w-3.5 mr-1.5" />
             )}
-            Save
+            {landingPage.status === 'published' ? 'Save to live page' : 'Save'}
           </Button>
         </div>
       </div>
@@ -287,6 +384,7 @@ export const LandingPageBuilderPage = () => {
             initialCss={landingPage.css_content || ''}
             initialData={landingPage.design_json}
             onSave={handleSave}
+            onStatusChange={setStatus}
             forms={activeForms || []}
           />
         </Suspense>

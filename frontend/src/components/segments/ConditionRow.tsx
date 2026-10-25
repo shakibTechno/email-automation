@@ -85,7 +85,7 @@ export function ConditionRow({
               }
             }}
           >
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select tags..." />
             </SelectTrigger>
             <SelectContent>
@@ -110,7 +110,7 @@ export function ConditionRow({
             value={condition.value as string || ''}
             onValueChange={handleValueChange}
           >
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select tag..." />
             </SelectTrigger>
             <SelectContent>
@@ -146,7 +146,7 @@ export function ConditionRow({
               }
             }}
           >
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select values..." />
             </SelectTrigger>
             <SelectContent>
@@ -164,7 +164,7 @@ export function ConditionRow({
             value={condition.value as string || ''}
             onValueChange={handleValueChange}
           >
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select value..." />
             </SelectTrigger>
             <SelectContent>
@@ -184,21 +184,21 @@ export function ConditionRow({
       if (isBetween) {
         const values = Array.isArray(condition.value) ? condition.value : ['', ''];
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2">
             <Input
               type="number"
               placeholder="Min"
               value={values[0] || ''}
               onChange={(e) => handleValueChange([e.target.value, values[1] || ''])}
-              className="w-24"
+              className="w-full"
             />
-            <span className="text-muted-foreground">and</span>
+            <span className="shrink-0 text-muted-foreground">and</span>
             <Input
               type="number"
               placeholder="Max"
               value={values[1] || ''}
               onChange={(e) => handleValueChange([values[0] || '', e.target.value])}
-              className="w-24"
+              className="w-full"
             />
           </div>
         );
@@ -209,7 +209,7 @@ export function ConditionRow({
           placeholder="Value"
           value={condition.value as number || ''}
           onChange={(e) => handleValueChange(e.target.value ? Number(e.target.value) : null)}
-          className="w-32"
+          className="w-full"
         />
       );
     }
@@ -218,34 +218,34 @@ export function ConditionRow({
     if (selectedField?.type === 'date') {
       if (condition.operator === 'in_last_days' || condition.operator === 'more_than_days_ago') {
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2">
             <Input
               type="number"
               placeholder="Days"
               value={condition.value as number || ''}
               onChange={(e) => handleValueChange(e.target.value ? Number(e.target.value) : null)}
-              className="w-24"
+              className="w-full"
             />
-            <span className="text-muted-foreground">days</span>
+            <span className="shrink-0 text-muted-foreground">days</span>
           </div>
         );
       }
       if (isBetween) {
         const values = Array.isArray(condition.value) ? condition.value : ['', ''];
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2">
             <Input
               type="date"
               value={values[0] || ''}
               onChange={(e) => handleValueChange([e.target.value, values[1] || ''])}
-              className="w-40"
+              className="w-full"
             />
-            <span className="text-muted-foreground">and</span>
+            <span className="shrink-0 text-muted-foreground">and</span>
             <Input
               type="date"
               value={values[1] || ''}
               onChange={(e) => handleValueChange([values[0] || '', e.target.value])}
-              className="w-40"
+              className="w-full"
             />
           </div>
         );
@@ -255,7 +255,7 @@ export function ConditionRow({
           type="date"
           value={condition.value as string || ''}
           onChange={(e) => handleValueChange(e.target.value)}
-          className="w-40"
+          className="w-full"
         />
       );
     }
@@ -266,18 +266,25 @@ export function ConditionRow({
         placeholder="Value"
         value={condition.value as string || ''}
         onChange={(e) => handleValueChange(e.target.value)}
-        className="w-48"
+        className="w-full"
       />
     );
   };
 
   return (
-    <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
-      <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+    // A grid, not a flex row: every condition gets the same columns, so field,
+    // operator and value line up down the list however each row's operator
+    // renders. As a flex row each value control carried its own width (w-48 for
+    // text, w-40 for a date, w-24 for a day count), so stacked conditions ended
+    // their value input at different places and left a dead gap before the
+    // remove button. The value track also holds its width when the operator
+    // takes no value at all, such as "is empty".
+    <div className="grid grid-cols-[auto_10rem_11rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-muted/30 p-3">
+      <GripVertical className="h-4 w-4 cursor-grab text-muted-foreground" />
 
       {/* Field selector */}
       <Select value={condition.field} onValueChange={handleFieldChange}>
-        <SelectTrigger className="w-40">
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="Select field..." />
         </SelectTrigger>
         <SelectContent>
@@ -291,7 +298,7 @@ export function ConditionRow({
 
       {/* Operator selector */}
       <Select value={condition.operator} onValueChange={handleOperatorChange}>
-        <SelectTrigger className="w-44">
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="Select operator..." />
         </SelectTrigger>
         <SelectContent>
@@ -303,8 +310,9 @@ export function ConditionRow({
         </SelectContent>
       </Select>
 
-      {/* Value input */}
-      {renderValueInput()}
+      {/* Value input — the wrapper holds the column open for operators such as
+          "is empty" that render no control. */}
+      <div className="flex min-w-0 items-center">{renderValueInput()}</div>
 
       {/* Remove button */}
       <Button
@@ -312,7 +320,6 @@ export function ConditionRow({
         size="icon"
         onClick={onRemove}
         disabled={!canRemove}
-        className="ml-auto"
       >
         <Trash2 className="h-4 w-4" />
       </Button>

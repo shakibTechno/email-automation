@@ -93,91 +93,98 @@ export default function SequenceListPage() {
           </Button>
         </div>
       ) : (
-        <div className="rounded-lg border bg-card shadow-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-center">Steps</TableHead>
-                <TableHead className="text-center">Enrolled</TableHead>
-                <TableHead className="text-center">Completed</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sequences.map((seq) => (
-                <TableRow
-                  key={seq.id}
-                  className="cursor-pointer hover:bg-secondary/50"
-                  onClick={() => navigate(`/sequences/${seq.id}`)}
-                >
-                  <TableCell>
-                    <div className="font-medium text-foreground">{seq.name}</div>
-                    {seq.description && (
-                      <div className="text-xs text-muted-foreground truncate max-w-xs">{seq.description}</div>
-                    )}
-                    {seq.sender_email && (
-                      <div className="text-xs text-subtle-foreground">{seq.sender_name || seq.sender_email}</div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[seq.status]}`}>
-                      {seq.status.charAt(0).toUpperCase() + seq.status.slice(1)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center">{seq.step_count}</TableCell>
-                  <TableCell className="text-center">{seq.enrolled_count}</TableCell>
-                  <TableCell className="text-center">{seq.completed_count}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDistanceToNow(new Date(seq.created_at), { addSuffix: true })}
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigate(`/sequences/${seq.id}`)}>
-                          <BarChart2 className="h-4 w-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate(`/sequences/${seq.id}/edit`)}>
-                          Edit
-                        </DropdownMenuItem>
-                        {seq.status === 'draft' || seq.status === 'paused' ? (
-                          <DropdownMenuItem onClick={() => activate.mutate(seq.id)}>
-                            <Play className="h-4 w-4 mr-2" />
-                            Activate
-                          </DropdownMenuItem>
-                        ) : seq.status === 'active' ? (
-                          <DropdownMenuItem onClick={() => pause.mutate(seq.id)}>
-                            <Pause className="h-4 w-4 mr-2" />
-                            Pause
-                          </DropdownMenuItem>
-                        ) : null}
-                        <DropdownMenuItem onClick={() => duplicate.mutate(seq.id)}>
-                          <Copy className="h-4 w-4 mr-2" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(seq.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+        <div className="overflow-hidden rounded-lg border bg-card shadow-card">
+          {/* TableHead/TableCell carry `px-0` with a `pr-4` gutter and expect
+              the parent to supply the left inset; without it the first column
+              sits hard against the card border. The last column's own right
+              gutter is zeroed so the inset matches on both sides, and Name
+              takes the slack while every other column stays on one line. */}
+          <div className="px-4 pb-2 pt-3 [&_tr>*:last-child]:pr-0 [&_tr>*:not(:first-child)]:whitespace-nowrap">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-full">Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Steps</TableHead>
+                  <TableHead className="text-center">Enrolled</TableHead>
+                  <TableHead className="text-center">Completed</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {sequences.map((seq) => (
+                  <TableRow
+                    key={seq.id}
+                    className="cursor-pointer hover:bg-secondary/50"
+                    onClick={() => navigate(`/sequences/${seq.id}`)}
+                  >
+                    <TableCell>
+                      <div className="font-medium text-foreground">{seq.name}</div>
+                      {seq.description && (
+                        <div className="text-xs text-muted-foreground truncate max-w-xs">{seq.description}</div>
+                      )}
+                      {seq.sender_email && (
+                        <div className="text-xs text-subtle-foreground">{seq.sender_name || seq.sender_email}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[seq.status]}`}>
+                        {seq.status.charAt(0).toUpperCase() + seq.status.slice(1)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">{seq.step_count}</TableCell>
+                    <TableCell className="text-center">{seq.enrolled_count}</TableCell>
+                    <TableCell className="text-center">{seq.completed_count}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDistanceToNow(new Date(seq.created_at), { addSuffix: true })}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigate(`/sequences/${seq.id}`)}>
+                            <BarChart2 className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/sequences/${seq.id}/edit`)}>
+                            Edit
+                          </DropdownMenuItem>
+                          {seq.status === 'draft' || seq.status === 'paused' ? (
+                            <DropdownMenuItem onClick={() => activate.mutate(seq.id)}>
+                              <Play className="h-4 w-4 mr-2" />
+                              Activate
+                            </DropdownMenuItem>
+                          ) : seq.status === 'active' ? (
+                            <DropdownMenuItem onClick={() => pause.mutate(seq.id)}>
+                              <Pause className="h-4 w-4 mr-2" />
+                              Pause
+                            </DropdownMenuItem>
+                          ) : null}
+                          <DropdownMenuItem onClick={() => duplicate.mutate(seq.id)}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(seq.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
     </div>

@@ -213,8 +213,18 @@ export default function SegmentBuilderPage() {
                     value={segmentType}
                     onValueChange={(v) => setSegmentType(v as SegmentType)}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
+                    {/* Radix renders the selected item's children in the
+                        trigger. These items carry a two-line description, so
+                        the trigger was showing the label and the explanation
+                        squashed onto one clamped line, sitting at a different
+                        height and offset from every other control. Giving
+                        SelectValue its own child keeps the descriptions in the
+                        dropdown and the trigger to a single aligned line.
+                        `id` also makes the Label's htmlFor actually resolve. */}
+                    <SelectTrigger id="type">
+                      <SelectValue>
+                        {segmentType === 'dynamic' ? 'Dynamic' : 'Static'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="dynamic">

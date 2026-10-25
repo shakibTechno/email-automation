@@ -209,66 +209,74 @@ export default function SequenceDetailPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Step</TableHead>
-                    <TableHead>Next Send</TableHead>
-                    <TableHead className="w-10" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {enrollments.map((enrollment) => (
-                    <TableRow key={enrollment.id}>
-                      <TableCell>
-                        <div className="font-medium text-sm">{enrollment.contact_name}</div>
-                        <div className="text-xs text-muted-foreground">{enrollment.contact_email}</div>
-                      </TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[enrollment.status] || ''}`}>
-                          {enrollment.status.charAt(0).toUpperCase() + enrollment.status.slice(1)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {enrollment.status === 'completed'
-                          ? 'Done'
-                          : `Step ${enrollment.current_step_position + 1}`}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {enrollment.next_send_at
-                          ? format(new Date(enrollment.next_send_at), 'MMM d, h:mm a')
-                          : '—'}
-                      </TableCell>
-                      <TableCell>
-                        {enrollment.status === 'active' && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={async () => {
-                                  const { sequencesApi } = await import('@/api/sequences');
-                                  await sequencesApi.cancelEnrollment(enrollment.id);
-                                }}
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Cancel Enrollment
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                      </TableCell>
+            <div className="overflow-hidden rounded-lg border bg-card">
+              {/* TableHead/TableCell carry `px-0` with a `pr-4` gutter and
+                  expect the parent to supply the left inset; without it the
+                  first column sits hard against the border. The last column's
+                  own right gutter is zeroed so the inset matches on both sides,
+                  and Contact takes the slack while every other column stays on
+                  one line. */}
+              <div className="px-4 pb-2 pt-3 [&_tr>*:last-child]:pr-0 [&_tr>*:not(:first-child)]:whitespace-nowrap">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-full">Contact</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Step</TableHead>
+                      <TableHead>Next Send</TableHead>
+                      <TableHead className="w-10" />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {enrollments.map((enrollment) => (
+                      <TableRow key={enrollment.id}>
+                        <TableCell>
+                          <div className="font-medium text-sm">{enrollment.contact_name}</div>
+                          <div className="text-xs text-muted-foreground">{enrollment.contact_email}</div>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[enrollment.status] || ''}`}>
+                            {enrollment.status.charAt(0).toUpperCase() + enrollment.status.slice(1)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {enrollment.status === 'completed'
+                            ? 'Done'
+                            : `Step ${enrollment.current_step_position + 1}`}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {enrollment.next_send_at
+                            ? format(new Date(enrollment.next_send_at), 'MMM d, h:mm a')
+                            : '—'}
+                        </TableCell>
+                        <TableCell>
+                          {enrollment.status === 'active' && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={async () => {
+                                    const { sequencesApi } = await import('@/api/sequences');
+                                    await sequencesApi.cancelEnrollment(enrollment.id);
+                                  }}
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Cancel Enrollment
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </div>

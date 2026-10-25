@@ -11,8 +11,10 @@ import {
   Code,
   ToggleLeft,
   ToggleRight,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AIGenerateDialog } from '@/components/ai/AIGenerateDialog';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -42,6 +44,7 @@ const statusFilters: { value: FormStatus | 'all'; label: string }[] = [
 
 export const FormListPage = () => {
   const navigate = useNavigate();
+  const [showAI, setShowAI] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<FormStatus | 'all'>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -95,10 +98,16 @@ export const FormListPage = () => {
             Create and manage lead capture forms
           </p>
         </div>
-        <Button onClick={() => navigate('/forms/new')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Form
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowAI(true)}>
+            <Sparkles className="h-4 w-4 mr-2" />
+            Generate with AI
+          </Button>
+          <Button onClick={() => navigate('/forms/new')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Form
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -329,6 +338,15 @@ export const FormListPage = () => {
         formId={embedFormId}
         open={embedDialogOpen}
         onOpenChange={setEmbedDialogOpen}
+      />
+
+      <AIGenerateDialog
+        kind="form"
+        open={showAI}
+        onOpenChange={setShowAI}
+        onGenerated={(id) => navigate(`/forms/${id}/edit`)}
+        title="Generate a form"
+        description="Describe what you need to capture and AI drafts the fields."
       />
     </div>
   );

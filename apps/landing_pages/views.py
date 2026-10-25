@@ -228,6 +228,25 @@ class LandingPageViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+class IsOrganizationMemberOrSystemTemplate(IsOrganizationMember):
+    """
+    Object permission for templates, which are either an organization's own or
+    shared across all of them.
+
+    `IsOrganizationMember` answers `obj.organization == request.user.organization`,
+    and a system template's organization is None — so every built-in template
+    listed fine but 403'd the moment anything tried to open one. The queryset
+    already restricts the set to system templates plus the caller's own, so
+    there is nothing for the object check to add beyond letting the shared ones
+    through.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        if getattr(obj, 'is_system', False):
+            return True
+        return super().has_object_permission(request, view, obj)
+
+
 class LandingPageTemplateViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -240,7 +259,11 @@ class LandingPageTemplateViewSet(
     - save_as_template: Save a landing page as a template
     """
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember, IsAdminForDestructiveActions]
+    permission_classes = [
+        IsAuthenticated,
+        IsOrganizationMemberOrSystemTemplate,
+        IsAdminForDestructiveActions,
+    ]
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = LandingPageTemplateFilter
     search_fields = ['name', 'description']

@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.http import HttpResponse
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -409,13 +409,19 @@ class TagViewSet(viewsets.ModelViewSet):
     serializer_class = TagSerializer
     permission_classes = [IsAuthenticated, IsOrganizationMember, IsAdminForDestructiveActions]
     filter_backends = [SearchFilter, OrderingFilter]
+    # Tags are bounded reference data that every selector consumes whole. Under
+    # the default PAGE_SIZE of 20 an organization with more tags than that had
+    # the rest silently vanish from the tag manager and from every tag picker.
+    pagination_class = None
     search_fields = ['name', 'description']
-    ordering_fields = ['name', 'created_at']
+    ordering_fields = ['name', 'created_at', 'contact_count']
     ordering = ['name']
 
     def get_queryset(self):
-        """Return tags for the user's organization."""
-        return Tag.objects.filter(organization=self.request.user.organization)
+        """Return tags for the user's organization, with their usage count."""
+        return Tag.objects.filter(
+            organization=self.request.user.organization
+        ).annotate(contact_count=Count('contact_tags'))
 
     def perform_create(self, serializer):
         """Set organization from the authenticated user."""

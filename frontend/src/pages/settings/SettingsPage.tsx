@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Building2, Activity, TrendingUp, Mail } from 'lucide-react';
+import { Users, Building2, Activity, TrendingUp, Mail, Sparkles } from 'lucide-react';
 import { TeamTab } from './TeamTab';
 import { OrganizationTab } from './OrganizationTab';
 import { ActivityTab } from './ActivityTab';
 import { LeadScoringTab } from './LeadScoringTab';
 import { EmailTab } from './EmailTab';
+import { AITab } from './AITab';
 import { usePermissions } from '@/hooks/usePermissions';
 
 export function SettingsPage() {
@@ -47,6 +48,10 @@ export function SettingsPage() {
             <Mail className="h-4 w-4" />
             Email
           </TabsTrigger>
+          <TabsTrigger value="ai" className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            AI
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="team" className="mt-6">
@@ -67,6 +72,9 @@ export function SettingsPage() {
         )}
         <TabsContent value="email" className="mt-6">
           <EmailTab />
+        </TabsContent>
+        <TabsContent value="ai" className="mt-6">
+          <AITab />
         </TabsContent>
       </Tabs>
     </div>

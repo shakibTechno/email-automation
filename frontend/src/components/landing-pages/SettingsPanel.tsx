@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -10,13 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { ClipboardList } from 'lucide-react';
 import { useForms } from '@/hooks/useForms';
 import type { LandingPage, UpdateLandingPageData } from '@/types/landing-page';
 
@@ -37,6 +31,19 @@ export const SettingsPanel = ({
 }: SettingsPanelProps) => {
   const { forms } = useForms({ status: 'active' });
 
+  // The builder stamps each embed it inserts with `data-form-id`, so the saved
+  // markup is the source of truth for what this page actually captures to.
+  const embeddedForms = useMemo(() => {
+    const html = landingPage.html_content || '';
+    const ids = new Set(
+      Array.from(html.matchAll(/data-form-id=["']([^"']+)["']/g), (m) => m[1])
+    );
+    return Array.from(ids).map((id) => ({
+      id,
+      name: forms.find((f) => f.id === id)?.name ?? 'Untitled form',
+    }));
+  }, [landingPage.html_content, forms]);
+
   const [formData, setFormData] = useState<UpdateLandingPageData>({
     name: landingPage.name,
     slug: landingPage.slug,
@@ -47,7 +54,6 @@ export const SettingsPanel = ({
     facebook_pixel_id: landingPage.facebook_pixel_id || '',
     custom_head_code: landingPage.custom_head_code || '',
     custom_body_code: landingPage.custom_body_code || '',
-    form_id: landingPage.form || null,
   });
 
   useEffect(() => {
@@ -61,8 +67,7 @@ export const SettingsPanel = ({
       facebook_pixel_id: landingPage.facebook_pixel_id || '',
       custom_head_code: landingPage.custom_head_code || '',
       custom_body_code: landingPage.custom_body_code || '',
-      form_id: landingPage.form || null,
-    });
+      });
   }, [landingPage]);
 
   const handleSave = () => {
@@ -114,31 +119,35 @@ export const SettingsPanel = ({
               </p>
             </div>
 
+            {/* This used to be a form picker that wrote `form_id` to the page
+                and was never read when rendering it — the published page only
+                ever shows forms placed on the canvas. Two controls for one job,
+                one of them inert, is the confusion. The canvas is the real
+                mechanism, so this reports what it placed rather than offering a
+                second way to set it. */}
             <div className="space-y-2">
-              <Label htmlFor="form">Embedded Form</Label>
-              <Select
-                value={formData.form_id || 'none'}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    form_id: value === 'none' ? null : value,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a form..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No form</SelectItem>
-                  {forms.map((form) => (
-                    <SelectItem key={form.id} value={form.id}>
-                      {form.name}
-                    </SelectItem>
+              <Label>Embedded Forms</Label>
+              {embeddedForms.length > 0 ? (
+                <ul className="space-y-1">
+                  {embeddedForms.map((form) => (
+                    <li
+                      key={form.id}
+                      className="flex items-center gap-2 rounded-md border bg-secondary/40 px-3 py-2 text-[13px]"
+                    >
+                      <ClipboardList className="h-3.5 w-3.5 flex-none text-subtle-foreground" />
+                      <span className="truncate">{form.name}</span>
+                    </li>
                   ))}
-                </SelectContent>
-              </Select>
+                </ul>
+              ) : (
+                <p className="rounded-md border border-dashed px-3 py-2.5 text-[12.5px] text-muted-foreground">
+                  No form on this page yet. Add one from the{' '}
+                  <span className="font-medium text-foreground">Forms</span> tab in the
+                  left panel of the builder.
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
-                Select a form to embed in this landing page
+                Submissions from these forms count as conversions for this page.
               </p>
             </div>
           </TabsContent>

@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search,
+  Sparkles,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AIGenerateDialog } from '@/components/ai/AIGenerateDialog';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -19,6 +22,7 @@ import { debounce } from '@/lib/utils';
 
 export const TemplateListPage = () => {
   const navigate = useNavigate();
+  const [showAI, setShowAI] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<
     TemplateCategory | 'all'
@@ -71,10 +75,16 @@ export const TemplateListPage = () => {
             Create and manage your email templates
           </p>
         </div>
-        <Button onClick={() => navigate('/templates/new')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Template
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowAI(true)}>
+            <Sparkles className="h-4 w-4 mr-2" />
+            Generate with AI
+          </Button>
+          <Button onClick={() => navigate('/templates/new')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Template
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -180,6 +190,15 @@ export const TemplateListPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AIGenerateDialog
+        kind="email_template"
+        open={showAI}
+        onOpenChange={setShowAI}
+        onGenerated={(id) => navigate(`/templates/${id}/edit`)}
+        title="Generate an email template"
+        description="Describe the email and AI drafts it as editable blocks."
+      />
     </div>
   );
 };
