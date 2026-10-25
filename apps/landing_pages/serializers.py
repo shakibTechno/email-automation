@@ -5,7 +5,48 @@ from rest_framework import serializers
 from django.db import transaction
 from django.conf import settings
 
-from .models import LandingPage, LandingPageTemplate, LandingPageAsset, PageView
+from .domains import normalize_domain, reserved_domain_error
+from .models import (
+    LandingDomain,
+    LandingPage,
+    LandingPageTemplate,
+    LandingPageAsset,
+    PageView,
+)
+
+
+class LandingDomainSerializer(serializers.ModelSerializer):
+    """A connected domain as the settings page renders it."""
+
+    dns_record = serializers.DictField(read_only=True)
+    verification_url = serializers.CharField(read_only=True)
+    is_verified = serializers.BooleanField(read_only=True)
+    page_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LandingDomain
+        fields = [
+            'id', 'domain', 'status', 'is_verified', 'is_primary',
+            'dns_record', 'verification_url',
+            'verified_at', 'last_check_at', 'last_check_error', 'last_seen_at',
+            'page_count', 'created_at',
+        ]
+        # Status is reached through `verify`, never written: a domain must not
+        # be able to declare itself verified.
+        read_only_fields = [
+            'id', 'status', 'is_primary', 'verified_at', 'last_check_at',
+            'last_check_error', 'last_seen_at', 'created_at',
+        ]
+
+    def get_page_count(self, obj):
+        return getattr(obj, 'page_count', None) or obj.pages.count()
+
+    def validate_domain(self, value):
+        value = normalize_domain(value)
+        error = reserved_domain_error(value)
+        if error:
+            raise serializers.ValidationError(error)
+        return value
 
 
 class LandingPageListSerializer(serializers.ModelSerializer):
@@ -30,6 +71,11 @@ class LandingPageSerializer(serializers.ModelSerializer):
     public_url = serializers.CharField(read_only=True)
     conversion_rate = serializers.FloatField(read_only=True)
     form_name = serializers.SerializerMethodField()
+    domain_name = serializers.CharField(source='domain.domain', read_only=True, default=None)
+    # Both addresses: the UI shows where a page is served from and
+    # where it can always be reached, which differ while a domain is
+    # still verifying.
+    platform_url = serializers.CharField(read_only=True)
 
     class Meta:
         model = LandingPage
@@ -40,8 +86,9 @@ class LandingPageSerializer(serializers.ModelSerializer):
             'favicon', 'google_analytics_id', 'facebook_pixel_id',
             'custom_head_code', 'custom_body_code',
             'form', 'form_name',
+            'domain', 'domain_name', 'is_domain_home',
             'view_count', 'conversion_count', 'conversion_rate',
-            'public_url', 'published_at',
+            'public_url', 'platform_url', 'published_at',
             'created_by', 'created_by_name',
             'created_at', 'updated_at'
         ]
@@ -128,6 +175,7 @@ class LandingPageUpdateSerializer(serializers.ModelSerializer):
             'seo_title', 'seo_description', 'seo_keywords', 'og_image',
             'favicon', 'google_analytics_id', 'facebook_pixel_id',
             'custom_head_code', 'custom_body_code',
+            'domain', 'is_domain_home',
             'form_id'
         ]
 
@@ -141,6 +189,36 @@ class LandingPageUpdateSerializer(serializers.ModelSerializer):
             ).exclude(pk=instance.pk).exists():
                 raise serializers.ValidationError("A landing page with this slug already exists.")
         return value
+
+    def validate_domain(self, value):
+        """A page may only be pinned to one of its own organization's domains."""
+        if value is None:
+            return value
+        request = self.context.get('request')
+        if value.organization_id != request.user.organization_id:
+            # Phrased as not-found rather than not-yours: the ids of
+            # other tenants' domains are not something to confirm.
+            raise serializers.ValidationError('Domain not found.')
+        return value
+
+    def validate(self, attrs):
+        """At most one page per domain may sit at its root."""
+        if not attrs.get('is_domain_home'):
+            return attrs
+        instance = self.instance
+        domain = attrs.get('domain', getattr(instance, 'domain', None))
+        clash = LandingPage.objects.filter(
+            organization_id=instance.organization_id,
+            is_domain_home=True,
+            domain=domain,
+        ).exclude(pk=instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError({
+                'is_domain_home': (
+                    f'"{clash.first().name}" is already the home page for this domain.'
+                )
+            })
+        return attrs
 
     def validate_form_id(self, value):
         if value:

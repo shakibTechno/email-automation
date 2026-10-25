@@ -189,6 +189,20 @@ class LandingPageService:
             return False
 
     @staticmethod
+    def _absolute_media_url(url: str) -> str:
+        """
+        Make an uploaded file's URL absolute against the platform host.
+
+        Media is served by the platform, not by a customer's domain — which is
+        exactly why connected domains can proxy straight to Django without
+        needing nginx's static handling.
+        """
+        if not url or url.startswith(('http://', 'https://', '//')):
+            return url
+        backend_url = getattr(settings, 'BACKEND_URL', 'http://localhost:8000').rstrip('/')
+        return f"{backend_url}{url}"
+
+    @staticmethod
     def render_page_html(landing_page: LandingPage) -> str:
         """
         Render the complete HTML document for a landing page.
@@ -203,20 +217,33 @@ class LandingPageService:
         description = landing_page.seo_description or ''
         keywords = landing_page.seo_keywords or ''
         body_html = LandingPageService._embedded_form_body(landing_page)
+        canonical = landing_page.public_url
 
         # Build favicon tag
         favicon_tag = ''
         if landing_page.favicon:
-            favicon_tag = f'<link rel="icon" href="{landing_page.favicon.url}">'
+            favicon_tag = (
+                f'<link rel="icon" href="'
+                f'{LandingPageService._absolute_media_url(landing_page.favicon.url)}">'
+            )
 
         # Build OG tags
+        #
+        # Absolute, always. A scraper fetching this page has no base to resolve
+        # a relative og:image against, so the relative form these used to carry
+        # meant no preview image anywhere — and on a customer's own domain it
+        # would resolve against their host, where the file does not exist.
         og_tags = f'''
     <meta property="og:title" content="{title}">
     <meta property="og:description" content="{description}">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="{landing_page.public_url}">'''
+    <meta property="og:url" content="{canonical}">'''
         if landing_page.og_image:
-            og_tags += f'\n    <meta property="og:image" content="{landing_page.og_image.url}">'
+            og_image = LandingPageService._absolute_media_url(landing_page.og_image.url)
+            og_tags += f'\n    <meta property="og:image" content="{og_image}">'
+        # The same page answers on both its platform address and its connected
+        # domain; the canonical says which one search engines should keep.
+        og_tags += f'\n    <link rel="canonical" href="{canonical}">'
 
         # Build analytics scripts
         analytics_scripts = ''

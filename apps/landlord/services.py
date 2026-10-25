@@ -26,6 +26,7 @@ from apps.billing.models import Subscription
 from apps.campaigns.models import Campaign, CampaignRecipient
 from apps.contacts.models import Contact
 from apps.email_config.models import EmailConfiguration, PostalTenant, SendingDomain
+from apps.landing_pages.models import LandingDomain
 
 logger = logging.getLogger(__name__)
 
@@ -133,12 +134,32 @@ class TenantService:
             output_field=IntegerField(),
         )
 
+        # Same subquery shape, for the same reason. Split verified from
+        # total because "connected but not working" is the state an
+        # operator is asked about, and a single count hides it.
+        domain_count = Subquery(
+            LandingDomain.objects.filter(organization=OuterRef('pk'))
+            .order_by().values('organization')
+            .annotate(n=Count('id')).values('n')[:1],
+            output_field=IntegerField(),
+        )
+        unverified_domain_count = Subquery(
+            LandingDomain.objects
+            .filter(organization=OuterRef('pk'))
+            .exclude(status=LandingDomain.STATUS_VERIFIED)
+            .order_by().values('organization')
+            .annotate(n=Count('id')).values('n')[:1],
+            output_field=IntegerField(),
+        )
+
         return (
             Organization.all_objects
             .select_related('subscription__plan', 'postal_tenant', 'email_config')
             .annotate(
                 user_count=Coalesce(user_count, Value(0)),
                 contact_count=Coalesce(contact_count, Value(0)),
+                domain_count=Coalesce(domain_count, Value(0)),
+                unverified_domain_count=Coalesce(unverified_domain_count, Value(0)),
             )
             .order_by('-created_at')
         )
@@ -170,6 +191,8 @@ class TenantService:
             'queued': tenant.queued if tenant else 0,
             'held': tenant.held if tenant else 0,
             'mail_status': tenant.status if tenant else None,
+            'landing_domains': org.domain_count,
+            'landing_domains_unverified': org.unverified_domain_count,
             'created_at': org.created_at.isoformat(),
         }
 
@@ -206,6 +229,21 @@ class TenantService:
                 'sent_last_hour': tenant.sent_last_hour,
                 'last_synced_at': tenant.last_synced_at.isoformat() if tenant.last_synced_at else None,
             } if tenant else None,
+            # Landing-page domains, which are not the same thing as the
+            # sending domains below — a customer may well use
+            # mail.brand.com and go.brand.com for different jobs, and
+            # "my domain is broken" could mean either.
+            'landing_domains_detail': [
+                {
+                    'domain': d.domain,
+                    'status': d.status,
+                    'is_primary': d.is_primary,
+                    'last_check_error': d.last_check_error,
+                    'verified_at': d.verified_at.isoformat() if d.verified_at else None,
+                    'last_seen_at': d.last_seen_at.isoformat() if d.last_seen_at else None,
+                }
+                for d in LandingDomain.objects.filter(organization=org).order_by('-is_primary', 'domain')
+            ],
             'domains': [
                 {
                     'domain': d.domain,

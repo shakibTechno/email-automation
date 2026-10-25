@@ -117,6 +117,25 @@ class AggregationTestCase(TestCase):
             'from 3 to 10 — something is querying per row',
         )
 
+    def test_tenant_row_separates_connected_domains_from_working_ones(self):
+        """
+        "Connected but not live" is the state an operator gets asked about, so a
+        single count would hide the only number that matters.
+        """
+        from apps.landing_pages.models import LandingDomain
+
+        org = self._tenant('Alpha')
+        LandingDomain.objects.create(
+            organization=org, domain='live.alpha-example.com',
+            status=LandingDomain.STATUS_VERIFIED,
+        )
+        LandingDomain.objects.create(organization=org, domain='pending.alpha-example.com')
+
+        row = TenantService.serialize_row(TenantService.base_queryset().get(pk=org.pk))
+
+        self.assertEqual(row['landing_domains'], 2)
+        self.assertEqual(row['landing_domains_unverified'], 1)
+
     def test_tenant_row_uses_cached_postal_metrics(self):
         org = self._tenant('Alpha', bounce_rate=7.5, held=3)
         row = TenantService.serialize_row(TenantService.base_queryset().get(pk=org.pk))

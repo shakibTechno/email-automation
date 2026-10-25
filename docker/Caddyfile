@@ -2,6 +2,23 @@
 # nginx serves the built SPA and proxies Django's paths to the backend.
 #
 # APP_HOST comes from the environment so this file stays deployment-agnostic.
+#
+# Customers also connect their own domains for landing pages. Those are served
+# by the catch-all block at the bottom, with certificates obtained on demand.
+{
+	# On-demand TLS: a certificate is obtained the first time a hostname is
+	# requested, so a customer connecting a domain needs no deploy, no restart
+	# and no wildcard certificate.
+	#
+	# `ask` is the only thing between a stranger pointing DNS at this server
+	# and our Let's Encrypt rate limit, which is per-account and takes a week
+	# to recover. It answers 200 only for a hostname some tenant has actually
+	# connected. It is reachable solely over this Docker network — the path is
+	# absent from frontend/nginx.conf's proxied routes — and must stay that way.
+	on_demand_tls {
+		ask http://backend:8000/internal/tls-allow
+	}
+}
 
 {$APP_HOST} {
 	encode zstd gzip
@@ -18,13 +35,55 @@
 	header {
 		# Caddy already sends HSTS on its own; these cover what it does not.
 		X-Content-Type-Options nosniff
-		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	# X-Frame-Options is deliberately NOT set here. It used to be, and being
+	# set at this layer made it unconditional — including on /f/<id>, the
+	# public form route that exists to be embedded in an iframe. That broke
+	# both the customer-facing embed snippet and forms inside landing pages.
+	# The policy now lives in frontend/nginx.conf and in Django, the two layers
+	# that can tell one path from another.
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}
+
+# Customer-connected landing-page domains.
+#
+# A bare `https://` block matches any hostname the blocks above do not, with a
+# certificate fetched on demand and gated by the `ask` endpoint configured at
+# the top of this file.
+#
+# These go straight to Django, bypassing the frontend container entirely: on a
+# customer's hostname there is no SPA, no admin and no API — Django swaps in a
+# landing-only URLconf (see apps/landing_pages/middleware.py), so those routes
+# do not exist rather than existing and being refused. Uploaded images are
+# rendered as absolute URLs on the platform host, which is why skipping nginx
+# costs nothing here.
+https:// {
+	encode zstd gzip
+
+	tls {
+		on_demand
+	}
+
+	reverse_proxy backend:8000 {
+		header_up X-Real-IP {remote_host}
+	}
+
+	header {
+		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
 	}
 
 	log {
-		output file /data/access.log {
+		output file /data/landing-access.log {
 			roll_size 10MiB
 			roll_keep 5
 		}

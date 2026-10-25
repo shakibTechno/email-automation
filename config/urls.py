@@ -12,6 +12,7 @@ from drf_spectacular.views import (
 )
 
 from apps.email_config.webhooks import postal_webhook
+from apps.landing_pages.internal_views import tls_allow
 from apps.landing_pages.views import PublicLandingPageView
 
 urlpatterns = [
@@ -70,6 +71,12 @@ urlpatterns = [
     path('p/<slug:slug>/',
          PublicLandingPageView.as_view(),
          name='public-landing-page-legacy'),
+
+    # Caddy's on-demand TLS gate. `/internal/` is deliberately absent from
+    # frontend/nginx.conf's proxied-path regex and from config.urls_landing, so
+    # the only way here is Caddy reaching backend:8000 over the Docker network.
+    # Exposing it publicly lets a stranger burn our Let's Encrypt quota.
+    path('internal/tls-allow', tls_allow, name='internal-tls-allow'),
 
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

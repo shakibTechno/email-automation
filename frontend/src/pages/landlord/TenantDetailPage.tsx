@@ -339,6 +339,79 @@ export const TenantDetailPage = () => {
         )}
       </Section>
 
+      {/* Separate from "Sending domains" below on purpose: a tenant reporting
+          "my domain is broken" could mean either, and the two are verified by
+          completely different mechanisms. */}
+      <Section
+        title="Landing page domains"
+        aside={
+          tenant.landing_domains_unverified > 0 && (
+            <span className="rounded bg-warning/[.14] px-1.5 py-0.5 text-[11px] font-medium text-warning">
+              {tenant.landing_domains_unverified} not live
+            </span>
+          )
+        }
+      >
+        {tenant.landing_domains_detail.length === 0 ? (
+          <div className="px-4 py-10 text-center text-[12.5px] text-muted-foreground">
+            No landing page domains connected. Pages are served from the platform address.
+          </div>
+        ) : (
+          <div className="px-4 pb-2 pt-3 [&_tr>*:last-child]:pr-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-full">Domain</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Last request</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tenant.landing_domains_detail.map((d) => (
+                  <TableRow key={d.domain}>
+                    <TableCell>
+                      <span className="font-mono text-[12.5px]">{d.domain}</span>
+                      {d.is_primary && (
+                        <span className="ml-2 text-[11px] text-brand">default</span>
+                      )}
+                      {/* The actual diagnosis, which is what an operator is
+                          being asked for when a customer calls. */}
+                      {d.status !== 'verified' && d.last_check_error && (
+                        <span className="block text-[11.5px] text-muted-foreground">
+                          {d.last_check_error}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {d.status === 'verified' ? (
+                        <span className="flex items-center gap-1 text-[12.5px] text-success">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          live
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[12.5px] text-warning">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          {d.status}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-right text-[12.5px]">
+                      {d.last_seen_at ? (
+                        formatDateTime(d.last_seen_at)
+                      ) : (
+                        /* Never seen means no traffic ever arrived for this
+                           host — almost always the DNS record, not us. */
+                        <span className="text-subtle-foreground">never</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Section>
+
       <Section title="Members">
         {tenant.members.length === 0 ? (
           <div className="px-4 py-10 text-center text-[12.5px] text-muted-foreground">

@@ -43,12 +43,20 @@ export interface LandingPage {
   // Form
   form?: string | null;
   form_name?: string | null;
+  // Connected domain. Null means the organization's primary domain, so
+  // connecting one moves every unpinned page at once.
+  domain?: string | null;
+  domain_name?: string | null;
+  is_domain_home?: boolean;
   // Analytics
   view_count: number;
   conversion_count: number;
   conversion_rate: number;
   // Metadata
+  /** Where to send people: the connected domain once verified, else the platform. */
   public_url?: string;
+  /** The platform address, which always works. Shown as the fallback. */
+  platform_url?: string;
   published_at?: string;
   created_by?: string;
   created_by_name?: string;
@@ -78,6 +86,9 @@ export interface UpdateLandingPageData {
   custom_head_code?: string;
   custom_body_code?: string;
   form_id?: string | null;
+  /** Null pins nothing, so the page follows the organization's primary domain. */
+  domain?: string | null;
+  is_domain_home?: boolean;
 }
 
 export interface SaveDesignData {
@@ -147,4 +158,22 @@ export interface SaveAsTemplateData {
   name: string;
   description?: string;
   category: TemplateCategory;
+}
+
+/** A hostname an organization has connected for serving its landing pages. */
+export interface LandingDomain {
+  id: string;
+  domain: string;
+  status: 'pending' | 'verified' | 'failed';
+  is_verified: boolean;
+  is_primary: boolean;
+  dns_record: { type: string; host: string; value: string };
+  verification_url: string;
+  verified_at: string | null;
+  last_check_at: string | null;
+  last_check_error: string;
+  /** Set when a request actually arrived for this host. */
+  last_seen_at: string | null;
+  page_count: number;
+  created_at: string;
 }

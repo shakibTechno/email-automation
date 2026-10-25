@@ -11,7 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClipboardList } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForms } from '@/hooks/useForms';
+import { useLandingDomains } from '@/hooks/useLandingDomains';
 import type { LandingPage, UpdateLandingPageData } from '@/types/landing-page';
 
 interface SettingsPanelProps {
@@ -30,6 +32,14 @@ export const SettingsPanel = ({
   isSaving,
 }: SettingsPanelProps) => {
   const { forms } = useForms({ status: 'active' });
+  const { domains } = useLandingDomains(open);
+  // Only verified domains are offered: an unverified one serves nothing, so
+  // pinning a page to it would take the page's address offline.
+  const liveDomains = domains.filter((d) => d.is_verified);
+  const primaryDomain = liveDomains.find((d) => d.is_primary);
+  const pinnedDomain = liveDomains.find((d) => d.id === landingPage.domain);
+  const servingDomain = pinnedDomain ?? (landingPage.domain ? undefined : primaryDomain);
+  const servingBase = servingDomain ? `${servingDomain.domain}/` : '/p/';
 
   // The builder stamps each embed it inserts with `data-form-id`, so the saved
   // markup is the source of truth for what this page actually captures to.
@@ -54,6 +64,8 @@ export const SettingsPanel = ({
     facebook_pixel_id: landingPage.facebook_pixel_id || '',
     custom_head_code: landingPage.custom_head_code || '',
     custom_body_code: landingPage.custom_body_code || '',
+    domain: landingPage.domain ?? null,
+    is_domain_home: landingPage.is_domain_home ?? false,
   });
 
   useEffect(() => {
@@ -67,6 +79,8 @@ export const SettingsPanel = ({
       facebook_pixel_id: landingPage.facebook_pixel_id || '',
       custom_head_code: landingPage.custom_head_code || '',
       custom_body_code: landingPage.custom_body_code || '',
+      domain: landingPage.domain ?? null,
+      is_domain_home: landingPage.is_domain_home ?? false,
       });
   }, [landingPage]);
 
@@ -105,7 +119,12 @@ export const SettingsPanel = ({
             <div className="space-y-2">
               <Label htmlFor="slug">URL Slug</Label>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">/p/</span>
+                {/* Shows the real prefix, which depends on where this page is
+                    actually served from. It used to read "/p/" always, which
+                    was wrong for a page on a connected domain. */}
+                <span className="shrink-0 text-sm text-muted-foreground">
+                  {servingBase}
+                </span>
                 <Input
                   id="slug"
                   value={formData.slug || ''}
@@ -118,6 +137,42 @@ export const SettingsPanel = ({
                 The URL path for your landing page
               </p>
             </div>
+
+            {liveDomains.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="page-domain">Served from</Label>
+                <Select
+                  value={formData.domain ?? 'primary'}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      domain: value === 'primary' ? null : value,
+                    })
+                  }
+                >
+                  <SelectTrigger id="page-domain">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* Default rather than a fixed choice, so connecting or
+                        changing the primary domain moves this page too. */}
+                    <SelectItem value="primary">
+                      {primaryDomain
+                        ? `Default (${primaryDomain.domain})`
+                        : 'Default domain'}
+                    </SelectItem>
+                    {liveDomains.map((domain) => (
+                      <SelectItem key={domain.id} value={domain.id}>
+                        {domain.domain}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Manage domains in Settings &rarr; Domains.
+                </p>
+              </div>
+            )}
 
             {/* This used to be a form picker that wrote `form_id` to the page
                 and was never read when rendering it — the published page only

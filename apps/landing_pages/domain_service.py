@@ -1,0 +1,169 @@
+"""
+Connecting, verifying and retiring a customer's landing-page domain.
+"""
+import logging
+import secrets
+
+import requests
+from django.db import transaction
+from django.utils import timezone
+
+from .domains import forget_domain, normalize_domain, reserved_domain_error
+from .models import LandingDomain
+
+logger = logging.getLogger(__name__)
+
+# Short on purpose: this runs inside a request when the customer presses
+# "Check now", and a domain that is not pointed here will simply hang.
+VERIFY_TIMEOUT_SECONDS = 8
+
+
+class DomainError(Exception):
+    """A refusal with a message meant for the customer."""
+
+
+class LandingDomainService:
+    """
+    Verification is a single HTTPS fetch of the domain's own token, not a DNS
+    query. If `https://<their domain>/.well-known/...` round-trips back to us
+    with the right token, then their DNS points here, Caddy obtained a
+    certificate, and a visitor's browser will succeed — which is the thing we
+    actually need to know. A resolver answering with the right CNAME proves
+    none of that.
+    """
+
+    @staticmethod
+    def connect(organization, domain):
+        """Attach a domain to an organization, or explain why not."""
+        domain = normalize_domain(domain)
+
+        error = reserved_domain_error(domain)
+        if error:
+            raise DomainError(error)
+
+        existing = LandingDomain.objects.filter(domain=domain).first()
+        if existing is not None:
+            if existing.organization_id == organization.id:
+                raise DomainError('That domain is already connected.')
+            # Deliberately not "another organization has it": a tenant must not
+            # be able to probe which domains other customers use.
+            raise DomainError('That domain is not available.')
+
+        row = LandingDomain.objects.create(organization=organization, domain=domain)
+        forget_domain(domain)
+        logger.info("Connected landing domain %s to org %s", domain, organization.id)
+        return row
+
+    @staticmethod
+    @transaction.atomic
+    def set_primary(landing_domain):
+        """
+        Make this the organization's default domain.
+
+        `is_primary` is cleared on the others in the same transaction, because
+        two primaries would make `LandingPage.serving_domain` depend on row
+        order — a page's public address silently deciding itself.
+        """
+        LandingDomain.objects.filter(
+            organization_id=landing_domain.organization_id,
+        ).exclude(pk=landing_domain.pk).update(is_primary=False)
+        LandingDomain.objects.filter(pk=landing_domain.pk).update(is_primary=True)
+        landing_domain.refresh_from_db()
+        forget_domain(landing_domain.domain)
+        return landing_domain
+
+    @staticmethod
+    def verify(landing_domain):
+        """
+        Fetch the domain's token over its own hostname and record the verdict.
+
+        Never raises: this is called from a request handler and from a periodic
+        task, and a network failure is a result ("not yet") rather than an
+        error.
+        """
+        now = timezone.now()
+        url = landing_domain.verification_url
+        error = ''
+
+        try:
+            response = requests.get(
+                url,
+                timeout=VERIFY_TIMEOUT_SECONDS,
+                # A redirect would mean the hostname is served by something
+                # other than us; following one could make someone else's 200
+                # look like ours.
+                allow_redirects=False,
+                headers={'User-Agent': 'MailFlow-Domain-Verification/1.0'},
+            )
+        except requests.exceptions.SSLError:
+            error = (
+                'The domain resolved but the HTTPS certificate is not ready yet. '
+                'This usually clears within a minute of the DNS record going live.'
+            )
+        except requests.exceptions.ConnectionError:
+            error = (
+                'Could not reach the domain. Check that the CNAME record has been '
+                'published and has had time to propagate.'
+            )
+        except requests.exceptions.Timeout:
+            error = 'The domain did not respond in time.'
+        except requests.RequestException as exc:  # pragma: no cover - defensive
+            error = f'Could not verify the domain: {exc.__class__.__name__}.'
+        else:
+            if response.status_code != 200:
+                error = (
+                    'The domain is reachable but did not return the verification '
+                    f'token (HTTP {response.status_code}). It may be pointing at '
+                    'another service.'
+                )
+            elif not secrets.compare_digest(
+                response.text.strip(), landing_domain.verification_token
+            ):
+                error = (
+                    'The domain is reachable but another service answered for it. '
+                    'Check that the CNAME record points at the value shown here.'
+                )
+
+        verified = not error
+        LandingDomain.objects.filter(pk=landing_domain.pk).update(
+            status=(
+                LandingDomain.STATUS_VERIFIED if verified else LandingDomain.STATUS_FAILED
+            ),
+            # Kept from a previous success: a domain that verified once and is
+            # momentarily unreachable has not become unverified.
+            verified_at=now if verified else landing_domain.verified_at,
+            last_check_at=now,
+            last_check_error=error,
+        )
+        landing_domain.refresh_from_db()
+        forget_domain(landing_domain.domain)
+
+        logger.info(
+            "Verification for %s: %s", landing_domain.domain,
+            'ok' if verified else error,
+        )
+        return landing_domain
+
+    @staticmethod
+    @transaction.atomic
+    def disconnect(landing_domain):
+        """
+        Remove a domain, promoting another to primary if this was it.
+
+        Pages pinned to it fall back to the organization's primary through
+        `on_delete=SET_NULL`, so removing a domain never takes a page offline
+        beyond the address itself.
+        """
+        organization_id = landing_domain.organization_id
+        was_primary = landing_domain.is_primary
+        domain = landing_domain.domain
+
+        landing_domain.delete()
+        forget_domain(domain)
+
+        if was_primary:
+            replacement = LandingDomain.objects.filter(
+                organization_id=organization_id
+            ).order_by('-status', 'created_at').first()
+            if replacement is not None:
+                LandingDomainService.set_primary(replacement)

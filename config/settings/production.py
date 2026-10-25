@@ -5,6 +5,18 @@ from .base import *
 
 DEBUG = False
 
+# ALLOWED_HOSTS is ['*'] from base.py, not an oversight: customers connect
+# their own domains for landing pages, so the set of valid hostnames lives in
+# the database and changes without a deploy, which ALLOWED_HOSTS cannot
+# express. LandingHostMiddleware runs first and refuses any host that is
+# neither in PLATFORM_HOSTS nor a connected landing domain.
+#
+# That is only safe because the middleware is stricter than what it replaces:
+# it also pins which URLs each host may serve. If it is ever removed, or
+# reordered out of first place in MIDDLEWARE, this becomes a host-header
+# vulnerability — apps/landing_pages/tests/test_custom_domains.py exists to
+# catch that, and PLATFORM_HOSTS is what to set per deployment.
+
 # Security Settings
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True

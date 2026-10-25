@@ -35,7 +35,35 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+# Hostnames that serve the application itself. Everything else that reaches us
+# must be a connected landing domain, which `LandingHostMiddleware` resolves per
+# request; it cannot be enumerated here because customers add domains at will.
+#
+# `backend` is the Docker-network name Caddy uses for its on-demand TLS
+# callback. Without it that callback is rejected as an unknown host and no
+# customer domain ever gets a certificate.
+# Defaults to the ALLOWED_HOSTS environment variable, which every existing
+# deployment already sets — so this needs no new configuration and no
+# deployment ends up with an empty platform list.
+_DEFAULT_PLATFORM_HOSTS = ['localhost', '127.0.0.1', 'testserver', 'backend']
+PLATFORM_HOSTS = sorted(
+    set(env.list('PLATFORM_HOSTS', default=[]) or env.list('ALLOWED_HOSTS', default=[]))
+    | set(_DEFAULT_PLATFORM_HOSTS)
+)
+
+# Deliberately permissive, in every environment, because the host check moved
+# to LandingHostMiddleware — see that class for why, and the warning in
+# config/settings/production.py for what depends on it.
+#
+# Pinning this to the platform hosts instead does not fail safe, it fails
+# confusingly: the middleware resolves a customer's domain correctly and then
+# Django rejects the very same request downstream with DisallowedHost. Found
+# exactly that way, by curl, against a connected domain that should have
+# worked.
+ALLOWED_HOSTS = ['*']
+
+# The CNAME value a customer publishes to point their domain at this platform.
+LANDING_DOMAIN_CNAME_TARGET = env('LANDING_DOMAIN_CNAME_TARGET', default='')
 
 
 # Application definition
@@ -80,6 +108,11 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # First on purpose. It decides whether a Host belongs to the platform or to
+    # a customer's connected landing domain, swaps in the landing-only URLconf
+    # for the latter, and refuses anything else — so it has to run before
+    # anything reads the host or resolves a URL.
+    'apps.landing_pages.middleware.LandingHostMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -467,6 +500,12 @@ CELERY_BEAT_SCHEDULE = {
     'sync-postal-tenants': {
         'task': 'apps.email_config.tasks.sync_postal_tenants',
         'schedule': crontab(minute=5),  # Hourly, just after the hour
+    },
+    # Customers publish a DNS record and walk away; this is what notices when
+    # it goes live without them coming back to press a button.
+    'recheck-pending-landing-domains': {
+        'task': 'apps.landing_pages.tasks.recheck_pending_domains',
+        'schedule': crontab(minute='*/10'),
     },
 }
 

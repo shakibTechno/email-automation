@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Building2, Activity, TrendingUp, Mail, Sparkles } from 'lucide-react';
+import { Users, Building2, Activity, TrendingUp, Mail, Sparkles, Globe } from 'lucide-react';
 import { TeamTab } from './TeamTab';
 import { OrganizationTab } from './OrganizationTab';
 import { ActivityTab } from './ActivityTab';
 import { LeadScoringTab } from './LeadScoringTab';
-import { EmailTab } from './EmailTab';
+import { EmailTab } from './EmailTab';
+import { DomainsTab } from './DomainsTab';
 import { AITab } from './AITab';
 import { usePermissions } from '@/hooks/usePermissions';
 
 export function SettingsPage() {
-  const { canManageTeam, isProfessionalOrAbove } = usePermissions();
+  const { canManageTeam, isProfessionalOrAbove, planAtLeast } = usePermissions();
+  // Mirrors CUSTOM_DOMAIN_MIN_PLAN on the server. The API refuses lower
+  // tiers regardless; hiding the tab just avoids offering what it will deny.
+  const canUseCustomDomains = planAtLeast('starter');
   const [activeTab, setActiveTab] = useState('team');
 
   return (
@@ -48,6 +52,12 @@ export function SettingsPage() {
             <Mail className="h-4 w-4" />
             Email
           </TabsTrigger>
+          {canUseCustomDomains && (
+            <TabsTrigger value="domains" className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              Domains
+            </TabsTrigger>
+          )}
           <TabsTrigger value="ai" className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
             AI
@@ -73,6 +83,11 @@ export function SettingsPage() {
         <TabsContent value="email" className="mt-6">
           <EmailTab />
         </TabsContent>
+        {canUseCustomDomains && (
+          <TabsContent value="domains" className="mt-6">
+            <DomainsTab />
+          </TabsContent>
+        )}
         <TabsContent value="ai" className="mt-6">
           <AITab />
         </TabsContent>

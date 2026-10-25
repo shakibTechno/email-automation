@@ -21,6 +21,9 @@ export interface TenantRow {
   queued: number;
   held: number;
   mail_status: string | null;
+  /** Landing-page domains, split so "connected but not working" is visible. */
+  landing_domains: number;
+  landing_domains_unverified: number;
   created_at: string;
 }
 
@@ -48,6 +51,15 @@ export interface TenantDetail extends TenantRow {
     status: string;
     sending_enabled: boolean;
     verified_at: string | null;
+  }>;
+  /** Not the same as `domains` above, which are sending domains. */
+  landing_domains_detail: Array<{
+    domain: string;
+    status: string;
+    is_primary: boolean;
+    last_check_error: string;
+    verified_at: string | null;
+    last_seen_at: string | null;
   }>;
   billing: {
     plan: PlanType;
