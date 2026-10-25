@@ -23,6 +23,16 @@ x-django-env: &django-env
   # password has to arrive this way, substituted from the untracked .env.
   DATABASE_URL: postgres://${POSTGRES_USER:-email_automation}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-email_automation}
 
+  # These are all set in .env.docker too, and env_file entries apply in order,
+  # so the development values there would otherwise win over .env and Django
+  # would answer every proxied request with "Invalid HTTP_HOST header".
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
+  BASE_URL: ${BASE_URL}
+  FRONTEND_URL: ${FRONTEND_URL}
+  BACKEND_URL: ${BACKEND_URL}
+
 services:
   backend:
     environment:
