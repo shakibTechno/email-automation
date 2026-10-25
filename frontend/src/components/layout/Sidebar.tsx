@@ -16,8 +16,6 @@ import {
   CreditCard,
   Puzzle,
   ListOrdered,
-  Sparkles,
-  ArrowRight,
   ChevronDown,
   ShieldAlert,
 } from 'lucide-react';
@@ -169,25 +167,6 @@ export const Sidebar = ({ collapsed, open, onNavigate }: SidebarProps) => {
             <ShieldAlert className="h-4 w-4 flex-none text-warning" />
             {!collapsed && <span className="truncate">Platform console</span>}
           </Link>
-        )}
-
-        {!collapsed && (
-          <div className="rounded-[var(--radius)] border bg-secondary/60 p-3.5 text-center [background-image:radial-gradient(130%_90%_at_50%_0%,hsl(var(--brand-dim)/.20),transparent_62%)]">
-            <span className="mx-auto mb-2 grid h-7 w-7 place-items-center rounded-lg bg-brand-fill text-brand-ink">
-              <Sparkles className="h-3.5 w-3.5" />
-            </span>
-            <h4 className="mb-1 text-[13px] font-bold tracking-tight">Upgrade to Business</h4>
-            <p className="mb-2.5 text-[11px] leading-snug text-muted-foreground">
-              Unlimited automations and dedicated IP warm-up.
-            </p>
-            <Link
-              to="/billing"
-              onClick={onNavigate}
-              className="flex items-center justify-center gap-1.5 rounded-md bg-brand-fill px-3 py-1.5 text-[11.5px] font-bold text-brand-ink hover:brightness-105"
-            >
-              Compare plans <ArrowRight className="h-3 w-3 flex-none" />
-            </Link>
-          </div>
         )}
 
         <Link
