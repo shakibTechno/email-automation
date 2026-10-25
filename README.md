@@ -31,7 +31,7 @@ than a third-party ESP.
 ## Stack
 
 **Backend** — Django 5, Django REST Framework, SimpleJWT, Celery + Redis,
-drf-spectacular. SQLite by default; PostgreSQL supported.
+drf-spectacular, PostgreSQL 17.
 
 **Frontend** — React 18, TypeScript, Vite, TanStack Query, Zustand, Tailwind CSS,
 shadcn/ui, Recharts.
@@ -79,7 +79,14 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 ## Running tests
 
 ```bash
+# Fast: in-memory SQLite, schema built from models
 docker compose exec backend python manage.py test --settings=config.settings.test
+
+# Thorough: real PostgreSQL with full migration replay — run this before
+# releasing. SQLite is the more permissive engine, so a suite that only runs
+# there cannot tell you the code works on the database production uses.
+docker compose exec -e TEST_WITH_POSTGRES=1 backend \
+  python manage.py test --settings=config.settings.test
 ```
 
 Frontend type-checking and linting:
@@ -138,13 +145,13 @@ docker/         Container entrypoints and supporting config
 
 ## Status
 
-Under active development. Two things to know before running it in production:
+Under active development. One thing to know before running it in production:
 
-- **The default database is SQLite**, which allows a single writer at a time.
-  Django, the Celery worker and beat all write concurrently, so switch to
-  PostgreSQL before real sending volume.
 - **Provider credentials are stored unencrypted** at the database level and masked
   only at the API boundary. Encryption at rest is not yet implemented.
+
+Change the default `POSTGRES_PASSWORD` in `.env.docker` before deploying
+anywhere the database port is reachable.
 
 The self-hosted mail server stack is maintained separately and is not part of this
 repository.

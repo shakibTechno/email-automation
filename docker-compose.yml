@@ -6,8 +6,13 @@
 #   docker compose -f docker-compose.yml up --build
 #                                      -> prod-like (gunicorn + nginx, no mounts)
 #
-# Database is SQLite on the `sqlite_data` named volume, shared by the backend,
-# worker and beat containers.
+# Database is PostgreSQL. SQLite is still supported for a quick throwaway run
+# by pointing DATABASE_URL at a file, but it allows only one writer at a time
+# and the backend, worker and beat all write concurrently, so it is not a
+# sensible default once anything is actually sending.
+#
+# The `app_data` volume holds runtime state that is not the database: the
+# Celery beat schedule, and a SQLite file if you opt back into it.
 # ---------------------------------------------------------------------------
 
 x-backend-base: &backend-base
@@ -19,16 +24,47 @@ x-backend-base: &backend-base
     - .env
     - .env.docker
   volumes:
-    - sqlite_data:/app/data
+    - app_data:/app/data
     - media_data:/app/media
     - static_data:/app/staticfiles
     - logs_data:/app/logs
   depends_on:
     redis:
       condition: service_healthy
+    postgres:
+      condition: service_healthy
   restart: unless-stopped
 
 services:
+  # --- PostgreSQL ----------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-email_automation}
+      POSTGRES_USER: ${POSTGRES_USER:-email_automation}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-email_automation}
+      # Postgres rebuilds its collation indexes if the locale changes between
+      # image versions; pinning it keeps upgrades uneventful.
+      LANG: C
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Not published by default: only the backend, worker and beat need it.
+    # Uncomment to inspect it with a local client such as psql or TablePlus.
+    # ports:
+    #   - "${POSTGRES_PORT:-5432}:5432"
+    expose:
+      - "5432"
+    healthcheck:
+      # -U matters: without it pg_isready checks the "root" role, which does
+      # not exist, and reports the server unhealthy while it is perfectly fine.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-email_automation} -d ${POSTGRES_DB:-email_automation}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
   # --- Redis: cache (db 0) + Celery broker/result backend (db 1) ------------
   redis:
     image: redis:7-alpine
@@ -54,11 +90,12 @@ services:
       # Only this container owns the schema; worker and beat wait for it.
       RUN_MIGRATIONS: "1"
     volumes:
-      - sqlite_data:/app/data
+      - app_data:/app/data
       - media_data:/app/media
       - static_data:/app/staticfiles
       - logs_data:/app/logs
-      # First boot only: carries the existing local db.sqlite3 into the volume.
+      # Only used when DATABASE_URL points at SQLite: carries an existing local
+      # db.sqlite3 into the volume on first boot. Ignored under postgres.
       - ./db.sqlite3:/app/seed/db.sqlite3:ro
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -75,6 +112,8 @@ services:
     command: ["celery", "-A", "config", "worker", "--loglevel=info", "--concurrency=4"]
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       backend:
         condition: service_healthy
@@ -98,6 +137,8 @@ services:
       - --pidfile=
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       backend:
         condition: service_healthy
@@ -124,7 +165,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  sqlite_data:
+  postgres_data:
+  app_data:
   media_data:
   static_data:
   logs_data:
