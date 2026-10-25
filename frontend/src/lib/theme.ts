@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 export type Theme = 'light' | 'dark';
 
-const STORAGE_KEY = 'cadence-theme';
+const STORAGE_KEY = 'mailflow-theme';
 
 /**
  * Light is the product default, so it is the absence of the `dark` class.

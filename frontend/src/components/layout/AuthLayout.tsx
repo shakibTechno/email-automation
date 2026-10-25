@@ -17,7 +17,7 @@ export const AuthLayout = ({ children, title, description }: AuthLayoutProps) =>
         <div className="mb-5 flex justify-center">
           <img
             src={logoUrl}
-            alt="Cadence"
+            alt="MailFlow"
             width={44}
             height={44}
             className="h-11 w-11 object-contain"

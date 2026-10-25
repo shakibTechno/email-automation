@@ -46,11 +46,11 @@ export const Header = ({ collapsed, onToggleCollapsed, onToggleDrawer }: HeaderP
           'flex flex-none items-center justify-center transition-[width] duration-200',
           collapsed ? 'lg:w-[52px]' : 'lg:w-[222px] lg:justify-start'
         )}
-        aria-label="Cadence home"
+        aria-label="MailFlow home"
       >
         <img
           src={logoUrl}
-          alt="Cadence"
+          alt="MailFlow"
           width={32}
           height={32}
           className="h-8 w-8 flex-none object-contain"

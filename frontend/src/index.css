@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ============================================================================
-   Cadence design tokens.
+   MailFlow design tokens.
 
    Light is the default; `.dark` on <html> is the opt-in override.
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-const STORAGE_KEY = 'cadence-sidebar-collapsed';
+const STORAGE_KEY = 'mailflow-sidebar-collapsed';
 
 /**
  * Two independent pieces of state, because the rail behaves differently at
