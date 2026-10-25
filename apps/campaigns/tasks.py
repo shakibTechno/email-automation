@@ -10,6 +10,27 @@ logger = logging.getLogger(__name__)
 BATCH_SIZE = 50
 
 
+def _mark_sent(recipient, msg):
+    """
+    Record a successful send on a recipient.
+
+    Captures the provider's per-recipient ids when the backend supplies them.
+    Postal does not echo custom headers, so postal_id/postal_token are the only
+    link a later delivery or bounce webhook has back to this row.
+    """
+    recipient.status = 'sent'
+    recipient.sent_at = timezone.now()
+    update_fields = ['status', 'sent_at', 'updated_at']
+
+    postal_status = getattr(msg, 'postal_status', None)
+    if postal_status:
+        recipient.postal_id = postal_status.get('postal_id')
+        recipient.postal_token = postal_status.get('token') or ''
+        update_fields += ['postal_id', 'postal_token']
+
+    recipient.save(update_fields=update_fields)
+
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_campaign_emails(self, campaign_id: str):
     """
@@ -123,10 +144,7 @@ def send_campaign_email_batch(self, campaign_id: str, recipient_ids: list):
                 pass
 
             msg.send(fail_silently=False)
-
-            recipient.status = 'sent'
-            recipient.sent_at = timezone.now()
-            recipient.save(update_fields=['status', 'sent_at', 'updated_at'])
+            _mark_sent(recipient, msg)
             logger.info(f"Email sent to {recipient.email} for campaign {campaign_id}")
 
         except Exception as exc:
@@ -273,6 +291,7 @@ def send_ab_variant_emails(self, campaign_id: str, variant: str):
 def send_ab_variant_batch(self, campaign_id: str, recipient_ids: list, variant: str):
     """Send one email per recipient for an A/B variant batch."""
     from django.core.mail import EmailMessage
+    from apps.email_config.services import EmailConfigService
     from .models import Campaign, CampaignRecipient
     from .services import ABTestService, EmailTrackingService
 
@@ -283,8 +302,28 @@ def send_ab_variant_batch(self, campaign_id: str, recipient_ids: list, variant: 
 
     ab_test = campaign.ab_test
     config = ABTestService.get_variant_config(campaign, ab_test, variant)
+
+    # The same rate-limit gate the non-A/B path applies. Without it an A/B
+    # campaign could send straight past the organization's limits and past a
+    # guardrail pause.
+    allowed, reason = EmailConfigService.check_sending_limits(campaign.organization)
+    if not allowed:
+        logger.warning(f"AB batch for campaign {campaign_id} blocked: {reason}")
+        return
+
+    # Fall back to the organization's configured sender rather than None: a
+    # message with no From address is rejected outright by the Postal API.
     sender = config['sender_name']
-    from_email = f"{sender} <{campaign.sender_email}>" if sender and campaign.sender_email else None
+    if sender and campaign.sender_email:
+        from_email = f"{sender} <{campaign.sender_email}>"
+    else:
+        cfg_name, cfg_email = EmailConfigService.get_default_from(campaign.organization)
+        from_email = f"{sender or cfg_name} <{cfg_email}>"
+
+    # Use the organization's own backend. Previously this fell through to the
+    # global EMAIL_BACKEND, so A/B mail went out through the platform's
+    # provider while every other campaign used the organization's.
+    connection = EmailConfigService.get_connection(campaign.organization)
 
     recipients = CampaignRecipient.objects.select_related('contact').filter(
         id__in=recipient_ids, ab_variant=variant, status='pending'
@@ -308,16 +347,12 @@ def send_ab_variant_batch(self, campaign_id: str, recipient_ids: list, variant: 
                     'X-Recipient-ID': str(recipient.id),
                     'X-AB-Variant': variant.upper(),
                 },
+                connection=connection,
             )
             msg.content_subtype = 'html'
-            try:
-                msg.esp_extra = {'metadata': {'recipient_id': str(recipient.id)}}
-            except Exception:
-                pass
+            msg.esp_extra = {'metadata': {'recipient_id': str(recipient.id)}}
             msg.send(fail_silently=False)
-            recipient.status = 'sent'
-            recipient.sent_at = timezone.now()
-            recipient.save(update_fields=['status', 'sent_at', 'updated_at'])
+            _mark_sent(recipient, msg)
         except Exception as exc:
             logger.error(f"AB batch: failed {recipient.email}: {exc}")
             recipient.status = 'failed'
@@ -393,6 +428,7 @@ def send_ab_winner_to_remainder(self, ab_test_id: str):
 def send_ab_winner_batch(self, ab_test_id: str, recipient_ids: list):
     """Send winner emails to one batch of remainder recipients."""
     from django.core.mail import EmailMessage
+    from apps.email_config.services import EmailConfigService
     from .models import ABTest, CampaignRecipient
     from .services import ABTestService, EmailTrackingService
 
@@ -403,8 +439,22 @@ def send_ab_winner_batch(self, ab_test_id: str, recipient_ids: list):
 
     campaign = ab_test.campaign
     config = ABTestService.get_variant_config(campaign, ab_test, ab_test.winner_variant)
+
+    allowed, reason = EmailConfigService.check_sending_limits(campaign.organization)
+    if not allowed:
+        logger.warning(f"AB winner batch for campaign {campaign.id} blocked: {reason}")
+        return
+
     sender = config['sender_name']
-    from_email = f"{sender} <{campaign.sender_email}>" if sender and campaign.sender_email else None
+    if sender and campaign.sender_email:
+        from_email = f"{sender} <{campaign.sender_email}>"
+    else:
+        cfg_name, cfg_email = EmailConfigService.get_default_from(campaign.organization)
+        from_email = f"{sender or cfg_name} <{cfg_email}>"
+
+    # As in send_ab_variant_batch: use the organization's own backend rather
+    # than falling through to the global EMAIL_BACKEND.
+    connection = EmailConfigService.get_connection(campaign.organization)
 
     recipients = CampaignRecipient.objects.select_related('contact').filter(
         id__in=recipient_ids, ab_variant='winner', status='pending'
@@ -428,16 +478,12 @@ def send_ab_winner_batch(self, ab_test_id: str, recipient_ids: list):
                     'X-Recipient-ID': str(recipient.id),
                     'X-AB-Variant': f"Winner ({ab_test.winner_variant.upper()})",
                 },
+                connection=connection,
             )
             msg.content_subtype = 'html'
-            try:
-                msg.esp_extra = {'metadata': {'recipient_id': str(recipient.id)}}
-            except Exception:
-                pass
+            msg.esp_extra = {'metadata': {'recipient_id': str(recipient.id)}}
             msg.send(fail_silently=False)
-            recipient.status = 'sent'
-            recipient.sent_at = timezone.now()
-            recipient.save(update_fields=['status', 'sent_at', 'updated_at'])
+            _mark_sent(recipient, msg)
         except Exception as exc:
             logger.error(f"AB winner batch: failed {recipient.email}: {exc}")
             recipient.status = 'failed'

@@ -7,10 +7,20 @@
 # Source is bind-mounted, so edits on the host take effect without a rebuild.
 # The frontend runs the Vite dev server on :5173 and talks straight to the
 # published backend port (dev settings set CORS_ALLOW_ALL_ORIGINS).
+#
+# Because this overlay moves the frontend off :3000, it also has to tell the
+# backend where the frontend now lives: FRONTEND_URL is what the server builds
+# public form URLs from, both for the "Embed & Share" snippet and for the form
+# iframes it renders into a published landing page. Left at the base stack's
+# :3000, those iframes point at a port nothing is listening on and the form
+# silently renders blank on the live page while still working in the builder,
+# where the URL resolves relative to the Vite origin.
 # ---------------------------------------------------------------------------
 
 services:
   backend:
+    environment:
+      FRONTEND_URL: http://localhost:5173
     command:
       - python
       - manage.py
@@ -27,6 +37,8 @@ services:
       - ./db.sqlite3:/app/seed/db.sqlite3:ro
 
   worker:
+    environment:
+      FRONTEND_URL: http://localhost:5173
     # --pool=solo keeps tracebacks readable and avoids prefork restarts on edit.
     command: ["celery", "-A", "config", "worker", "--loglevel=info", "--pool=solo"]
     entrypoint: ["bash", "/app/docker/entrypoint.sh"]
@@ -38,6 +50,8 @@ services:
       - logs_data:/app/logs
 
   beat:
+    environment:
+      FRONTEND_URL: http://localhost:5173
     entrypoint: ["bash", "/app/docker/entrypoint.sh"]
     volumes:
       - .:/app

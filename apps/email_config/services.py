@@ -2,16 +2,11 @@
 Services for per-organization email configuration.
 """
 import logging
-import secrets
-import socket
 from django.utils import timezone
 from django.core.mail import get_connection, EmailMessage
 from django.conf import settings as django_settings
 
 logger = logging.getLogger(__name__)
-
-# 2048-bit RSA-like placeholder selector name for DKIM guidance
-DKIM_SELECTOR = 'em'
 
 
 class EmailConfigService:
@@ -25,19 +20,68 @@ class EmailConfigService:
         return config
 
     @staticmethod
+    def get_postal_connection(organization):
+        """
+        Return a Postal backend for this organization, or None.
+
+        None means Postal cannot be used right now — it is not enabled, the
+        organization has no tenant, or the tenant has no sending-enabled domain.
+        Postal rejects any From address whose domain it has not verified
+        (UnauthenticatedFromAddress), so sending anyway would fail hard rather
+        than degrade. The caller falls back to SMTP.
+        """
+        if not django_settings.POSTAL_ENABLED or not django_settings.POSTAL_URL:
+            return None
+
+        from .backends import PostalEmailBackend
+        from .provisioning import PostalProvisioningService
+
+        tenant = PostalProvisioningService.get_tenant(organization)
+        if not tenant or not tenant.can_send:
+            return None
+
+        return PostalEmailBackend(api_key=tenant.api_key, fail_silently=False)
+
+    @staticmethod
     def get_connection(organization):
         """
         Return an open Django email backend connection for this organization.
-        Falls back to the platform default if provider is 'platform_default' or config is missing.
+
+        Resolution order:
+          * 'postal'           — the platform mail server, explicitly chosen
+          * 'platform_default' — Postal when the org has a usable tenant,
+                                 otherwise the platform's shared SMTP
+          * everything else    — the organization's own provider credentials
         """
         from .models import EmailConfiguration
 
         try:
             config = EmailConfiguration.objects.get(organization=organization)
         except EmailConfiguration.DoesNotExist:
-            return get_connection()
+            return (
+                EmailConfigService.get_postal_connection(organization)
+                or get_connection()
+            )
 
         provider = config.provider
+
+        if provider == 'postal':
+            postal = EmailConfigService.get_postal_connection(organization)
+            if postal:
+                return postal
+            # Explicitly configured for Postal but not usable yet. Fall through
+            # to the platform default so transactional mail still goes out.
+            logger.warning(
+                'Org %s is set to Postal but has no sending-enabled domain; '
+                'falling back to the platform default.', organization.id
+            )
+            return get_connection()
+
+        if provider == 'platform_default':
+            return (
+                EmailConfigService.get_postal_connection(organization)
+                or get_connection()
+            )
 
         if provider == 'smtp' and config.smtp_host:
             return get_connection(
@@ -159,70 +203,21 @@ class EmailConfigService:
             return False, str(exc)
 
     @staticmethod
-    def generate_dns_records(domain):
-        """
-        Generate SPF and DKIM guidance records for a domain.
-        In production these would be real DKIM keys; here we provide guidance.
-        """
-        spf = f'v=spf1 include:_spf.{django_settings.BASE_URL.replace("http://", "").replace("https://", "").split(":")[0]} ~all'
-        selector = DKIM_SELECTOR
-        dkim_record_name = f'{selector}._domainkey.{domain}'
-        # Placeholder — real DKIM needs RSA key generation (e.g. with cryptography lib)
-        dkim_record_value = (
-            f'v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQ'
-            f'KBgQC... (generate via openssl or your ESP dashboard)'
-        )
-        return {
-            'spf_record': spf,
-            'dkim_selector': selector,
-            'dkim_record_name': dkim_record_name,
-            'dkim_record_value': dkim_record_value,
-        }
-
-    @staticmethod
     def verify_domain(sending_domain):
         """
-        Check SPF TXT record existence for the domain via DNS.
-        Updates sending_domain.status in place and saves.
-        Returns (verified: bool, message: str).
+        Run the authoritative DNS check for a sending domain.
+
+        Delegates to the provisioning API, which queries the domain's own
+        nameservers and enables sending only when SPF, DKIM, return-path and
+        DMARC all pass.
+
+        This replaced a local check that resolved TXT records with dnspython and
+        treated "no records found" as success — and since dnspython was never a
+        dependency, that meant every domain was marked verified without a single
+        lookup. Domain ownership is now proven against DNS, not assumed.
         """
-        from .models import SendingDomain
-        domain = sending_domain.domain
-        sending_domain.last_check_at = timezone.now()
-
-        try:
-            # Try to resolve TXT records using socket (no external deps required)
-            try:
-                import dns.resolver
-                answers = dns.resolver.resolve(domain, 'TXT')
-                txt_records = [r.to_text() for r in answers]
-            except ImportError:
-                # Fallback: use socket getaddrinfo which doesn't resolve TXT
-                # In production install dnspython; here we simulate a pass
-                txt_records = []
-
-            spf_found = any('v=spf1' in r for r in txt_records)
-
-            if spf_found or not txt_records:
-                # If dnspython not available or SPF found, mark verified
-                sending_domain.status = SendingDomain.STATUS_VERIFIED
-                sending_domain.verified_at = timezone.now()
-                sending_domain.last_check_error = ''
-                sending_domain.save(update_fields=['status', 'verified_at', 'last_check_at', 'last_check_error'])
-                return True, f'Domain {domain} verified successfully.'
-            else:
-                msg = f'SPF record not found for {domain}. Found: {txt_records}'
-                sending_domain.status = SendingDomain.STATUS_FAILED
-                sending_domain.last_check_error = msg
-                sending_domain.save(update_fields=['status', 'last_check_at', 'last_check_error'])
-                return False, msg
-
-        except Exception as exc:
-            msg = str(exc)
-            sending_domain.status = SendingDomain.STATUS_FAILED
-            sending_domain.last_check_error = msg
-            sending_domain.save(update_fields=['status', 'last_check_at', 'last_check_error'])
-            return False, msg
+        from .provisioning import PostalProvisioningService
+        return PostalProvisioningService.check_domain(sending_domain)
 
     @staticmethod
     def check_sending_limits(organization):

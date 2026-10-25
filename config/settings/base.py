@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.sequences',
     'apps.email_config',
+    'apps.ai_assistant',
 ]
 
 MIDDLEWARE = [
@@ -442,6 +443,23 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.sequences.tasks.process_sequence_enrollments',
         'schedule': 60.0,  # Every minute
     },
+    # Re-run DNS checks for domains waiting to be verified. DNS propagation
+    # takes minutes to hours, so customers should not have to keep pressing
+    # Verify; the task gives up after 72 hours.
+    'recheck-pending-sending-domains': {
+        'task': 'apps.email_config.tasks.recheck_pending_domains',
+        'schedule': 600.0,  # Every 10 minutes
+    },
+    # Deliverability guardrails. Every tenant shares one sending IP, so a
+    # breach has to be caught in minutes, not on a daily sweep.
+    'evaluate-sending-guardrails': {
+        'task': 'apps.email_config.tasks.evaluate_all_guardrails',
+        'schedule': crontab(minute='*/15'),
+    },
+    'sync-postal-tenants': {
+        'task': 'apps.email_config.tasks.sync_postal_tenants',
+        'schedule': crontab(minute=5),  # Hourly, just after the hour
+    },
 }
 
 
@@ -455,3 +473,20 @@ ANYMAIL = {
     },
     'WEBHOOK_SECRET': env('ANYMAIL_WEBHOOK_SECRET', default=''),
 }
+
+# ── Postal (self-hosted mail server, see mailstack/) ─────────────────────────
+# POSTAL_URL          : the Postal server that accepts sends and signs webhooks.
+# PROVISIONER_*       : the management API that creates one Postal mail server
+#                       ("tenant") per organization. See mailstack/MULTI-TENANT.md.
+# POSTAL_ENABLED      : master switch. Off, every org keeps using the SMTP paths.
+# POSTAL_WEBHOOK_VERIFY: only ever set False in tests — it disables the RSA
+#                       signature check that stops anyone forging delivery events.
+POSTAL_ENABLED = env.bool('POSTAL_ENABLED', default=False)
+POSTAL_URL = env('POSTAL_URL', default='')
+POSTAL_PROVISIONER_URL = env('POSTAL_PROVISIONER_URL', default='')
+POSTAL_PROVISIONER_TOKEN = env('POSTAL_PROVISIONER_TOKEN', default='')
+POSTAL_WEBHOOK_VERIFY = env.bool('POSTAL_WEBHOOK_VERIFY', default=True)
+# Hard stop per tenant, in messages/hour. Postal *holds* mail over this limit and
+# it must be released by hand, so it is a circuit breaker, not a throttle:
+# set it well above the pace the sending queue actually allows.
+POSTAL_SEND_LIMIT_MULTIPLIER = env.int('POSTAL_SEND_LIMIT_MULTIPLIER', default=2)

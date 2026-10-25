@@ -32,19 +32,18 @@ class CampaignsConfig(AppConfig):
                 event_type = event.event_type
                 now = timezone.now()
 
+                # advance_status moves the status forward only. A 'delivered'
+                # event routinely arrives after the open pixel has fired, and
+                # assigning status directly rewound 'opened' back to
+                # 'delivered', under-reporting engagement.
                 if event_type == 'delivered':
-                    recipient.status = 'delivered'
-                    recipient.save(update_fields=['status', 'updated_at'])
+                    recipient.advance_status('delivered', {'delivered_at': now})
                 elif event_type == 'bounced':
-                    recipient.status = 'bounced'
-                    recipient.bounced_at = now
-                    recipient.save(update_fields=['status', 'bounced_at', 'updated_at'])
+                    recipient.advance_status('bounced', {'bounced_at': now})
                     # Mark the contact as bounced
                     recipient.contact.mark_bounced()
                 elif event_type == 'complained':
-                    recipient.status = 'complained'
-                    recipient.complained_at = now
-                    recipient.save(update_fields=['status', 'complained_at', 'updated_at'])
+                    recipient.advance_status('complained', {'complained_at': now})
 
                 logger.info(
                     f"Anymail event '{event_type}' processed for recipient {recipient_id}"

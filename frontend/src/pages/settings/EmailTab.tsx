@@ -38,11 +38,22 @@ import {
   XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useEmailConfig, useSendingDomains, useEmailConfigMutations } from '@/hooks/useEmailConfig';
-import type { EmailProvider, UpdateEmailConfigData } from '@/types/emailConfig';
+import {
+  useEmailConfig,
+  useSendingDomains,
+  usePostalTenant,
+  useEmailConfigMutations,
+} from '@/hooks/useEmailConfig';
+import type {
+  DnsRecord,
+  EmailProvider,
+  PostalTenant,
+  UpdateEmailConfigData,
+} from '@/types/emailConfig';
 
 const PROVIDER_LABELS: Record<EmailProvider, string> = {
-  platform_default: 'Platform Default (shared SMTP)',
+  platform_default: 'Platform Default (recommended)',
+  postal: 'Platform Mail Server',
   smtp: 'Custom SMTP',
   sendgrid: 'SendGrid',
   mailgun: 'Mailgun',
@@ -54,6 +65,146 @@ const DOMAIN_STATUS_CONFIG = {
   verified: { label: 'Verified', color: 'bg-success/[.14] text-success', icon: CheckCircle2 },
   failed: { label: 'Failed', color: 'bg-destructive/[.14] text-destructive', icon: XCircle },
 };
+
+const RECORD_LABELS: Record<DnsRecord['purpose'], string> = {
+  spf: 'SPF',
+  dkim: 'DKIM',
+  return_path: 'Return path',
+  dmarc: 'DMARC',
+};
+
+/** Per-record check result. Anything not OK still blocks sending. */
+function RecordStatusChip({ status }: { status: string }) {
+  if (status === 'OK') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-success/[.14] px-1.5 py-0.5 text-[11px] font-medium text-success">
+        <CheckCircle2 className="h-3 w-3" />
+        Found
+      </span>
+    );
+  }
+  if (status === 'Unchecked') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+        Not checked yet
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded bg-warning/[.14] px-1.5 py-0.5 text-[11px] font-medium text-warning">
+      <AlertTriangle className="h-3 w-3" />
+      {status === 'Missing' ? 'Not found' : status}
+    </span>
+  );
+}
+
+/**
+ * One DNS record to publish. The host, the value and a copy button, plus the
+ * mail server's note — which covers things like only being allowed one SPF
+ * record per domain, the single most common way this goes wrong.
+ */
+function DnsRecordRow({ record }: { record: DnsRecord }) {
+  return (
+    <div className="rounded-md border p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {RECORD_LABELS[record.purpose] ?? record.purpose} ({record.type})
+          </span>
+          <RecordStatusChip status={record.status} />
+        </div>
+        <CopyButton value={record.value} />
+      </div>
+
+      <dl className="space-y-1.5 text-xs">
+        <div>
+          <dt className="mb-0.5 text-subtle-foreground">Host / Name</dt>
+          <dd>
+            <code className="block break-all rounded bg-secondary p-2">{record.host}</code>
+          </dd>
+        </div>
+        <div>
+          <dt className="mb-0.5 text-subtle-foreground">Value</dt>
+          <dd>
+            <code className="block break-all rounded bg-secondary p-2">{record.value || '—'}</code>
+          </dd>
+        </div>
+      </dl>
+
+      {record.error && <p className="mt-2 text-xs text-destructive">{record.error}</p>}
+      {record.note && <p className="mt-2 text-xs text-subtle-foreground">{record.note}</p>}
+    </div>
+  );
+}
+
+/**
+ * The organization's own mail server. Shown only once it exists — it is
+ * provisioned when the first sending domain is added, so before that there is
+ * nothing to report.
+ */
+function MailServerPanel({
+  tenant,
+  onSync,
+  isSyncing,
+}: {
+  tenant: PostalTenant;
+  onSync: () => void;
+  isSyncing: boolean;
+}) {
+  const suspended = tenant.status === 'suspended';
+  return (
+    <div className="space-y-3">
+      {suspended && (
+        <div className="flex items-start gap-2 rounded-md bg-destructive/[.10] p-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+          <div className="text-sm">
+            <p className="font-medium text-destructive">Sending is suspended</p>
+            <p className="text-subtle-foreground">
+              {tenant.suspension_reason || 'Contact support to restore sending.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: 'Sent (last hour)', value: tenant.sent_last_hour },
+          { label: 'Queued', value: tenant.queued },
+          { label: 'Held', value: tenant.held },
+          { label: 'Bounce rate (30d)', value: `${tenant.bounce_rate_30d}%` },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-md border p-3">
+            <p className="text-xs text-subtle-foreground">{stat.label}</p>
+            <p className="mt-0.5 text-lg font-semibold tabular-nums">{stat.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {tenant.held > 0 && (
+        <p className="text-xs text-warning">
+          Held messages were refused by the mail server — usually a send limit or a suppressed
+          address — and will not be delivered without review.
+        </p>
+      )}
+
+      <div className="flex items-center justify-between gap-2 text-xs text-subtle-foreground">
+        <span>
+          {tenant.send_limit_per_hour
+            ? `Limit ${tenant.send_limit_per_hour.toLocaleString()}/hour`
+            : 'No hourly limit set'}
+          {tenant.last_synced_at &&
+            ` · updated ${new Date(tenant.last_synced_at).toLocaleTimeString()}`}
+        </span>
+        <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={onSync} disabled={isSyncing}>
+          <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+
+      {tenant.last_error && <p className="text-xs text-destructive">{tenant.last_error}</p>}
+    </div>
+  );
+}
 
 function SectionCard({
   title,
@@ -95,8 +246,16 @@ function CopyButton({ value }: { value: string }) {
 export function EmailTab() {
   const { data: config, isLoading } = useEmailConfig();
   const { data: domains = [] } = useSendingDomains();
-  const { updateConfig, testConnection, resumeSending, addDomain, verifyDomain, deleteDomain } =
-    useEmailConfigMutations();
+  const { data: tenant } = usePostalTenant();
+  const {
+    updateConfig,
+    testConnection,
+    resumeSending,
+    addDomain,
+    verifyDomain,
+    deleteDomain,
+    syncTenant,
+  } = useEmailConfigMutations();
 
   // Local form state
   const [identity, setIdentity] = useState({ from_name: '', from_email: '', reply_to_email: '' });
@@ -200,17 +359,29 @@ export function EmailTab() {
 
   const handleAddDomain = async () => {
     if (!newDomain.trim()) return;
-    await addDomain.mutateAsync(newDomain.trim());
-    setNewDomain('');
-    toast.success('Domain added. Copy the DNS records below and then verify.');
+    try {
+      await addDomain.mutateAsync(newDomain.trim());
+      setNewDomain('');
+      toast.success('Domain added. Publish the DNS records below, then verify.');
+    } catch (error) {
+      // The mail server refuses free mailbox domains and any domain already
+      // verified by another account, and says which — so show its reason
+      // rather than a generic failure.
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data
+        ?.detail;
+      toast.error(detail || 'Could not add that domain.');
+    }
   };
 
   const handleVerifyDomain = async (id: string) => {
-    const result = await verifyDomain.mutateAsync(id);
-    if (result.success) {
+    const result = await verifyDomain.mutateAsync(id).catch(() => null);
+    if (result?.success) {
       toast.success(result.message);
     } else {
-      toast.error(result.message);
+      toast.error(
+        result?.message ||
+          'Records are not in place yet. DNS can take a few hours to propagate.',
+      );
     }
   };
 
@@ -314,11 +485,21 @@ export function EmailTab() {
             </Select>
           </div>
 
-          {provider === 'platform_default' && (
-            <p className="text-sm text-muted-foreground bg-secondary/50 p-3 rounded-lg">
-              Emails are sent through the platform's shared SMTP server. For production use, configure
-              your own provider for better deliverability and branding.
-            </p>
+          {(provider === 'platform_default' || provider === 'postal') && (
+            <div className="space-y-2 rounded-lg bg-secondary/50 p-3 text-sm text-muted-foreground">
+              {tenant && domains.some((d) => d.sending_enabled) ? (
+                <p>
+                  Emails are sent from your own verified domain through the platform mail server,
+                  signed with DKIM. Nothing further to configure.
+                </p>
+              ) : (
+                <p>
+                  Emails are sent through the platform's shared server, from a platform address.
+                  Add and verify your own sending domain below to send as your own brand — or pick
+                  another provider if you already have one.
+                </p>
+              )}
+            </div>
           )}
 
           {provider === 'smtp' && (
@@ -468,17 +649,31 @@ export function EmailTab() {
         </div>
       </SectionCard>
 
-      {/* ── 3. Domain Authentication ────────────────────────────────────────── */}
+      {/* ── 3. Mail Server ──────────────────────────────────────────────────── */}
+      {tenant && (
+        <SectionCard
+          title="Mail Server"
+          description="Your organization's own sending server, with its own domains, reputation and limits."
+        >
+          <MailServerPanel
+            tenant={tenant}
+            onSync={() => syncTenant.mutate()}
+            isSyncing={syncTenant.isPending}
+          />
+        </SectionCard>
+      )}
+
+      {/* ── 4. Domain Authentication ────────────────────────────────────────── */}
       <SectionCard
         title="Domain Authentication"
-        description="Add sending domains and configure SPF/DKIM records for better deliverability."
+        description="Send from your own domain. Publish four DNS records and we verify them against your nameservers before enabling sending."
       >
         <div className="space-y-4">
           <div className="flex gap-2">
             <Input
               value={newDomain}
               onChange={(e) => setNewDomain(e.target.value)}
-              placeholder="mail.yourcompany.com"
+              placeholder="news.yourcompany.com"
               onKeyDown={(e) => e.key === 'Enter' && handleAddDomain()}
             />
             <Button
@@ -486,39 +681,60 @@ export function EmailTab() {
               onClick={handleAddDomain}
               disabled={!newDomain.trim() || addDomain.isPending}
             >
-              <Plus className="h-4 w-4 mr-2" />
+              {addDomain.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
               Add Domain
             </Button>
           </div>
+          <p className="text-xs text-subtle-foreground">
+            Use a subdomain like <code className="rounded bg-secondary px-1">news.</code> or{' '}
+            <code className="rounded bg-secondary px-1">mail.</code> rather than your root domain.
+            It keeps your everyday company email unaffected and avoids clashing with an SPF
+            record you may already have.
+          </p>
 
           {domains.length === 0 ? (
-            <div className="text-center py-8 border-2 border-dashed rounded-lg text-subtle-foreground text-sm">
-              <Globe className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              No domains added yet. Add a domain to set up SPF/DKIM authentication.
+            <div className="rounded-lg border-2 border-dashed py-8 text-center text-sm text-subtle-foreground">
+              <Globe className="mx-auto mb-2 h-8 w-8 opacity-50" />
+              No domains added yet. Add one to start sending from your own domain.
             </div>
           ) : (
             <div className="space-y-3">
               {domains.map((d) => {
-                const sc = DOMAIN_STATUS_CONFIG[d.status];
+                // sending_enabled is the mail server's own verdict and the only
+                // thing that actually gates sending, so the badge follows it
+                // rather than the mirrored status column.
+                const sc = d.sending_enabled
+                  ? DOMAIN_STATUS_CONFIG.verified
+                  : DOMAIN_STATUS_CONFIG[d.status] ?? DOMAIN_STATUS_CONFIG.pending;
                 const StatusIcon = sc.icon;
+                const readyCount = d.dns_records.filter((r) => r.status === 'OK').length;
                 return (
                   <Collapsible key={d.id}>
-                    <div className="border rounded-lg overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-3 bg-secondary/50">
+                    <div className="overflow-hidden rounded-lg border">
+                      <div className="flex items-center justify-between bg-secondary/50 px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <span className="font-medium text-sm">{d.domain}</span>
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${sc.color}`}>
+                          <span className="text-sm font-medium">{d.domain}</span>
+                          <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${sc.color}`}>
                             <StatusIcon className="h-3 w-3" />
-                            {sc.label}
+                            {d.sending_enabled ? 'Sending enabled' : sc.label}
                           </span>
+                          {!d.sending_enabled && d.dns_records.length > 0 && (
+                            <span className="text-xs tabular-nums text-subtle-foreground">
+                              {readyCount}/{d.dns_records.length} records found
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-xs gap-1">
+                            <Button variant="ghost" size="sm" className="gap-1 text-xs">
                               DNS Records <ChevronDown className="h-3 w-3" />
                             </Button>
                           </CollapsibleTrigger>
-                          {d.status !== 'verified' && (
+                          {!d.sending_enabled && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -541,29 +757,31 @@ export function EmailTab() {
                       </div>
 
                       <CollapsibleContent>
-                        <div className="px-4 pb-4 pt-3 space-y-3 bg-card border-t">
-                          {/* SPF */}
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">SPF Record (TXT)</span>
-                              <CopyButton value={d.spf_record} />
-                            </div>
-                            <p className="text-xs text-subtle-foreground mb-1">Add to: <code className="bg-secondary px-1 rounded">{d.domain}</code></p>
-                            <code className="block text-xs bg-secondary rounded p-2 break-all">{d.spf_record || '—'}</code>
-                          </div>
-                          {/* DKIM */}
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">DKIM Record (TXT)</span>
-                              <CopyButton value={d.dkim_record_value} />
-                            </div>
-                            <p className="text-xs text-subtle-foreground mb-1">
-                              Add to: <code className="bg-secondary px-1 rounded">{d.dkim_record_name || `${d.dkim_selector}._domainkey.${d.domain}`}</code>
+                        <div className="space-y-3 border-t bg-card px-4 pb-4 pt-3">
+                          <p className="text-xs text-subtle-foreground">
+                            Publish all four records at your DNS provider. Sending stays off until
+                            every one of them is found — that is what proves you own{' '}
+                            <code className="rounded bg-secondary px-1">{d.domain}</code> and keeps
+                            your mail out of spam folders.
+                          </p>
+
+                          {d.dns_records.length === 0 ? (
+                            <p className="text-xs text-subtle-foreground">
+                              No records yet. Press Verify to fetch them.
                             </p>
-                            <code className="block text-xs bg-secondary rounded p-2 break-all">{d.dkim_record_value || '—'}</code>
-                          </div>
+                          ) : (
+                            d.dns_records.map((record) => (
+                              <DnsRecordRow key={record.purpose} record={record} />
+                            ))
+                          )}
+
                           {d.last_check_error && (
                             <p className="text-xs text-destructive">{d.last_check_error}</p>
+                          )}
+                          {d.last_check_at && (
+                            <p className="text-xs text-subtle-foreground">
+                              Last checked {new Date(d.last_check_at).toLocaleString()}
+                            </p>
                           )}
                         </div>
                       </CollapsibleContent>
@@ -576,7 +794,7 @@ export function EmailTab() {
         </div>
       </SectionCard>
 
-      {/* ── 4. Compliance ───────────────────────────────────────────────────── */}
+      {/* ── 5. Compliance ───────────────────────────────────────────────────── */}
       <SectionCard
         title="Compliance"
         description="CAN-SPAM requires a physical mailing address in every email. GDPR recommends a clear unsubscribe path."
@@ -618,7 +836,7 @@ export function EmailTab() {
         </div>
       </SectionCard>
 
-      {/* ── 5. Limits & Thresholds ──────────────────────────────────────────── */}
+      {/* ── 6. Limits & Thresholds ──────────────────────────────────────────── */}
       <SectionCard
         title="Sending Limits & Thresholds"
         description="Cap email volume and auto-pause if bounce or complaint rates spike."

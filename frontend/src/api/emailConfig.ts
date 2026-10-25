@@ -1,5 +1,11 @@
 import apiClient from './client';
-import type { EmailConfig, UpdateEmailConfigData, SendingDomain } from '@/types/emailConfig';
+import type {
+  EmailConfig,
+  UpdateEmailConfigData,
+  SendingDomain,
+  PostalTenant,
+  DnsRecord,
+} from '@/types/emailConfig';
 
 export const emailConfigApi = {
   getConfig: async (): Promise<EmailConfig> => {
@@ -31,12 +37,31 @@ export const emailConfigApi = {
     return data;
   },
 
-  verifyDomain: async (id: string): Promise<{ success: boolean; message: string; status: string }> => {
+  verifyDomain: async (
+    id: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    status: string;
+    sending_enabled: boolean;
+    dns_records: DnsRecord[];
+  }> => {
     const { data } = await apiClient.post(`/email-config/domains/${id}/verify`);
     return data;
   },
 
   deleteDomain: async (id: string): Promise<void> => {
     await apiClient.delete(`/email-config/domains/${id}`);
+  },
+
+  /** null until the organization adds its first sending domain. */
+  getTenant: async (): Promise<PostalTenant | null> => {
+    const { data } = await apiClient.get('/email-config/tenant');
+    return data.tenant ?? null;
+  },
+
+  syncTenant: async (): Promise<PostalTenant | null> => {
+    const { data } = await apiClient.post('/email-config/tenant/sync');
+    return data.tenant ?? null;
   },
 };

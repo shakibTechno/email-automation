@@ -22,6 +22,10 @@ django-axes>=6.1.1
 
 # Email & Communication
 django-anymail>=10.2
+# Verifies the RSA-SHA256 signature on Postal webhooks. Present transitively
+# already, but delivery events must not be authenticated by an accident of
+# the dependency tree.
+cryptography>=42.0.0
 
 # Payments
 stripe>=7.0.0
@@ -33,6 +37,14 @@ Pillow>=10.2.0
 python-decouple>=3.8
 pytz>=2023.3
 requests>=2.31.0
+
+# AI assistant — LLM providers (bring-your-own-key, one official SDK per
+# provider; no cross-provider compatibility shims) and the allowlist sanitizer
+# that model-generated page markup passes through before it is stored.
+anthropic>=2.0.0
+openai>=3.36.0
+google-genai>=2.32.0
+nh3>=0.3.7
 
 # Development & Testing
 pytest>=7.4.3

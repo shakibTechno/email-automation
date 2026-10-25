@@ -11,6 +11,8 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from apps.email_config.webhooks import postal_webhook
+
 urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
@@ -34,6 +36,7 @@ urlpatterns = [
     path('api/v1/', include('apps.notifications.urls')),
     path('api/v1/', include('apps.sequences.urls')),
     path('api/v1/', include('apps.email_config.urls')),
+    path('api/v1/', include('apps.ai_assistant.urls')),
 
     # Public email tracking routes (no auth)
     path('track/', include('apps.campaigns.tracking_urls')),
@@ -47,6 +50,13 @@ urlpatterns = [
 
     # Anymail webhook (SES/ESP delivery events) — optional, requires anymail package
     # path('anymail/', include('anymail.urls')),
+
+    # Postal delivery events (no auth; the body carries an RSA signature).
+    # Registered with AND without a trailing slash on purpose: the provisioner
+    # writes the no-slash form into every tenant's webhook config, and
+    # APPEND_SLASH would answer that POST with a 301 and lose the body.
+    path('webhooks/postal', postal_webhook, name='postal-webhook'),
+    path('webhooks/postal/', postal_webhook, name='postal-webhook-slash'),
 
     # Public landing page route
     path('p/<slug:slug>/',

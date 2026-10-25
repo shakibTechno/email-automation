@@ -170,8 +170,9 @@ class SequenceEnrollmentService:
             return
 
         # Send the email
+        postal_status = None
         try:
-            SequenceEnrollmentService._send_step_email(enrollment, step)
+            postal_status = SequenceEnrollmentService._send_step_email(enrollment, step)
             step_exec_status = 'sent'
             error_msg = ''
         except Exception as exc:
@@ -180,15 +181,21 @@ class SequenceEnrollmentService:
             error_msg = str(exc)
 
         now = timezone.now()
+        defaults = {
+            'status': step_exec_status,
+            'scheduled_at': enrollment.next_send_at or now,
+            'sent_at': now if step_exec_status == 'sent' else None,
+            'error_message': error_msg,
+        }
+        # Provider ids, so a later delivery or bounce webhook can find this row.
+        if postal_status:
+            defaults['postal_id'] = postal_status.get('postal_id')
+            defaults['postal_token'] = postal_status.get('token') or ''
+
         SequenceStepExecution.objects.update_or_create(
             enrollment=enrollment,
             step=step,
-            defaults={
-                'status': step_exec_status,
-                'scheduled_at': enrollment.next_send_at or now,
-                'sent_at': now if step_exec_status == 'sent' else None,
-                'error_message': error_msg,
-            }
+            defaults=defaults,
         )
 
         # Advance to next step
@@ -241,6 +248,9 @@ class SequenceEnrollmentService:
             to=[contact.email],
             reply_to=[reply_to] if reply_to else None,
             connection=connection,
+            headers={'X-Sequence-ID': str(sequence.id)},
         )
         msg.attach_alternative(html_content, 'text/html')
         msg.send()
+        # Returned so the caller can store the provider ids on the execution.
+        return getattr(msg, 'postal_status', None)

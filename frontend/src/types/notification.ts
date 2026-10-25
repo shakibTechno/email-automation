@@ -9,7 +9,9 @@ export type NotificationType =
   | 'billing_payment_failed'
   | 'billing_subscription_renewed'
   | 'team_member_joined'
-  | 'lead_score_threshold';
+  | 'lead_score_threshold'
+  | 'sending_paused'
+  | 'sending_domain_verified';
 
 export interface Notification {
   id: string;

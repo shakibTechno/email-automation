@@ -11,6 +11,8 @@ import {
   Zap,
   Trophy,
   Clock,
+  PauseCircle,
+  Globe,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +40,8 @@ const TYPE_CONFIG: Record<
   billing_subscription_renewed: { icon: CreditCard,     color: 'text-success',  path: () => '/settings?tab=billing' },
   team_member_joined:           { icon: UserPlus,       color: 'text-brand',   path: () => '/settings?tab=team' },
   lead_score_threshold:         { icon: Zap,            color: 'text-warning', path: () => '/contacts' },
+  sending_paused:               { icon: PauseCircle,    color: 'text-destructive',    path: () => '/settings?tab=email' },
+  sending_domain_verified:      { icon: Globe,          color: 'text-success',  path: () => '/settings?tab=email' },
 };
 
 interface NotificationItemProps {

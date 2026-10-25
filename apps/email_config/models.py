@@ -14,6 +14,7 @@ class EmailConfiguration(TimeStampedModel):
     """
     PROVIDER_CHOICES = [
         ('platform_default', 'Platform Default (shared SMTP)'),
+        ('postal', 'Postal (platform mail server)'),
         ('smtp', 'Custom SMTP'),
         ('sendgrid', 'SendGrid'),
         ('mailgun', 'Mailgun'),
@@ -82,10 +83,92 @@ class EmailConfiguration(TimeStampedModel):
         return f"EmailConfig for {self.organization.name}"
 
 
+class PostalTenant(TimeStampedModel):
+    """
+    One Postal mail server per organization.
+
+    Created lazily by PostalProvisioningService the first time an organization
+    adds a sending domain, so free signups and abandoned trials never provision
+    real mail infrastructure. See mailstack/MULTI-TENANT.md.
+
+    Each tenant is isolated in Postal: its own API key, its own domains, its own
+    suppression list and its own send limit. Tenants do share the server's IP
+    reputation, which is what the guardrails in guardrails.py protect.
+    """
+    STATUS_ACTIVE = 'active'
+    STATUS_SUSPENDED = 'suspended'
+    STATUS_ERROR = 'error'
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, 'Active'),
+        (STATUS_SUSPENDED, 'Suspended'),
+        (STATUS_ERROR, 'Error'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name='postal_tenant'
+    )
+
+    # Our key for this tenant in the provisioning API. Immutable once set: the
+    # provisioner matches on it, so changing it would orphan the mail server.
+    # Must satisfy /\A[a-z0-9][a-z0-9-]{0,47}\z/ — see build_external_id().
+    external_id = models.CharField(max_length=48, unique=True)
+    # Postal's own UUID for the mail server; every provisioner call keys on it.
+    postal_tenant_id = models.CharField(max_length=64, blank=True)
+    # Returned only on create and on rotation, never readable back from Postal.
+    # Stored as-is, like smtp_password above; masked in the serializer.
+    api_key = models.CharField(max_length=512, blank=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    suspension_reason = models.TextField(blank=True)
+
+    send_limit_per_hour = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Postal holds mail above this and it must be released by hand, '
+                  'so treat it as a circuit breaker rather than a throttle.'
+    )
+    ip_pool = models.CharField(max_length=100, blank=True)
+
+    # Cached from GET /tenants/:id so the UI can render without a round trip.
+    sent_last_hour = models.PositiveIntegerField(default=0)
+    queued = models.PositiveIntegerField(default=0)
+    held = models.PositiveIntegerField(default=0)
+    bounce_rate_30d = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'postal_tenants'
+
+    def __str__(self):
+        return f"PostalTenant {self.external_id} ({self.status})"
+
+    @property
+    def is_suspended(self):
+        return self.status == self.STATUS_SUSPENDED
+
+    @property
+    def can_send(self):
+        """
+        True when this tenant is usable for sending.
+
+        A tenant with no sending-enabled domain cannot send: Postal rejects any
+        From address whose domain it has not verified, with
+        UnauthenticatedFromAddress.
+        """
+        if self.status != self.STATUS_ACTIVE or not self.api_key:
+            return False
+        return self.organization.sending_domains.filter(sending_enabled=True).exists()
+
+
 class SendingDomain(TimeStampedModel):
     """
-    A verified sending domain for an organization.
-    Platform generates DNS records; user copies them to their DNS provider.
+    A sending domain for an organization, mirrored from the provisioning API.
+
+    The provisioner is the source of truth: it generates the real DKIM key,
+    queries the domain's own nameservers, and enables sending only when SPF,
+    DKIM, return-path and DMARC all pass. This model caches that state so the
+    settings page renders without a round trip per view.
     """
     STATUS_PENDING = 'pending'
     STATUS_VERIFIED = 'verified'
@@ -104,7 +187,17 @@ class SendingDomain(TimeStampedModel):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     verified_at = models.DateTimeField(null=True, blank=True)
 
-    # DNS records to add
+    # The records the customer must publish, as returned by the provisioner:
+    # [{purpose, type, host, value, status, error, note}, ...] for spf, dkim,
+    # return_path and dmarc. Rendered directly by the settings page.
+    dns_records = models.JSONField(default=list, blank=True)
+    # Postal's own verdict. Sending is allowed only when this is True.
+    sending_enabled = models.BooleanField(default=False)
+
+    # ── Legacy columns ────────────────────────────────────────────────────────
+    # Written by the removed generate_dns_records(), which produced a hardcoded
+    # placeholder DKIM value. Kept so existing rows are readable; no longer
+    # written. dns_records above replaces all of them.
     spf_record = models.TextField(blank=True)
     dkim_selector = models.CharField(max_length=64, blank=True)
     dkim_public_key = models.TextField(blank=True)

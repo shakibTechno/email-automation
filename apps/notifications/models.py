@@ -21,6 +21,8 @@ class Notification(TimeStampedModel):
         ('billing_subscription_renewed', 'Subscription Renewed'),
         ('team_member_joined', 'Team Member Joined'),
         ('lead_score_threshold', 'Lead Score Threshold Reached'),
+        ('sending_paused', 'Sending Paused'),
+        ('sending_domain_verified', 'Sending Domain Verified'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

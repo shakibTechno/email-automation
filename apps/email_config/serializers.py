@@ -2,7 +2,7 @@
 Serializers for email configuration.
 """
 from rest_framework import serializers
-from .models import EmailConfiguration, SendingDomain
+from .models import EmailConfiguration, PostalTenant, SendingDomain
 
 _MASKED = '••••••••'
 
@@ -84,21 +84,41 @@ class EmailConfigUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 
+class PostalTenantSerializer(serializers.ModelSerializer):
+    """
+    Read-only view of the organization's mail server.
+
+    api_key is never serialized — Postal returns it once on creation and it is
+    not readable back, so exposing it would be both pointless and a leak.
+    """
+    api_key_set = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PostalTenant
+        fields = [
+            'id', 'external_id', 'status', 'suspension_reason',
+            'api_key_set', 'send_limit_per_hour', 'ip_pool',
+            'sent_last_hour', 'queued', 'held', 'bounce_rate_30d',
+            'last_synced_at', 'last_error', 'created_at',
+        ]
+        read_only_fields = fields
+
+    def get_api_key_set(self, obj):
+        return bool(obj.api_key)
+
+
 class SendingDomainSerializer(serializers.ModelSerializer):
     class Meta:
         model = SendingDomain
         fields = [
             'id', 'domain', 'status', 'verified_at',
-            'spf_record',
-            'dkim_selector', 'dkim_record_name', 'dkim_record_value',
+            # The records to publish, straight from the provisioner:
+            # [{purpose, type, host, value, status, error, note}, ...]
+            'dns_records', 'sending_enabled',
             'last_check_at', 'last_check_error',
             'created_at',
         ]
-        read_only_fields = [
-            'id', 'status', 'verified_at',
-            'spf_record', 'dkim_selector', 'dkim_record_name', 'dkim_record_value',
-            'last_check_at', 'last_check_error', 'created_at',
-        ]
+        read_only_fields = fields
 
 
 class SendingDomainCreateSerializer(serializers.ModelSerializer):

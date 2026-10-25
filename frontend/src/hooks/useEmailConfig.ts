@@ -4,6 +4,7 @@ import type { UpdateEmailConfigData } from '@/types/emailConfig';
 
 const QK = 'email-config';
 const QK_DOMAINS = 'email-config-domains';
+const QK_TENANT = 'email-config-tenant';
 
 export function useEmailConfig() {
   return useQuery({
@@ -20,6 +21,15 @@ export function useSendingDomains() {
   });
 }
 
+/** The organization's mail server. Resolves to null until a domain is added. */
+export function usePostalTenant() {
+  return useQuery({
+    queryKey: [QK_TENANT],
+    queryFn: emailConfigApi.getTenant,
+    staleTime: 30000,
+  });
+}
+
 export function useEmailConfigMutations() {
   const qc = useQueryClient();
   const invalidate = () => {
@@ -27,6 +37,10 @@ export function useEmailConfigMutations() {
   };
   const invalidateDomains = () => {
     qc.invalidateQueries({ queryKey: [QK_DOMAINS] });
+    // Adding the first domain is what provisions the mail server, and
+    // verifying one changes whether it can send, so the tenant panel is stale
+    // after either.
+    qc.invalidateQueries({ queryKey: [QK_TENANT] });
   };
 
   const updateConfig = useMutation({
@@ -58,5 +72,18 @@ export function useEmailConfigMutations() {
     onSuccess: () => invalidateDomains(),
   });
 
-  return { updateConfig, testConnection, resumeSending, addDomain, verifyDomain, deleteDomain };
+  const syncTenant = useMutation({
+    mutationFn: () => emailConfigApi.syncTenant(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [QK_TENANT] }),
+  });
+
+  return {
+    updateConfig,
+    testConnection,
+    resumeSending,
+    addDomain,
+    verifyDomain,
+    deleteDomain,
+    syncTenant,
+  };
 }

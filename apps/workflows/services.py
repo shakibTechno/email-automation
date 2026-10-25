@@ -6,8 +6,6 @@ import re
 import requests
 from datetime import timedelta
 from django.utils import timezone
-from django.core.mail import send_mail
-from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 
@@ -457,16 +455,24 @@ class WorkflowExecutionService:
         # Replace merge tags in subject
         subject = WorkflowExecutionService._replace_merge_tags(subject, contact)
 
-        from_email = settings.DEFAULT_FROM_EMAIL
+        # Send through the organization's own backend and from-address rather
+        # than the platform default, so workflow mail comes from the same
+        # verified domain as the organization's campaigns.
+        from django.core.mail import EmailMultiAlternatives
+        from apps.email_config.services import EmailConfigService
 
-        send_mail(
+        organization = execution.workflow.organization
+        from_name, from_addr = EmailConfigService.get_default_from(organization)
+
+        msg = EmailMultiAlternatives(
             subject=subject,
-            message='',
-            from_email=from_email,
-            recipient_list=[contact.email],
-            html_message=html_content,
-            fail_silently=False,
+            body='',
+            from_email=f'{from_name} <{from_addr}>',
+            to=[contact.email],
+            connection=EmailConfigService.get_connection(organization),
         )
+        msg.attach_alternative(html_content, 'text/html')
+        msg.send(fail_silently=False)
 
         logger.info(f"Sent email to {contact.email} using template {template.name}")
 

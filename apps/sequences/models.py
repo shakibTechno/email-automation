@@ -141,6 +141,13 @@ class SequenceStepExecution(TimeStampedModel):
     # Tracking
     opened_at = models.DateTimeField(null=True, blank=True)
     clicked_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    bounced_at = models.DateTimeField(null=True, blank=True)
+
+    # Postal's per-recipient identifiers, captured from the send response, so
+    # delivery webhooks can be matched back to this execution.
+    postal_id = models.BigIntegerField(null=True, blank=True, db_index=True)
+    postal_token = models.CharField(max_length=64, blank=True, db_index=True)
 
     class Meta:
         db_table = 'sequence_step_executions'

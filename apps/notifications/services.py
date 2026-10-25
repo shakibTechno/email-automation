@@ -12,26 +12,34 @@ class NotificationService:
 
     @staticmethod
     def notify_org_admins(organization, notification_type, title, message, data=None):
-        """Create a notification for every admin/owner in the organization."""
-        from apps.accounts.models import OrganizationMember
+        """
+        Create a notification for every admin/owner in the organization.
+
+        Queries User directly. This previously imported a non-existent
+        `OrganizationMember` model, so every call raised ImportError — and
+        because each caller wraps this in a bare `except`, no admin
+        notification in the application had ever been delivered. Membership is
+        a `User.organization` FK plus a `role`; there is no join model.
+        """
+        from apps.accounts.models import User
         from .models import Notification
 
-        admin_roles = ('owner', 'admin')
-        members = OrganizationMember.objects.filter(
+        admins = User.objects.filter(
             organization=organization,
-            role__in=admin_roles,
-        ).select_related('user')
+            role__in=('owner', 'admin'),
+            is_active=True,
+        )
 
         notifications = [
             Notification(
                 organization=organization,
-                user=member.user,
+                user=user,
                 notification_type=notification_type,
                 title=title,
                 message=message,
                 data=data or {},
             )
-            for member in members
+            for user in admins
         ]
         if notifications:
             Notification.objects.bulk_create(notifications)

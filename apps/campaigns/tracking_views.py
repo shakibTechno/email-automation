@@ -39,9 +39,7 @@ class TrackOpenView(View):
             )
             # Only record the first open
             if not recipient.opened_at:
-                recipient.opened_at = timezone.now()
-                recipient.status = 'opened'
-                recipient.save(update_fields=['opened_at', 'status', 'updated_at'])
+                recipient.advance_status('opened', {'opened_at': timezone.now()})
                 logger.info(
                     f"Open tracked for recipient {recipient.id} "
                     f"in campaign {recipient.campaign_id}"
@@ -85,9 +83,7 @@ class TrackClickView(View):
 
             # Record first click on recipient
             if not recipient.clicked_at:
-                recipient.clicked_at = timezone.now()
-                recipient.status = 'clicked'
-                recipient.save(update_fields=['clicked_at', 'status', 'updated_at'])
+                recipient.advance_status('clicked', {'clicked_at': timezone.now()})
 
             logger.info(
                 f"Click tracked: link {link_id}, recipient {recipient.id}"
@@ -109,7 +105,12 @@ class UnsubscribeView(View):
     POST /unsubscribe/<str:token>/ — Process unsubscribe
     """
 
-    MAX_AGE = 30 * 86400  # 30 days
+    # Gmail and Yahoo call the one-click endpoint from their own servers at
+    # whatever point the recipient presses Unsubscribe, which can be long after
+    # the mail arrived. A 30-day window meant those requests were rejected and
+    # the recipient kept receiving mail they had opted out of, so the token
+    # lasts for the practical life of a message instead.
+    MAX_AGE = 3 * 365 * 86400  # 3 years
 
     def _decode_token(self, token):
         """Return recipient_id string or None on error."""
@@ -159,9 +160,19 @@ class UnsubscribeView(View):
         recipient.contact.unsubscribe()
 
         # Update recipient record
-        recipient.status = 'unsubscribed'
-        recipient.unsubscribed_at = timezone.now()
-        recipient.save(update_fields=['status', 'unsubscribed_at', 'updated_at'])
+        recipient.advance_status('unsubscribed', {'unsubscribed_at': timezone.now()})
+
+        # Push the address to the mail server's suppression list as well, so it
+        # is refused at the server even if something re-queues this contact.
+        try:
+            from apps.email_config.tasks import sync_suppression
+            sync_suppression.delay(
+                str(recipient.campaign.organization_id), recipient.email, 'unsubscribe'
+            )
+        except Exception:
+            # Never fail the unsubscribe itself: the contact is already opted
+            # out locally, which is what the recipient asked for.
+            logger.exception('Could not queue suppression for %s', recipient.email)
 
         logger.info(f"Contact {recipient.contact.email} unsubscribed via campaign link")
 

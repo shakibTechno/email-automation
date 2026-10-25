@@ -141,6 +141,7 @@ class CampaignRecipient(TimeStampedModel):
         default='pending'
     )
     sent_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
     opened_at = models.DateTimeField(null=True, blank=True)
     clicked_at = models.DateTimeField(null=True, blank=True)
     bounced_at = models.DateTimeField(null=True, blank=True)
@@ -148,6 +149,13 @@ class CampaignRecipient(TimeStampedModel):
     complained_at = models.DateTimeField(null=True, blank=True)
     # A/B test variant: 'a', 'b', 'winner' (waiting for winner), or null (no AB test)
     ab_variant = models.CharField(max_length=10, null=True, blank=True, db_index=True)
+
+    # ── Provider correlation ──────────────────────────────────────────────────
+    # Postal's per-recipient identifiers, captured from the send response. Every
+    # webhook carries both, and they are the only reliable way to match a
+    # delivery event back to this row — Postal does not echo custom headers.
+    postal_id = models.BigIntegerField(null=True, blank=True, db_index=True)
+    postal_token = models.CharField(max_length=64, blank=True, db_index=True)
 
     class Meta:
         db_table = 'campaign_recipients'
@@ -161,6 +169,55 @@ class CampaignRecipient(TimeStampedModel):
 
     def __str__(self):
         return f"{self.campaign.name} -> {self.email}"
+
+    # Engagement is a funnel, but the events that report it arrive out of order:
+    # a provider's "delivered" webhook routinely lands after the open pixel has
+    # already fired. Since `status` is a single column, a naive write rewinds
+    # 'opened' back to 'delivered' and the campaign under-reports engagement.
+    # These ranks let a write move the status forward only.
+    STATUS_RANK = {
+        'pending': 0,
+        'sent': 1,
+        'delivered': 2,
+        'opened': 3,
+        'clicked': 4,
+    }
+    # Outcomes that end the line. They always win, whatever the current status,
+    # because they change whether this contact may be mailed again.
+    TERMINAL_STATUSES = frozenset({'bounced', 'complained', 'unsubscribed', 'failed'})
+
+    def advance_status(self, new_status, extra_fields=None):
+        """
+        Move `status` forward, never backwards, and save.
+
+        Returns True if the status changed. Timestamp fields passed in
+        `extra_fields` are always written, even when the status itself does not
+        move, because analytics counts opens and clicks from the timestamps
+        rather than from `status`.
+        """
+        fields = dict(extra_fields or {})
+        changed = False
+
+        if self.status not in self.TERMINAL_STATUSES:
+            if new_status in self.TERMINAL_STATUSES:
+                changed = self.status != new_status
+            else:
+                current = self.STATUS_RANK.get(self.status, 0)
+                incoming = self.STATUS_RANK.get(new_status, 0)
+                changed = incoming > current
+
+        if changed:
+            self.status = new_status
+
+        for name, value in fields.items():
+            setattr(self, name, value)
+
+        update_fields = list(fields.keys())
+        if changed:
+            update_fields.append('status')
+        if update_fields:
+            self.save(update_fields=update_fields + ['updated_at'])
+        return changed
 
 
 class CampaignLink(TimeStampedModel):
