@@ -208,19 +208,33 @@ class BillingService:
     @staticmethod
     @transaction.atomic
     def initialize_subscription(organization, owner_email):
-        """Create a free plan subscription for a new organization."""
-        free_plan = Plan.objects.filter(
+        """
+        Create the opening subscription for a new organization.
+
+        Normally the free plan, since that is what `Organization.plan` defaults
+        to — but it follows whatever plan the organization was created on. The
+        bootstrap command creates its admin organization as 'enterprise', and
+        forcing free here would silently downgrade it while leaving the
+        organization and its subscription disagreeing about the tier.
+        """
+        # Follow the plan the organization was created on, falling back to
+        # free. Forcing free here would downgrade the bootstrap command's
+        # 'enterprise' admin organization and leave the organization and its
+        # subscription disagreeing about the tier.
+        plan = Plan.objects.filter(
+            plan_type=organization.plan, interval='month', is_active=True
+        ).first() or Plan.objects.filter(
             plan_type='free', interval='month', is_active=True
         ).first()
 
-        if not free_plan:
-            logger.warning("No free plan found, cannot initialize subscription")
+        if not plan:
+            logger.warning("No plan found, cannot initialize subscription")
             return None
 
         subscription, created = Subscription.objects.get_or_create(
             organization=organization,
             defaults={
-                'plan': free_plan,
+                'plan': plan,
                 'status': 'trialing',
                 'interval': 'month',
                 'trial_start': timezone.now(),
@@ -242,10 +256,17 @@ class BillingService:
                 except Exception:
                     pass  # Non-fatal, can be retried
 
-            # Update organization limits
-            organization.max_contacts = free_plan.max_contacts
-            organization.max_emails_per_month = free_plan.max_emails_per_month
-            organization.save(update_fields=['max_contacts', 'max_emails_per_month'])
+            # Mirror the plan's limits onto the organization. `plan` is only
+            # written when it differs, so an organization created on a tier the
+            # plan table does not carry keeps the value it was given rather
+            # than being silently reset.
+            fields = ['max_contacts', 'max_emails_per_month']
+            organization.max_contacts = plan.max_contacts
+            organization.max_emails_per_month = plan.max_emails_per_month
+            if organization.plan != plan.plan_type:
+                organization.plan = plan.plan_type
+                fields.append('plan')
+            organization.save(update_fields=fields)
 
             BillingEvent.objects.create(
                 organization=organization,
@@ -602,8 +623,59 @@ class BillingService:
         return {'allowed': True}
 
     @staticmethod
+    def check_email_quota(organization, count=1):
+        """
+        Can this organization send `count` more messages this period?
+
+        Returns (allowed, info) where info carries used/limit/remaining, so the
+        caller can tell the customer what they have rather than only that they
+        are blocked.
+
+        Deliberately separate from check_usage_limit(): that answers 'has the
+        limit been passed already', which cannot decide whether a 2,400-message
+        campaign fits in a remaining 800. It also returns
+        {'allowed': False, 'reason': 'No active subscription'} when there is no
+        Subscription — correct for a usage display, but as a send gate it would
+        block any organization whose subscription failed to be created.
+
+        Two fallbacks, both failing open rather than blocking a customer over a
+        billing misconfiguration:
+          * no Subscription -> use the limit mirrored on the Organization,
+            matching resolve_send_limit() in the provisioning service
+          * a limit of 0 -> treated as unlimited, consistent with how
+            max_automations and max_landing_pages are read elsewhere
+        """
+        subscription = Subscription.objects.select_related('plan').filter(
+            organization=organization
+        ).first()
+
+        if subscription:
+            limit = subscription.plan.max_emails_per_month or 0
+            used = subscription.emails_sent_this_month or 0
+        else:
+            limit = getattr(organization, 'max_emails_per_month', 0) or 0
+            used = 0
+
+        if limit <= 0:
+            return True, {'used': used, 'limit': 0, 'remaining': None, 'unlimited': True}
+
+        remaining = max(0, limit - used)
+        info = {
+            'used': used,
+            'limit': limit,
+            'remaining': remaining,
+            'unlimited': False,
+        }
+        return count <= remaining, info
+
+    @staticmethod
     def increment_email_usage(organization, count=1):
-        """Increment email usage counter."""
+        """
+        Increment the monthly email counter.
+
+        Uses F() so concurrent batch workers cannot lose increments to a
+        read-modify-write race.
+        """
         from django.db.models import F
         Subscription.objects.filter(
             organization=organization

@@ -164,6 +164,30 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Quota is checked here, before anything is queued, because this is the
+        # only point where the full recipient count is known. Checking it
+        # per-batch instead would send to part of the audience and stop — worse
+        # than not sending at all, since half the list gets an offer the rest
+        # never sees.
+        from apps.billing.services import BillingService
+        allowed, quota = BillingService.check_email_quota(
+            campaign.organization, recipient_count
+        )
+        if not allowed:
+            return Response(
+                {
+                    'error': (
+                        f'This campaign needs {recipient_count:,} emails but only '
+                        f'{quota["remaining"]:,} remain on your plan this month '
+                        f'({quota["used"]:,} of {quota["limit"]:,} used). '
+                        'Upgrade your plan or reduce the audience.'
+                    ),
+                    'quota': quota,
+                    'required': recipient_count,
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
+
         campaign.recipient_count = recipient_count
 
         # Check for A/B test
@@ -227,6 +251,71 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
         serializer = CampaignSerializer(campaign)
         return Response(serializer.data)
+
+    @extend_schema(
+        description="Resume a paused campaign and continue sending to the "
+                    "recipients that have not yet received it",
+        responses={200: CampaignSerializer}
+    )
+    @action(detail=True, methods=['post'])
+    def resume(self, request, pk=None):
+        """
+        Resume a paused campaign.
+
+        There was no way back from 'paused' before this: a campaign paused for
+        exhausting the plan's monthly allowance would have stayed there even
+        after an upgrade or the monthly reset, because nothing could move it
+        out of that status.
+
+        Only the recipients still marked 'pending' are sent to, so resuming
+        never re-sends to anyone who already received it.
+        """
+        campaign = self.get_object()
+
+        if campaign.status != 'paused':
+            return Response(
+                {'error': 'Only paused campaigns can be resumed.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        remaining = CampaignRecipient.objects.filter(
+            campaign=campaign, status='pending'
+        ).count()
+
+        # Nothing left to send: this was paused after everything went out, so
+        # settle it rather than putting it back into 'sending' where the
+        # completion check would never run again.
+        if remaining == 0:
+            campaign.status = 'sent'
+            campaign.completed_at = timezone.now()
+            campaign.save(update_fields=['status', 'completed_at', 'updated_at'])
+            return Response(CampaignSerializer(campaign).data)
+
+        from apps.billing.services import BillingService
+        allowed, quota = BillingService.check_email_quota(campaign.organization, remaining)
+        if not allowed:
+            return Response(
+                {
+                    'error': (
+                        f'{remaining:,} recipients are still waiting but only '
+                        f'{quota["remaining"]:,} emails remain on your plan this '
+                        'month. Upgrade your plan to resume.'
+                    ),
+                    'quota': quota,
+                    'required': remaining,
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
+
+        campaign.status = 'sending'
+        if not campaign.sent_at:
+            campaign.sent_at = timezone.now()
+        campaign.save(update_fields=['status', 'sent_at', 'updated_at'])
+
+        from .tasks import send_campaign_emails
+        send_campaign_emails.delay(str(campaign.id))
+
+        return Response(CampaignSerializer(campaign).data)
 
     @extend_schema(
         description="Cancel a scheduled or paused campaign",

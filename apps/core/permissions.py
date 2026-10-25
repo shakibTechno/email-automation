@@ -54,8 +54,11 @@ class IsAdminForDestructiveActions(permissions.BasePermission):
       specific destructive ViewSet actions
     - Admin/Owner: everything allowed
     """
+    # Actions a 'member' may not perform. `resume` belongs here with `send` and
+    # `pause` because resuming a campaign sends mail — without it a member who
+    # cannot start a campaign could still restart a paused one.
     RESTRICTED_ACTIONS = {
-        'destroy', 'bulk_delete', 'send', 'pause', 'cancel',
+        'destroy', 'bulk_delete', 'send', 'pause', 'resume', 'cancel',
         'publish', 'unpublish', 'activate', 'deactivate', 'toggle_status',
     }
 

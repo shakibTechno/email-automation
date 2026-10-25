@@ -1,6 +1,10 @@
 from rest_framework import permissions
 
-LEAD_SCORING_PLANS = ('professional', 'enterprise')
+# The minimum tier, not a list of tiers. This was
+# ('professional', 'enterprise'), which silently excluded Business — a tier
+# that sits above Professional and has has_lead_scoring=True in the plan data.
+# Business customers were denied a feature they had paid for.
+LEAD_SCORING_MIN_PLAN = 'professional'
 
 
 class LeadScoringEnabled(permissions.BasePermission):
@@ -17,4 +21,4 @@ class LeadScoringEnabled(permissions.BasePermission):
         org = getattr(request.user, 'organization', None)
         if org is None:
             return False
-        return org.plan in LEAD_SCORING_PLANS
+        return org.plan_at_least(LEAD_SCORING_MIN_PLAN)

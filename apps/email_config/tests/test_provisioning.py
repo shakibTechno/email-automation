@@ -229,9 +229,35 @@ class ProvisioningTestCase(TestCase):
     # ----------------------------------------------------------- send limits
     def test_send_limit_falls_back_when_an_org_has_no_subscription(self):
         """
-        New organizations have no Subscription row, because
-        BillingService.initialize_subscription() is never called. The limit
-        resolver has to cope rather than raise.
+        The limit resolver must cope with a missing Subscription rather than
+        raise.
+
+        Organizations now get one automatically on creation, so this deletes it
+        to reach the fallback path. That path still matters: organizations
+        predating the signal have no subscription until the backfill command
+        runs, and a billing failure during creation is logged rather than
+        raised, which also leaves one without.
         """
+        from apps.billing.models import Subscription
+        Subscription.objects.filter(organization=self.org).delete()
+
         limit = resolve_send_limit(self.org)
         self.assertGreater(limit, 0)
+
+    def test_a_new_organization_gets_a_subscription(self):
+        """The signal fires for any creation path, not just registration."""
+        from apps.accounts.models import Organization
+        from apps.billing.models import Subscription
+        from apps.billing.testing import create_plans
+
+        # Plans must exist before the organization is created — the signal runs
+        # during creation and initialize_subscription() needs a free plan to
+        # point at. Without this it returns None and logs, which is how the
+        # rest of the suite behaves today.
+        create_plans()
+        org = Organization.objects.create(name='Signal Co', slug='signal-co')
+
+        self.assertTrue(
+            Subscription.objects.filter(organization=org).exists(),
+            'Organization.objects.create() should have produced a subscription',
+        )

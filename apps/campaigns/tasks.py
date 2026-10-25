@@ -10,6 +10,52 @@ logger = logging.getLogger(__name__)
 BATCH_SIZE = 50
 
 
+def _quota_exhausted(campaign):
+    """
+    True when the plan's monthly allowance is spent, having paused the campaign.
+
+    A safety net behind the pre-flight check in CampaignViewSet.send — it
+    catches the case where two campaigns are sending concurrently and together
+    exceed what either alone would have fitted.
+
+    Pausing is what stops it becoming a hot loop. A blocked batch used to just
+    return, leaving recipients 'pending' and the campaign 'sending' forever,
+    so check_stuck_campaigns re-queued the entire fan-out every 30 minutes and
+    every batch returned early again. send_campaign_emails requires
+    status == 'sending', so 'paused' ends that cycle and leaves a state the
+    owner can see and act on.
+    """
+    from apps.billing.services import BillingService
+
+    allowed, quota = BillingService.check_email_quota(campaign.organization, 1)
+    if allowed:
+        return False
+
+    if campaign.status == 'sending':
+        campaign.status = 'paused'
+        campaign.save(update_fields=['status', 'updated_at'])
+        logger.warning(
+            'Campaign %s paused: monthly email quota exhausted (%s of %s used)',
+            campaign.id, quota['used'], quota['limit'],
+        )
+        try:
+            from apps.notifications.services import NotificationService
+            NotificationService.notify_org_admins(
+                organization=campaign.organization,
+                notification_type='campaign_failed',
+                title='Campaign paused — plan limit reached',
+                message=(
+                    f'"{campaign.name}" was paused because your plan\'s monthly '
+                    f'email limit of {quota["limit"]:,} has been reached. '
+                    'Upgrade your plan to resume it.'
+                ),
+                data={'campaign_id': str(campaign.id)},
+            )
+        except Exception:
+            logger.exception('Could not notify admins that %s was paused', campaign.id)
+    return True
+
+
 def _mark_sent(recipient, msg):
     """
     Record a successful send on a recipient.
@@ -29,6 +75,19 @@ def _mark_sent(recipient, msg):
         update_fields += ['postal_id', 'postal_token']
 
     recipient.save(update_fields=update_fields)
+
+    # Count it against the plan. Incremented here rather than derived from a
+    # sent_at window query: CampaignRecipient has no organization FK and no
+    # index on sent_at, so counting a 30-day window would mean a join and a
+    # scan on every check. A billing failure must not undo a successful send,
+    # so this never raises.
+    try:
+        from apps.billing.services import BillingService
+        BillingService.increment_email_usage(recipient.campaign.organization, 1)
+    except Exception:
+        logger.exception(
+            'Sent to %s but could not record usage against the plan', recipient.email
+        )
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
@@ -100,6 +159,9 @@ def send_campaign_email_batch(self, campaign_id: str, recipient_ids: list):
     allowed, reason = EmailConfigService.check_sending_limits(campaign.organization)
     if not allowed:
         logger.warning(f"Campaign {campaign_id} batch blocked: {reason}")
+        return
+
+    if _quota_exhausted(campaign):
         return
 
     recipients = CampaignRecipient.objects.select_related('contact').filter(
@@ -194,6 +256,38 @@ def process_scheduled_campaigns():
 
     for campaign in due_campaigns:
         try:
+            # Re-check the quota at firing time, not only when the campaign was
+            # scheduled: other campaigns may have consumed the allowance in the
+            # meantime, or the month may have rolled over the other way after a
+            # downgrade. Returning it to 'draft' makes it visible and editable
+            # rather than leaving it stuck in 'scheduled' retrying every minute.
+            from apps.billing.services import BillingService
+            needed = campaign.recipient_count or CampaignService.get_recipient_count(campaign)
+            allowed, quota = BillingService.check_email_quota(campaign.organization, needed)
+            if not allowed:
+                campaign.status = 'draft'
+                campaign.save(update_fields=['status', 'updated_at'])
+                logger.warning(
+                    'Scheduled campaign %s returned to draft: needs %s emails, '
+                    '%s remain on the plan', campaign.id, needed, quota['remaining'],
+                )
+                try:
+                    from apps.notifications.services import NotificationService
+                    NotificationService.notify_org_admins(
+                        organization=campaign.organization,
+                        notification_type='campaign_failed',
+                        title='Scheduled campaign did not send',
+                        message=(
+                            f'"{campaign.name}" needed {needed:,} emails but only '
+                            f'{quota["remaining"]:,} remain on your plan this month. '
+                            'It has been returned to draft.'
+                        ),
+                        data={'campaign_id': str(campaign.id)},
+                    )
+                except Exception:
+                    logger.exception('Could not notify admins about %s', campaign.id)
+                continue
+
             campaign.status = 'sending'
             campaign.sent_at = now
             campaign.save(update_fields=['status', 'sent_at', 'updated_at'])
@@ -309,6 +403,9 @@ def send_ab_variant_batch(self, campaign_id: str, recipient_ids: list, variant: 
     allowed, reason = EmailConfigService.check_sending_limits(campaign.organization)
     if not allowed:
         logger.warning(f"AB batch for campaign {campaign_id} blocked: {reason}")
+        return
+
+    if _quota_exhausted(campaign):
         return
 
     # Fall back to the organization's configured sender rather than None: a
@@ -443,6 +540,9 @@ def send_ab_winner_batch(self, ab_test_id: str, recipient_ids: list):
     allowed, reason = EmailConfigService.check_sending_limits(campaign.organization)
     if not allowed:
         logger.warning(f"AB winner batch for campaign {campaign.id} blocked: {reason}")
+        return
+
+    if _quota_exhausted(campaign):
         return
 
     sender = config['sender_name']

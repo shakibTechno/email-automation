@@ -22,12 +22,30 @@ class Organization(TimeStampedModel, SoftDeleteModel):
     Multi-tenant organization model.
     Each organization represents a company/team using the platform.
     """
+    # Kept in step with billing.Plan.PLAN_TYPE_CHOICES. 'business' was missing
+    # here while BillingService wrote it into this field on every upgrade —
+    # Django only validates choices in full_clean(), which save() skips, so it
+    # persisted silently and every plan tuple that listed tiers by hand then
+    # excluded paying Business customers.
     PLAN_CHOICES = [
         ('free', 'Free'),
         ('starter', 'Starter'),
         ('professional', 'Professional'),
+        ('business', 'Business'),
         ('enterprise', 'Enterprise'),
     ]
+
+    # Tiers in ascending order. Gating asks "is this plan at least X", and
+    # answering that with a hand-written tuple at each call site is how
+    # 'business' came to be missing from three of them. Rank once; compare
+    # through plan_at_least().
+    PLAN_RANK = {
+        'free': 0,
+        'starter': 1,
+        'professional': 2,
+        'business': 3,
+        'enterprise': 4,
+    }
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
@@ -65,6 +83,16 @@ class Organization(TimeStampedModel, SoftDeleteModel):
 
     def __str__(self):
         return self.name
+
+    def plan_at_least(self, minimum):
+        """
+        True when this organization's plan is `minimum` or higher.
+
+        Use this for feature gating instead of listing tiers inline. An unknown
+        plan ranks below everything and is denied, so a value that should not be
+        in the column fails closed rather than unlocking features.
+        """
+        return self.PLAN_RANK.get(self.plan, -1) >= self.PLAN_RANK[minimum]
 
     def save(self, *args, **kwargs):
         if not self.slug:

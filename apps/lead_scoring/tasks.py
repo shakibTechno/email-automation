@@ -77,10 +77,20 @@ def periodic_bulk_recalculate_all_orgs():
     Professional+ org.  Runs at 03:00 UTC via Celery Beat.
     """
     from apps.accounts.models import Organization
-    from apps.lead_scoring.permissions import LEAD_SCORING_PLANS
+    from apps.lead_scoring.permissions import LEAD_SCORING_MIN_PLAN
+
+    # Derived from the same rank the permission class uses, so this cannot
+    # drift from it. It previously filtered on a hardcoded tuple that omitted
+    # Business, meaning those organizations passed the API permission check but
+    # were skipped by the nightly recalculation — their scores silently went
+    # stale while the feature appeared to be enabled.
+    eligible = [
+        plan for plan, rank in Organization.PLAN_RANK.items()
+        if rank >= Organization.PLAN_RANK[LEAD_SCORING_MIN_PLAN]
+    ]
 
     orgs = Organization.objects.filter(
-        plan__in=LEAD_SCORING_PLANS,
+        plan__in=eligible,
         is_active=True,
         deleted_at__isnull=True,
     ).values_list('id', flat=True)
