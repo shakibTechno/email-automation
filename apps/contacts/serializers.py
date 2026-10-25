@@ -4,6 +4,7 @@ Serializers for the Contact app.
 from rest_framework import serializers
 from django.db import transaction
 from .models import Contact, Tag, ContactTag, CustomField
+from . import fields as contact_fields
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -357,6 +358,32 @@ class ContactImportSerializer(serializers.Serializer):
     field_mapping = serializers.JSONField(required=False)
     skip_duplicates = serializers.BooleanField(default=True)
     update_existing = serializers.BooleanField(default=False)
+
+    def validate_field_mapping(self, value):
+        """
+        Check every mapping target before the importer touches the model.
+
+        This is the gate that was missing. The importer assigned to whatever
+        attribute name this dictionary named, so {"col": "organization_id"}
+        wrote contacts into another tenant's organization, and "id",
+        "deleted_at" and "lead_score" were equally reachable. The targets the
+        UI offers were always safe; nothing stopped a hand-made request.
+        """
+        if value in (None, ''):
+            return value
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('field_mapping must be an object.')
+
+        errors = {}
+        for column, target in value.items():
+            if target in (None, ''):
+                continue  # a deliberately skipped column
+            reason = contact_fields.rejection_reason(target, contact_fields.IMPORT)
+            if reason:
+                errors[str(column)] = reason
+        if errors:
+            raise serializers.ValidationError(errors)
+        return value
 
     def validate_file(self, value):
         """Validate that the file is a CSV."""

@@ -7,38 +7,66 @@ from django.db.models import Q, Count, Exists, OuterRef
 from django.utils import timezone
 
 from apps.contacts.models import Contact, ContactTag
+from apps.contacts import fields as contact_fields
 
 logger = logging.getLogger(__name__)
 
 
+class UnknownSegmentField(ValueError):
+    """
+    A rule names a field that does not exist.
+
+    Its own type so the API can answer 400 with the field name instead of the
+    500 an unresolvable Q() used to produce. Stored rules can contain one: a
+    segment built on the old phantom "Status" field is still in the database
+    even though the builder no longer offers it.
+    """
+
+    def __init__(self, field):
+        self.field = field
+        super().__init__(
+            f'"{field}" is not a field that can be used in a segment rule.'
+        )
+
+
+
 # Field definitions with their types and available operators
+# Derived from the contact field registry, not listed here.
+#
+# This was a hand-maintained copy, and it had already drifted: it advertised a
+# "Status" field the Contact model has never had, so any rule built on it
+# produced Q(status__iexact=...) and raised FieldError — a 500 on preview and
+# on every later use of that segment. Generating the list means a field cannot
+# be offered unless it exists.
+#
+# `tag` is not a column, so it is added explicitly; custom fields are merged in
+# per organization by get_field_definitions().
 FIELD_DEFINITIONS = {
-    # Contact fields
-    'email': {'type': 'string', 'label': 'Email'},
-    'first_name': {'type': 'string', 'label': 'First Name'},
-    'last_name': {'type': 'string', 'label': 'Last Name'},
-    'company': {'type': 'string', 'label': 'Company'},
-    'job_title': {'type': 'string', 'label': 'Job Title'},
-    'phone': {'type': 'string', 'label': 'Phone'},
-    'source': {'type': 'select', 'label': 'Source', 'options': ['manual', 'import', 'form', 'api', 'integration']},
-    'status': {'type': 'select', 'label': 'Status', 'options': ['active', 'unsubscribed', 'bounced', 'complained']},
-    'is_subscribed': {'type': 'boolean', 'label': 'Is Subscribed'},
-
-    # Date fields
-    'created_at': {'type': 'date', 'label': 'Created Date'},
-    'updated_at': {'type': 'date', 'label': 'Updated Date'},
-    'last_activity_at': {'type': 'date', 'label': 'Last Activity'},
-
-    # Engagement
-    'engagement_level': {'type': 'select', 'label': 'Engagement Level', 'options': ['high', 'medium', 'low', 'none']},
-    'lead_score': {'type': 'number', 'label': 'Lead Score'},
-
-    # Tags
-    'tag': {'type': 'tag', 'label': 'Tag'},
-
-    # Custom fields (handled dynamically)
-    # 'custom.*': handled separately
+    key: {'type': spec.type, 'label': spec.label, **({'options': list(spec.options)} if spec.options else {})}
+    for key, spec in contact_fields.segmentable_specs().items()
 }
+FIELD_DEFINITIONS['tag'] = {'type': 'tag', 'label': 'Tag'}
+
+# The registry describes a field's meaning (an email is not just a string);
+# the operator table cares only about how it compares. One map rather than two
+# vocabularies.
+OPERATOR_TYPE_FOR = {
+    'email': 'string',
+    'phone': 'string',
+    'url': 'string',
+    'datetime': 'date',
+}
+
+
+# CustomField.FIELD_TYPE_CHOICES uses its own names for two of these.
+CUSTOM_FIELD_TYPE_MAP = {
+    'text': 'string',
+    'dropdown': 'select',
+}
+
+
+def operator_type(field_type):
+    return OPERATOR_TYPE_FOR.get(field_type, field_type)
 
 # Operators by field type
 OPERATORS_BY_TYPE = {
@@ -104,14 +132,32 @@ class SegmentEvaluator:
         return FIELD_DEFINITIONS
 
     @staticmethod
-    def get_operators_for_field(field: str) -> list:
-        """Return available operators for a given field."""
+    def get_operators_for_field(field: str, organization=None) -> list:
+        """
+        Return available operators for a given field.
+
+        Custom fields used to get string operators regardless of their declared
+        type, so a number custom field could not be compared with `>` and a date
+        one could not be compared at all. With the organization in hand the
+        declared type decides, the same as for a column.
+        """
+        if field.startswith('custom.') and organization is not None:
+            from apps.contacts.models import CustomField
+
+            name = field[len('custom.'):]
+            declared = CustomField.objects.filter(
+                organization=organization, name=name,
+            ).values_list('field_type', flat=True).first()
+            if declared:
+                mapped = operator_type(CUSTOM_FIELD_TYPE_MAP.get(declared, declared))
+                return OPERATORS_BY_TYPE.get(mapped, OPERATORS_BY_TYPE['string'])
+            return OPERATORS_BY_TYPE['string']
+
         if field.startswith('custom.'):
-            # Custom fields default to string operators
             return OPERATORS_BY_TYPE['string']
 
         field_def = FIELD_DEFINITIONS.get(field, {})
-        field_type = field_def.get('type', 'string')
+        field_type = operator_type(field_def.get('type', 'string'))
         return OPERATORS_BY_TYPE.get(field_type, OPERATORS_BY_TYPE['string'])
 
     @staticmethod
@@ -207,19 +253,24 @@ class SegmentEvaluator:
                 field, operator, value
             )
 
-        # Handle date fields
-        if field in ('created_at', 'updated_at', 'last_activity_at'):
+        # Dispatch on the field's declared type, not on a list of names. The
+        # name lists here had to be extended for every new field and silently
+        # treated anything they missed as a string — which is how a date field
+        # would have been compared alphabetically.
+        spec = FIELD_DEFINITIONS.get(field)
+        if spec is None:
+            # Refused rather than passed to the ORM. An unknown name used to
+            # become Q(<name>__iexact=...) and surface as a FieldError 500.
+            raise UnknownSegmentField(field)
+
+        kind = operator_type(spec.get('type', 'string'))
+
+        if kind == 'date':
             return SegmentEvaluator._evaluate_date_condition(field, operator, value)
-
-        # Handle boolean fields
-        if field == 'is_subscribed':
+        if kind == 'boolean':
             return SegmentEvaluator._evaluate_boolean_condition(field, operator, value)
-
-        # Handle number fields
-        if field == 'lead_score':
+        if kind == 'number':
             return SegmentEvaluator._evaluate_number_condition(field, operator, value)
-
-        # Handle string/select fields
         return SegmentEvaluator._evaluate_string_condition(field, operator, value)
 
     @staticmethod

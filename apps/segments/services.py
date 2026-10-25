@@ -8,8 +8,10 @@ from django.utils import timezone
 from django.db.models import QuerySet
 
 from apps.contacts.models import Contact
+from rest_framework.exceptions import ValidationError
+
 from .models import Segment, SegmentMembership
-from .evaluator import SegmentEvaluator
+from .evaluator import FIELD_DEFINITIONS, SegmentEvaluator, UnknownSegmentField
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +144,13 @@ class SegmentService:
         Returns:
             Dict with count and sample contacts
         """
-        contacts_qs = SegmentEvaluator.preview_rules(rules, organization)
+        # A rule naming a field that no longer exists is a bad request, not a
+        # server error — and segments built on the phantom "Status" field are
+        # still stored even though the builder stopped offering it.
+        try:
+            contacts_qs = SegmentEvaluator.preview_rules(rules, organization)
+        except UnknownSegmentField as exc:
+            raise ValidationError({'rules': str(exc)})
         total_count = contacts_qs.count()
 
         # Get sample contacts
@@ -370,6 +378,16 @@ class SegmentService:
 
         if not operator:
             errors.append(f"{prefix}: operator is required")
+
+        # The field has to exist before its operators mean anything. Without
+        # this an unknown name passed validation (unknown fields fell back to
+        # string operators, which accept almost everything) and only failed
+        # later, when the rule was evaluated, as a 500.
+        if field and not str(field).startswith('custom.') and field not in FIELD_DEFINITIONS:
+            errors.append(
+                f"{prefix}: \"{field}\" is not a field that can be used in a rule"
+            )
+            return errors
 
         # Check if operator is valid for field type
         if field and operator:

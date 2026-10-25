@@ -7,6 +7,7 @@ from typing import Dict, List, Tuple
 from django.db import transaction
 from django.utils import timezone
 from .models import Contact, ContactTag, Tag
+from . import fields as contact_fields
 import logging
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,14 @@ class CSVExportService:
         """
         if fields is None:
             fields = CSVExportService.DEFAULT_FIELDS
+        else:
+            # getattr() below would otherwise read any attribute the
+            # caller names, including internals that are not the
+            # customer's to export.
+            allowed = contact_fields.exportable_keys()
+            fields = [f for f in fields if f in allowed]
+            if not fields:
+                fields = CSVExportService.DEFAULT_FIELDS
 
         output = io.StringIO()
         writer = csv.DictWriter(output, fieldnames=fields)
@@ -176,7 +185,7 @@ class CSVImportService:
 
         # Check if required model fields are mapped
         required_model_fields = ['email']
-        mapped_model_fields = list(field_mapping.values())
+        mapped_model_fields = [str(v) for v in field_mapping.values()]
 
         for field in required_model_fields:
             if field not in mapped_model_fields:
@@ -188,13 +197,32 @@ class CSVImportService:
     ):
         """Process a single CSV row."""
         try:
-            # Map CSV columns to Contact fields
+            # Map CSV columns to Contact fields.
+            #
+            # Through the registry, never straight onto the model. This loop
+            # used to do `contact_data[model_field] = value` with whatever
+            # target name the request supplied, so a mapping of
+            # {"col": "organization_id"} wrote the contact into another
+            # tenant's organization. The serializer now rejects such a mapping
+            # up front; this stays defensive because it is the line that would
+            # do the damage.
             contact_data = {}
-            for csv_column, model_field in field_mapping.items():
-                if csv_column in row:
-                    value = row[csv_column].strip()
-                    if value:
-                        contact_data[model_field] = value
+            custom_data = {}
+            for csv_column, target in field_mapping.items():
+                if csv_column not in row:
+                    continue
+                raw = (row[csv_column] or '').strip()
+                if not raw:
+                    continue
+
+                if contact_fields.is_custom_target(target):
+                    custom_data[contact_fields.custom_key(target)] = raw
+                    continue
+
+                reason = contact_fields.rejection_reason(target, contact_fields.IMPORT)
+                if reason:
+                    raise ValueError(reason)
+                contact_data[target] = contact_fields.coerce(target, raw)
 
             # Validate email
             if 'email' not in contact_data or not contact_data['email']:
@@ -219,6 +247,13 @@ class CSVImportService:
                     for field, value in contact_data.items():
                         if field != 'email':  # Don't update email
                             setattr(existing_contact, field, value)
+                    if custom_data:
+                        # Merged, not replaced: a CSV with one custom column
+                        # must not wipe the others this contact already has.
+                        existing_contact.custom_fields = {
+                            **(existing_contact.custom_fields or {}),
+                            **custom_data,
+                        }
                     existing_contact.save()
                     self.updated_count += 1
                 elif skip_duplicates:
@@ -231,8 +266,13 @@ class CSVImportService:
                     self.skipped_count += 1
             else:
                 # Create new contact
+                # Set last, so no mapping can override either: the
+                # organization is whose import this is, and the source is how
+                # the contact arrived.
                 contact_data['organization'] = self.organization
                 contact_data['source'] = 'import'
+                if custom_data:
+                    contact_data['custom_fields'] = custom_data
                 Contact.objects.create(**contact_data)
                 self.imported_count += 1
 

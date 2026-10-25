@@ -7,6 +7,7 @@ from apps.core.models import TimeStampedModel, SoftDeleteModel
 from apps.accounts.models import Organization
 from apps.contacts.models import Contact, Tag
 import uuid
+from apps.contacts import fields as contact_fields
 
 
 class FormManager(models.Manager):
@@ -208,15 +209,14 @@ class FormField(TimeStampedModel):
         ('two_thirds', 'Two Thirds'),
     ]
 
-    CONTACT_FIELD_MAPPING_CHOICES = [
-        ('', 'No mapping'),
-        ('first_name', 'First Name'),
-        ('last_name', 'Last Name'),
-        ('email', 'Email'),
-        ('phone', 'Phone'),
-        ('company', 'Company'),
-        ('job_title', 'Job Title'),
-    ]
+    # Generated from the contact field registry rather than listed here.
+    # This was the fifth hand-maintained copy of "what fields a contact
+    # has", and the reason a form could not capture anything added to the
+    # model — the list simply never grew with it.
+    CONTACT_FIELD_MAPPING_CHOICES = (
+        [('', 'No mapping')]
+        + contact_fields.writable_choices(contact_fields.FORM)
+    )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     form = models.ForeignKey(

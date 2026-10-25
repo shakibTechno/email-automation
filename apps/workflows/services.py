@@ -18,6 +18,7 @@ from .models import (
     WorkflowTemplate,
 )
 from apps.contacts.models import Contact, Tag, ContactTag
+from apps.contacts import fields as contact_fields
 from apps.templates.models import EmailTemplate
 from apps.forms.models import Form
 
@@ -547,7 +548,23 @@ class WorkflowExecutionService:
 
     @staticmethod
     def _handle_update_contact(execution, node):
-        """Update a field on the contact."""
+        """
+        Update a field on the contact.
+
+        Every branch here used to `setattr` whatever name the node config
+        carried — `set` behind a `hasattr` check, and increment, decrement and
+        append behind nothing at all. A node configured with
+        `field: "organization_id"` therefore moved the contact into another
+        tenant's organization, and `lead_score` could be written straight past
+        the scoring engine that owns it.
+
+        A name that is not a contact column is treated as a custom field, which
+        is what this did before and is safe: it writes into the JSON column, not
+        onto the model. A name that *is* a column but is not writable by a
+        workflow is refused rather than quietly becoming a custom field, because
+        silently storing "organization_id" as custom data would hide the mistake
+        instead of reporting it.
+        """
         config = node.config or {}
         field = config.get('field')
         operation = config.get('operation', 'set')
@@ -557,22 +574,28 @@ class WorkflowExecutionService:
             raise ValueError("Contact field not configured")
 
         contact = execution.contact
+        spec = contact_fields.CONTACT_FIELDS.get(field)
+        explicit_custom = contact_fields.is_custom_target(field)
 
-        if operation == 'set':
-            if hasattr(contact, field):
-                setattr(contact, field, value)
-            else:
-                # Custom field
-                contact.custom_fields[field] = value
-        elif operation == 'increment':
-            current = getattr(contact, field, 0) or 0
-            setattr(contact, field, current + (int(value) if value else 1))
-        elif operation == 'decrement':
-            current = getattr(contact, field, 0) or 0
-            setattr(contact, field, current - (int(value) if value else 1))
-        elif operation == 'append':
-            current = getattr(contact, field, '') or ''
-            setattr(contact, field, f"{current}{value}")
+        if explicit_custom:
+            target_is_column = False
+            custom_name = contact_fields.custom_key(field)
+        elif spec is not None or field in contact_fields.NEVER_WRITABLE:
+            reason = contact_fields.rejection_reason(field, contact_fields.WORKFLOW)
+            if reason:
+                raise ValueError(reason)
+            target_is_column = True
+            custom_name = None
+        else:
+            target_is_column = False
+            custom_name = field
+
+        if target_is_column:
+            WorkflowExecutionService._apply_column_update(contact, spec, operation, value)
+        else:
+            WorkflowExecutionService._apply_custom_update(
+                contact, custom_name, operation, value,
+            )
 
         contact.save()
         contact.update_activity()
@@ -580,6 +603,57 @@ class WorkflowExecutionService:
         logger.info(f"Updated contact {contact.email}: {field} = {operation}({value})")
 
         return {'output': {'field': field, 'operation': operation}}
+
+    @staticmethod
+    def _apply_column_update(contact, spec, operation, value):
+        """Apply an operation to a writable contact column."""
+        if operation == 'set':
+            setattr(contact, spec.key, contact_fields.coerce(spec.key, value))
+            return
+
+        if operation in ('increment', 'decrement'):
+            # Arithmetic on a name only makes sense for a number, and doing it
+            # anyway used to produce "Acme1" on a company field.
+            if spec.type != 'number':
+                raise ValueError(
+                    f'"{spec.label}" is not a number, so it cannot be {operation}ed.'
+                )
+            step = int(value) if value else 1
+            current = getattr(contact, spec.key, 0) or 0
+            setattr(
+                contact, spec.key,
+                current + step if operation == 'increment' else current - step,
+            )
+            return
+
+        if operation == 'append':
+            current = getattr(contact, spec.key, '') or ''
+            setattr(contact, spec.key, f"{current}{value}")
+            return
+
+        raise ValueError(f'Unknown update operation "{operation}".')
+
+    @staticmethod
+    def _apply_custom_update(contact, name, operation, value):
+        """Apply an operation to a key in the contact's custom_fields."""
+        custom = dict(contact.custom_fields or {})
+
+        if operation == 'set':
+            custom[name] = value
+        elif operation in ('increment', 'decrement'):
+            try:
+                current = float(custom.get(name) or 0)
+                step = float(value) if value else 1
+            except (TypeError, ValueError):
+                raise ValueError(f'"{name}" does not hold a number.')
+            total = current + step if operation == 'increment' else current - step
+            custom[name] = int(total) if total == int(total) else total
+        elif operation == 'append':
+            custom[name] = f"{custom.get(name) or ''}{value}"
+        else:
+            raise ValueError(f'Unknown update operation "{operation}".')
+
+        contact.custom_fields = custom
 
     @staticmethod
     def _handle_wait(execution, node):
