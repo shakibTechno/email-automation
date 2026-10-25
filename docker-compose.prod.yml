@@ -32,6 +32,16 @@ x-django-env: &django-env
   BASE_URL: ${BASE_URL}
   FRONTEND_URL: ${FRONTEND_URL}
   BACKEND_URL: ${BACKEND_URL}
+  # ALLOWED_HOSTS above is now the *platform* host list (settings read it as
+  # the PLATFORM_HOSTS default); Django's own ALLOWED_HOSTS is ['*'] because
+  # customers connect their own landing-page domains at runtime and
+  # LandingHostMiddleware is the gate. Set PLATFORM_HOSTS explicitly to
+  # decouple the two.
+  PLATFORM_HOSTS: ${PLATFORM_HOSTS:-}
+  # The CNAME value shown to customers for them to publish. Must resolve to
+  # this server; a dedicated name such as pages.<your domain> is tidier than
+  # reusing the app host, because it can be repointed without moving the app.
+  LANDING_DOMAIN_CNAME_TARGET: ${LANDING_DOMAIN_CNAME_TARGET:-}
 
 services:
   backend:
