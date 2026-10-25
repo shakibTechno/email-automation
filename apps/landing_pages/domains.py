@@ -184,3 +184,48 @@ def resolves(hostname):
     except OSError:
         return False
     return True
+
+
+# Google's DNS-over-HTTPS JSON endpoint. Used only to *explain* a failure, never
+# to decide one: verification stays the real HTTPS fetch, because that is what a
+# visitor's browser will do.
+PUBLIC_DNS_URL = 'https://dns.google/resolve'
+PUBLIC_DNS_TIMEOUT = 4
+
+
+def published_publicly(hostname):
+    """
+    Whether a public resolver can see a record for this hostname.
+
+    True/False, or None when we could not find out — and None must not be
+    reported as either, because the point of this check is to distinguish "your
+    record is missing" from "your record is fine and our resolver is stale".
+
+    That distinction matters more than it looks. A customer who corrects a wrong
+    record hits a negative cache: the previous NXDOMAIN is held for the zone's
+    SOA minimum, an hour on many zones, during which this server still cannot
+    resolve a name the rest of the world already can. Without this check the
+    only message we could give them was "does not resolve, check the Host
+    field" — advice to change something they had just got right.
+    """
+    import requests
+
+    if not hostname:
+        return None
+    try:
+        response = requests.get(
+            PUBLIC_DNS_URL,
+            params={'name': hostname, 'type': 'A'},
+            timeout=PUBLIC_DNS_TIMEOUT,
+            headers={'Accept': 'application/dns-json'},
+        )
+        if response.status_code != 200:
+            return None
+        payload = response.json()
+    except Exception:
+        return None
+
+    # Status 3 is NXDOMAIN; 0 with an Answer means something is published.
+    if payload.get('Status') == 3:
+        return False
+    return bool(payload.get('Answer'))

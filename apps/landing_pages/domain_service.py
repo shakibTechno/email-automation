@@ -13,6 +13,7 @@ from .domains import (
     doubled_name_candidate,
     forget_domain,
     normalize_domain,
+    published_publicly,
     reserved_domain_error,
     resolves,
     split_zone,
@@ -234,6 +235,17 @@ def _resolution_failure_message(landing_domain):
             f'Your DNS record was created as "{doubled}" rather than "{domain}". '
             f'Most providers add your domain to the Host field automatically, so '
             f'enter just "{label}" there — not the full "{domain}".'
+        )
+
+    # Before blaming their record, check whether the rest of the world can
+    # already see it. If it can, the record is right and this server's resolver
+    # is holding the earlier "does not exist" answer.
+    if published_publicly(domain) is True:
+        return (
+            f'"{domain}" is published and visible publicly, but this server is '
+            f'still holding the earlier "does not exist" result from before the '
+            f'record was added. That clears within about an hour, and the domain '
+            f'is re-checked automatically every few minutes — no action needed.'
         )
 
     message = (

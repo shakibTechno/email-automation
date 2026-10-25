@@ -518,3 +518,59 @@ class DoubledNameDiagnosisTests(TestCase):
         self.assertIn('does not resolve', result.last_check_error)
         self.assertIn('should be "landing"', result.last_check_error)
         self.assertIn('adds "alpha-example.com" itself', result.last_check_error)
+
+
+@override_settings(PLATFORM_HOSTS=PLATFORM)
+class StaleResolverDiagnosisTests(TestCase):
+    """
+    A correct record that this server cannot see yet.
+
+    Correcting a wrong DNS record runs straight into negative caching: the
+    earlier NXDOMAIN is held for the zone's SOA minimum — an hour on many zones
+    — so the record is live everywhere except here. Reporting "does not resolve,
+    check the Host field" then tells the customer to change the thing they have
+    just fixed.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        org = Organization.objects.create(name='Alpha', slug='alpha', plan='starter')
+        self.domain = LandingDomain.objects.create(
+            organization=org, domain='landing.alpha-example.com',
+        )
+
+    def _verify(self, public_answer):
+        exc = requests.exceptions.ConnectionError('boom')
+        exc.__cause__ = socket.gaierror(-2, 'Name or service not known')
+        with patch('apps.landing_pages.domain_service.requests.get') as get, \
+                patch('apps.landing_pages.domain_service.resolves', return_value=False), \
+                patch(
+                    'apps.landing_pages.domain_service.published_publicly',
+                    return_value=public_answer,
+                ):
+            get.side_effect = exc
+            return LandingDomainService.verify(self.domain)
+
+    def test_a_publicly_visible_record_is_reported_as_ours_to_wait_for(self):
+        result = self._verify(public_answer=True)
+
+        self.assertIn('visible publicly', result.last_check_error)
+        self.assertIn('no action needed', result.last_check_error)
+        # And it must not tell them to change the Host field they got right.
+        self.assertNotIn('should be', result.last_check_error)
+
+    def test_a_genuinely_missing_record_still_says_which_field_to_fix(self):
+        result = self._verify(public_answer=False)
+
+        self.assertIn('does not resolve', result.last_check_error)
+        self.assertIn('should be "landing"', result.last_check_error)
+
+    def test_an_unknown_public_answer_falls_back_to_the_host_field_advice(self):
+        """
+        None means the lookup itself failed. Claiming either answer from that
+        would be making something up.
+        """
+        result = self._verify(public_answer=None)
+
+        self.assertIn('does not resolve', result.last_check_error)
