@@ -124,7 +124,10 @@ class PipelineViewSet(viewsets.ModelViewSet):
     def add_stage(self, request, pk=None):
         """Add a new stage to the pipeline."""
         pipeline = self.get_object()
-        serializer = StageCreateSerializer(data=request.data)
+        # The serializer needs the pipeline to check the name is not taken.
+        serializer = StageCreateSerializer(
+            data=request.data, context={'pipeline': pipeline},
+        )
         serializer.is_valid(raise_exception=True)
 
         # Get next position

@@ -28,6 +28,21 @@ class StageCreateSerializer(serializers.Serializer):
     )
     default_probability = serializers.IntegerField(min_value=0, max_value=100, default=50)
 
+    def validate_name(self, value):
+        """
+        Stage names are unique per pipeline.
+
+        Enforced here as well as by the model so a repeated name is a field
+        error the dialog can show, rather than the IntegrityError the database
+        raises, which surfaced as "An unexpected error occurred".
+        """
+        pipeline = self.context.get('pipeline')
+        if pipeline and pipeline.stages.filter(name__iexact=value.strip()).exists():
+            raise serializers.ValidationError(
+                f'This pipeline already has a stage named "{value.strip()}".'
+            )
+        return value
+
 
 class StageReorderSerializer(serializers.Serializer):
     """Serializer for reordering stages."""
@@ -74,6 +89,23 @@ class PipelineCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pipeline
         fields = ['name', 'description', 'stages']
+
+    def validate_stages(self, value):
+        names = [s['name'].strip().lower() for s in value]
+        duplicate = next((n for n in names if names.count(n) > 1), None)
+        if duplicate:
+            # The model enforces this with a unique constraint, which arrives
+            # as a 500 rather than something the form can show.
+            raise serializers.ValidationError(
+                f'Two stages are both named "{duplicate}". Stage names must be unique.'
+            )
+        return value
+
+    def to_representation(self, instance):
+        # The create response listed only the fields that were sent, so it
+        # carried no id and no stage ids -- the client could not address the
+        # pipeline it had just made, which is what broke adding a stage next.
+        return PipelineSerializer(instance, context=self.context).data
 
     @transaction.atomic
     def create(self, validated_data):
