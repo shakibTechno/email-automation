@@ -14,6 +14,9 @@ const profileSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
+  // Optional, so an empty field must stay valid rather than failing the
+  // email check — blank means "use the organization's reply-to address".
+  reply_to_email: z.union([z.literal(''), z.string().email('Invalid email address')]),
 });
 
 const passwordSchema = z.object({
@@ -42,6 +45,7 @@ export const ProfilePage = () => {
       first_name: user?.first_name || '',
       last_name: user?.last_name || '',
       email: user?.email || '',
+      reply_to_email: user?.reply_to_email || '',
     },
   });
 
@@ -140,6 +144,27 @@ export const ProfilePage = () => {
                   {profileErrors.email && (
                     <p className="text-sm text-destructive">
                       {profileErrors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="reply_to_email">Reply-to address</Label>
+                  <Input
+                    id="reply_to_email"
+                    type="email"
+                    placeholder="Leave blank to use your organization's address"
+                    {...registerProfile('reply_to_email')}
+                    disabled={isProfileSubmitting}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Used as the default reply-to on campaigns and sequences you
+                    create. It is applied when you create one and saved on it, so
+                    changing this later does not affect campaigns already set up.
+                  </p>
+                  {profileErrors.reply_to_email && (
+                    <p className="text-sm text-destructive">
+                      {profileErrors.reply_to_email.message}
                     </p>
                   )}
                 </div>

@@ -50,15 +50,28 @@ def send_transactional_email(
     html_body = render_to_string(f'{template}.html', context)
     text_body = _html_to_text(html_body)
 
-    from_name, from_email = _resolve_sender(organization)
+    identity = _resolve_identity(organization)
+    if identity is not None and identity.unavailable:
+        logger.error(
+            'Transactional email %r to %s not sent: %s',
+            template, to_email, identity.unavailable,
+        )
+        return MailResult(False, identity.unavailable)
+
+    if identity is None:
+        from_header = settings.DEFAULT_FROM_EMAIL
+        connection, reply_to_list = None, ([reply_to] if reply_to else None)
+    else:
+        from_header, reply_to_list = identity.sender(reply_to=reply_to or '')
+        connection = identity.connection
 
     message = EmailMultiAlternatives(
         subject=subject,
         body=text_body,
-        from_email=f'{from_name} <{from_email}>' if from_name else from_email,
+        from_email=from_header,
         to=[to_email],
-        reply_to=[reply_to] if reply_to else None,
-        connection=_resolve_connection(organization),
+        reply_to=reply_to_list,
+        connection=connection,
     )
     message.attach_alternative(html_body, 'text/html')
 
@@ -82,21 +95,12 @@ def send_transactional_email(
     return MailResult(True, '')
 
 
-def _resolve_sender(organization):
-    if organization is None:
-        return '', settings.DEFAULT_FROM_EMAIL
-
-    from apps.email_config.services import EmailConfigService
-
-    return EmailConfigService.get_default_from(organization)
-
-
-def _resolve_connection(organization):
+def _resolve_identity(organization):
     """
-    The organization's own connection, or the platform default.
+    The organization's sending identity, or None for platform-level mail.
 
-    `None` lets Django open the default connection, which is also what
-    EmailConfigService falls back to.
+    None means there is no organization to resolve against -- a password reset
+    before sign-in, say -- and Django's own default backend handles it.
     """
     if organization is None:
         return None
@@ -104,11 +108,11 @@ def _resolve_connection(organization):
     from apps.email_config.services import EmailConfigService
 
     try:
-        return EmailConfigService.get_connection(organization)
+        return EmailConfigService.resolve(organization)
     except Exception:
         logger.warning(
-            'Could not build a connection for org %s; using the platform default.',
-            organization.id, exc_info=True,
+            'Could not resolve a sending identity for org %s; using the '
+            'platform default.', organization.id, exc_info=True,
         )
         return None
 
@@ -118,7 +122,7 @@ def _html_to_text(html):
     Derive the plain-text part from the HTML.
 
     Generated rather than kept as a second template, so the two cannot drift
-    apart — a plain-text part that contradicts the HTML is worse than one that
+    apart â€” a plain-text part that contradicts the HTML is worse than one that
     is merely plainer.
 
     <head> is dropped first. Without it the <title> comes through and the

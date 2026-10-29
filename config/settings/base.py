@@ -543,6 +543,15 @@ POSTAL_ENABLED = env.bool('POSTAL_ENABLED', default=False)
 POSTAL_URL = env('POSTAL_URL', default='')
 POSTAL_PROVISIONER_URL = env('POSTAL_PROVISIONER_URL', default='')
 POSTAL_PROVISIONER_TOKEN = env('POSTAL_PROVISIONER_TOKEN', default='')
+
+# The platform's own Postal tenant: the shared identity an organization sends
+# through until it has verified a domain of its own, which is what the provider
+# picker promises by "emails are sent through the platform's shared server".
+# Provisioned once by hand -- see mailstack/MULTI-TENANT.md. The hourly send
+# limit lives on that Postal tenant, not here, so shared sending cannot be
+# widened by editing application config.
+POSTAL_SHARED_API_KEY = env('POSTAL_SHARED_API_KEY', default='')
+POSTAL_SHARED_FROM_EMAIL = env('POSTAL_SHARED_FROM_EMAIL', default='')
 POSTAL_WEBHOOK_VERIFY = env.bool('POSTAL_WEBHOOK_VERIFY', default=True)
 # Hard stop per tenant, in messages/hour. Postal *holds* mail over this limit and
 # it must be released by hand, so it is a circuit breaker, not a throttle:

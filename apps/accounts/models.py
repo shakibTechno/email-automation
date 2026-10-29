@@ -180,6 +180,13 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel, SoftDeleteModel
     timezone = models.CharField(max_length=50, default='UTC')
     language = models.CharField(max_length=10, default='en')
 
+    # Where replies should go for campaigns and sequences this user creates.
+    # A default stamped onto the campaign at creation, never consulted at send
+    # time: a scheduled send runs in a worker with no current user, and an
+    # organization's newsletter must not redirect replies to whoever pressed
+    # Send. Blank means the organization's reply-to address applies.
+    reply_to_email = models.EmailField(blank=True)
+
     objects = UserManager()
 
     USERNAME_FIELD = 'email'

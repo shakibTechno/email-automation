@@ -30,6 +30,9 @@ export interface User {
   avatar?: string;
   timezone?: string;
   language?: string;
+  /** Default reply-to for campaigns and sequences this user creates. Blank
+   *  means the organization's address applies. */
+  reply_to_email?: string;
   created_at: string;
   updated_at: string;
   last_login?: string;
@@ -85,4 +88,5 @@ export interface UpdateProfileData {
   first_name?: string;
   last_name?: string;
   email?: string;
+  reply_to_email?: string;
 }

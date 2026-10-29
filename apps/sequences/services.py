@@ -233,20 +233,23 @@ class SequenceEnrollmentService:
         for key, value in merge_data.items():
             html_content = html_content.replace(f'{{{{{key}}}}}', str(value))
 
-        # Sequence sender overrides org defaults; fall back to email config
-        cfg_name, cfg_email = EmailConfigService.get_default_from(sequence.organization)
-        from_name = sequence.sender_name or cfg_name
-        from_email_addr = sequence.sender_email or cfg_email
-        from_email = f"{from_name} <{from_email_addr}>"
-        reply_to = sequence.reply_to_email or None
-
-        connection = EmailConfigService.get_connection(sequence.organization)
+        # Sequence sender overrides org defaults, but only where the resolved
+        # backend will accept the address.
+        identity = EmailConfigService.resolve(sequence.organization)
+        if identity.unavailable:
+            raise RuntimeError(identity.unavailable)
+        from_email, reply_to = identity.sender(
+            name=sequence.sender_name,
+            email=sequence.sender_email,
+            reply_to=sequence.reply_to_email,
+        )
+        connection = identity.connection
         msg = EmailMultiAlternatives(
             subject=step.subject,
             body='',
             from_email=from_email,
             to=[contact.email],
-            reply_to=[reply_to] if reply_to else None,
+            reply_to=reply_to,
             connection=connection,
             headers={'X-Sequence-ID': str(sequence.id)},
         )

@@ -168,15 +168,18 @@ def send_campaign_email_batch(self, campaign_id: str, recipient_ids: list):
         id__in=recipient_ids, status='pending'
     )
 
-    # Resolve org-specific from address — campaign sender overrides config defaults
-    if campaign.sender_name and campaign.sender_email:
-        from_email = f"{campaign.sender_name} <{campaign.sender_email}>"
-    else:
-        cfg_name, cfg_email = EmailConfigService.get_default_from(campaign.organization)
-        from_email = f"{cfg_name} <{cfg_email}>"
-
-    # Get org-specific email backend connection (reused for all recipients in batch)
-    connection = EmailConfigService.get_connection(campaign.organization)
+    # Backend and From together: the campaign's own sender is honoured only
+    # where the resolved backend will accept it.
+    identity = EmailConfigService.resolve(campaign.organization)
+    if identity.unavailable:
+        logger.error(
+            f"Campaign {campaign_id} batch blocked: {identity.unavailable}"
+        )
+        return
+    from_email, identity_reply_to = identity.sender(
+        name=campaign.sender_name, email=campaign.sender_email
+    )
+    connection = identity.connection
 
     for recipient in recipients:
         try:
@@ -188,7 +191,8 @@ def send_campaign_email_batch(self, campaign_id: str, recipient_ids: list):
                 body=html_body,
                 from_email=from_email,
                 to=[recipient.email],
-                reply_to=[campaign.reply_to_email] if campaign.reply_to_email else None,
+                reply_to=([campaign.reply_to_email] if campaign.reply_to_email
+                          else identity_reply_to),
                 headers={
                     'List-Unsubscribe': f'<{unsubscribe_url}>',
                     'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
@@ -411,16 +415,20 @@ def send_ab_variant_batch(self, campaign_id: str, recipient_ids: list, variant: 
     # Fall back to the organization's configured sender rather than None: a
     # message with no From address is rejected outright by the Postal API.
     sender = config['sender_name']
-    if sender and campaign.sender_email:
-        from_email = f"{sender} <{campaign.sender_email}>"
-    else:
-        cfg_name, cfg_email = EmailConfigService.get_default_from(campaign.organization)
-        from_email = f"{sender or cfg_name} <{cfg_email}>"
+    identity = EmailConfigService.resolve(campaign.organization)
+    if identity.unavailable:
+        logger.error(
+            f"Campaign {campaign.id} batch blocked: {identity.unavailable}"
+        )
+        return
+    from_email, identity_reply_to = identity.sender(
+        name=sender, email=campaign.sender_email
+    )
 
     # Use the organization's own backend. Previously this fell through to the
     # global EMAIL_BACKEND, so A/B mail went out through the platform's
     # provider while every other campaign used the organization's.
-    connection = EmailConfigService.get_connection(campaign.organization)
+    connection = identity.connection
 
     recipients = CampaignRecipient.objects.select_related('contact').filter(
         id__in=recipient_ids, ab_variant=variant, status='pending'
@@ -436,7 +444,8 @@ def send_ab_variant_batch(self, campaign_id: str, recipient_ids: list, variant: 
                 body=html_body,
                 from_email=from_email,
                 to=[recipient.email],
-                reply_to=[campaign.reply_to_email] if campaign.reply_to_email else None,
+                reply_to=([campaign.reply_to_email] if campaign.reply_to_email
+                          else identity_reply_to),
                 headers={
                     'List-Unsubscribe': f'<{unsubscribe_url}>',
                     'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
@@ -546,15 +555,19 @@ def send_ab_winner_batch(self, ab_test_id: str, recipient_ids: list):
         return
 
     sender = config['sender_name']
-    if sender and campaign.sender_email:
-        from_email = f"{sender} <{campaign.sender_email}>"
-    else:
-        cfg_name, cfg_email = EmailConfigService.get_default_from(campaign.organization)
-        from_email = f"{sender or cfg_name} <{cfg_email}>"
+    identity = EmailConfigService.resolve(campaign.organization)
+    if identity.unavailable:
+        logger.error(
+            f"Campaign {campaign.id} batch blocked: {identity.unavailable}"
+        )
+        return
+    from_email, identity_reply_to = identity.sender(
+        name=sender, email=campaign.sender_email
+    )
 
     # As in send_ab_variant_batch: use the organization's own backend rather
     # than falling through to the global EMAIL_BACKEND.
-    connection = EmailConfigService.get_connection(campaign.organization)
+    connection = identity.connection
 
     recipients = CampaignRecipient.objects.select_related('contact').filter(
         id__in=recipient_ids, ab_variant='winner', status='pending'
@@ -570,7 +583,8 @@ def send_ab_winner_batch(self, ab_test_id: str, recipient_ids: list):
                 body=html_body,
                 from_email=from_email,
                 to=[recipient.email],
-                reply_to=[campaign.reply_to_email] if campaign.reply_to_email else None,
+                reply_to=([campaign.reply_to_email] if campaign.reply_to_email
+                          else identity_reply_to),
                 headers={
                     'List-Unsubscribe': f'<{unsubscribe_url}>',
                     'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',

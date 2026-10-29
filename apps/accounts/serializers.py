@@ -39,7 +39,7 @@ class UserSerializer(serializers.ModelSerializer):
             # console instead of the tenant app. The frontend has no other way
             # to tell the two apart — `role` is organization-scoped.
             'is_staff',
-            'phone', 'avatar', 'timezone', 'language',
+            'phone', 'avatar', 'timezone', 'language', 'reply_to_email',
             'created_at', 'updated_at', 'last_login'
         ]
         read_only_fields = [
@@ -272,7 +272,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'first_name', 'last_name', 'phone', 'avatar',
-            'timezone', 'language'
+            'timezone', 'language', 'reply_to_email',
         ]
 
     def validate_avatar(self, value):

@@ -126,7 +126,8 @@ class TeamService:
             # Replies go to the person who invited them, not to a noreply
             # address: the first question a recipient has is "is this real",
             # and the answer is a reply to the colleague who sent it.
-            reply_to=inviter.email if inviter else None,
+            reply_to=((inviter.reply_to_email or inviter.email)
+                      if inviter else None),
             context={
                 'product_name': settings.APP_NAME,
                 'organization_name': organization.name,

@@ -70,9 +70,16 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Set organization and created_by from the authenticated user."""
+        # The creator's personal reply-to is a DEFAULT, applied once here and
+        # then owned by the record. It is deliberately not consulted at send
+        # time: a scheduled campaign is sent by a worker with no current user.
+        extra = {}
+        if not serializer.validated_data.get('reply_to_email'):
+            extra['reply_to_email'] = self.request.user.reply_to_email
         serializer.save(
             organization=self.request.user.organization,
             created_by=self.request.user,
+            **extra,
         )
 
     @extend_schema(description="Soft delete a campaign")

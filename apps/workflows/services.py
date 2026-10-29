@@ -463,14 +463,18 @@ class WorkflowExecutionService:
         from apps.email_config.services import EmailConfigService
 
         organization = execution.workflow.organization
-        from_name, from_addr = EmailConfigService.get_default_from(organization)
+        identity = EmailConfigService.resolve(organization)
+        if identity.unavailable:
+            raise RuntimeError(identity.unavailable)
+        from_email, reply_to = identity.sender()
 
         msg = EmailMultiAlternatives(
             subject=subject,
             body='',
-            from_email=f'{from_name} <{from_addr}>',
+            from_email=from_email,
             to=[contact.email],
-            connection=EmailConfigService.get_connection(organization),
+            reply_to=reply_to,
+            connection=identity.connection,
         )
         msg.attach_alternative(html_content, 'text/html')
         msg.send(fail_silently=False)
