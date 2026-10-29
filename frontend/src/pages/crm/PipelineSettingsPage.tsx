@@ -44,7 +44,7 @@ export const PipelineSettingsPage = () => {
 
   const { data: pipeline, isLoading } = usePipeline(selectedPipelineId);
   const {
-    updatePipeline, addStage, removeStage, reorderStages,
+    createPipeline, updatePipeline, addStage, removeStage, reorderStages,
     isUpdating,
   } = usePipelineMutations();
 
@@ -64,10 +64,15 @@ export const PipelineSettingsPage = () => {
   }, [pipeline]);
 
   const handleSavePipeline = async () => {
-    await updatePipeline(selectedPipelineId, {
-      name: pipelineName,
-      description: pipelineDesc,
-    });
+    const details = { name: pipelineName, description: pipelineDesc };
+    if (!selectedPipelineId) {
+      // No pipeline yet: this form is the only place one can be made, and
+      // without an id the update below would PATCH the collection URL.
+      const created = await createPipeline(details);
+      setSelectedPipelineId(created.id);
+      return;
+    }
+    await updatePipeline(selectedPipelineId, details);
   };
 
   const handleAddStage = async () => {
@@ -112,7 +117,9 @@ export const PipelineSettingsPage = () => {
     );
   }
 
-  const sortedStages = pipeline ? [...pipeline.stages].sort((a, b) => a.position - b.position) : [];
+  const sortedStages = pipeline
+    ? [...pipeline.stages].sort((a, b) => a.position - b.position)
+    : [];
 
   return (
     <div className="w-full space-y-4">
@@ -162,13 +169,22 @@ export const PipelineSettingsPage = () => {
               rows={2}
             />
           </div>
-          <Button onClick={handleSavePipeline} disabled={isUpdating}>
-            {isUpdating ? 'Saving...' : 'Save Changes'}
+          <Button
+            onClick={handleSavePipeline}
+            disabled={isUpdating || !pipelineName.trim()}
+          >
+            {isUpdating
+              ? 'Saving...'
+              : selectedPipelineId
+                ? 'Save Changes'
+                : 'Create Pipeline'}
           </Button>
         </CardContent>
       </Card>
 
-      {/* Stages */}
+      {/* Stages. Hidden until a pipeline exists: every action here needs its
+          id, and without one they post to /pipelines//add_stage/. */}
+      {pipeline && (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Stages</CardTitle>
@@ -229,6 +245,7 @@ export const PipelineSettingsPage = () => {
           </DragDropContext>
         </CardContent>
       </Card>
+      )}
 
       {/* Add Stage Dialog */}
       <Dialog open={showAddStage} onOpenChange={setShowAddStage}>
