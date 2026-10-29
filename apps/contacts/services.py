@@ -301,6 +301,37 @@ class CSVImportService:
             self.skipped_count += 1
 
 
+def submission_answers(submission):
+    """
+    [{label, value, mapped}] for one form submission, in the form's own order.
+
+    Labels come from the form's fields; `mapped` says whether the answer also
+    reached the contact record, so a reader can tell a stored value from one
+    that lives only on the submission.
+
+    Module level because ActivityTimelineService is defined twice in this file
+    and the second shadows the first. Putting this on a class would have made
+    it a third copy of something that already has two.
+    """
+    answers = []
+    for field in sorted(
+        submission.form.fields.all(), key=lambda f: (f.order, f.created_at)
+    ):
+        if field.field_type in ('section', 'divider'):
+            continue
+        value = (submission.data or {}).get(str(field.id))
+        if value in (None, '', [], {}):
+            continue
+        if isinstance(value, list):
+            value = ', '.join(str(v) for v in value)
+        answers.append({
+            'label': field.label,
+            'value': str(value),
+            'mapped': bool(field.contact_field_mapping),
+        })
+    return answers
+
+
 class ActivityTimelineService:
     """
     Aggregates activity events from all sources for a single contact,
@@ -371,17 +402,32 @@ class ActivityTimelineService:
 
         # --- Form submissions ---
         from apps.forms.models import FormSubmission
-        for s in FormSubmission.objects.filter(contact=contact).select_related('form'):
+        submissions = (
+            FormSubmission.objects
+            .filter(contact=contact)
+            .select_related('form')
+            .prefetch_related('form__fields')
+        )
+        for s in submissions:
+            answers = submission_answers(s)
             events.append({
                 'id': f'form_submission_{s.id}',
                 'type': 'form_submission',
                 'title': s.form.name,
-                'description': 'Submitted a form',
+                'description': (
+                    f'Submitted a form ({len(answers)} answers)' if answers
+                    else 'Submitted a form'
+                ),
                 'timestamp': s.created_at,
                 'metadata': {
                     'form_id': str(s.form_id),
                     'form_name': s.form.name,
                     'source_url': s.source_url or '',
+                    # Every answer, mapped or not. A question that maps to no
+                    # contact field -- a budget, a timeline, a "how did you
+                    # hear about us" -- is readable nowhere else on the
+                    # contact, and it is usually the answer that mattered.
+                    'answers': answers,
                 },
             })
 
@@ -638,14 +684,30 @@ class ActivityTimelineService:
         # --- Form submissions ---
         try:
             from apps.forms.models import FormSubmission
-            subs = FormSubmission.objects.filter(contact=contact).select_related('form')
+            subs = (
+                FormSubmission.objects
+                .filter(contact=contact)
+                .select_related('form')
+                .prefetch_related('form__fields')
+            )
             for sub in subs:
+                answers = submission_answers(sub)
                 events.append({
                     'type': 'form_submission',
                     'title': f'Form submitted: {sub.form.name}',
-                    'description': '',
+                    'description': (
+                        f'{len(answers)} answers' if answers else ''
+                    ),
                     'timestamp': sub.submitted_at if hasattr(sub, 'submitted_at') else sub.created_at,
-                    'meta': {'form_id': str(sub.form.id), 'form_name': sub.form.name},
+                    'meta': {
+                        'form_id': str(sub.form.id),
+                        'form_name': sub.form.name,
+                        # Every answer, mapped or not. A question that maps to
+                        # no contact field -- a budget, a timeline, a "how did
+                        # you hear about us" -- is readable nowhere else on the
+                        # contact, and it is usually the answer that mattered.
+                        'answers': answers,
+                    },
                 })
         except Exception:
             pass

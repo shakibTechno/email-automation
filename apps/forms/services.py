@@ -7,6 +7,8 @@ import logging
 
 from django.db import transaction
 from django.utils import timezone
+from apps.contacts import fields as contact_fields
+from apps.contacts.custom_fields import CustomFieldError, CustomFieldService
 from apps.contacts.models import Contact, ContactTag
 
 logger = logging.getLogger(__name__)
@@ -111,52 +113,107 @@ class FormSubmissionService:
         return submission
 
     @staticmethod
+    def contact_field_options(organization):
+        """
+        What a form field may be mapped to.
+
+        Standard columns come from the contact field registry and custom fields
+        from the organization's own definitions, so this grows when either does.
+        The builder used to hold its own list of six, which is why a form could
+        not capture anything added to the contact since.
+        """
+        options = [
+            {'value': key, 'label': label, 'group': 'Contact fields'}
+            for key, label in contact_fields.writable_choices(contact_fields.FORM)
+        ]
+        options += [
+            {
+                'value': f'{contact_fields.CUSTOM_PREFIX}{definition.key}',
+                'label': definition.name,
+                'group': 'Custom fields',
+            }
+            for definition in CustomFieldService.definitions(organization).values()
+        ]
+        return options
+
+    @staticmethod
     def upsert_contact(organization, fields_by_id, submitted_data):
         """
-        Find or create a Contact based on field mappings.
-        Returns Contact instance or None if no email mapping found.
+        Find or create a Contact from the field mappings.
+
+        Returns the Contact, or None when nothing maps to an email address --
+        without one there is no way to tell two submissions apart, so the
+        answers stay on the submission alone.
+
+        Targets come in two shapes. A plain key names a column and is coerced
+        by the registry; a `custom.` key names one of the organization's own
+        fields and is validated against its definition. Anything mapped to
+        neither is kept on the submission and surfaced on the contact's
+        timeline instead.
         """
-        # Build mapping: contact_field -> submitted value
-        mapped_values = {}
+        standard = {}
+        custom = {}
         for field_id, value in submitted_data.items():
             field = fields_by_id.get(field_id)
-            if field and field.contact_field_mapping:
-                mapped_values[field.contact_field_mapping] = value
+            target = field.contact_field_mapping if field else ''
+            if not target or value in (None, ''):
+                continue
 
-        email = mapped_values.get('email')
+            if contact_fields.is_custom_target(target):
+                custom[contact_fields.custom_key(target)] = value
+                continue
+
+            # Defensive, like the importer's: this is the line that would do
+            # the damage if a mapping ever named something it should not.
+            if contact_fields.rejection_reason(target, contact_fields.FORM):
+                logger.warning(
+                    'Form field mapped to %r, which a form may not write; ignoring.',
+                    target,
+                )
+                continue
+            standard[target] = contact_fields.coerce(target, value)
+
+        email = standard.get('email')
         if not email:
             return None
 
-        # Try to find existing contact by email in the organization
-        try:
-            contact = Contact.objects.get(
-                organization=organization,
+        if custom:
+            try:
+                custom = CustomFieldService.validate_and_coerce(organization, custom)
+            except CustomFieldError as exc:
+                # One bad answer must not cost the whole lead. The submission
+                # keeps every answer either way.
+                logger.warning(
+                    'Dropping custom field values from a form submission: %s', exc,
+                )
+                custom = {}
+
+        contact = Contact.objects.filter(
+            organization=organization, email=email
+        ).first()
+
+        if contact is None:
+            return Contact.objects.create(
+                organization=organization, source='form',
+                custom_fields=custom,
+                **{k: v for k, v in standard.items() if k != 'email'},
                 email=email,
             )
-            # Update mapped fields
-            updated_fields = []
-            for field_name, value in mapped_values.items():
-                if field_name == 'email':
-                    continue
-                if value and hasattr(contact, field_name):
-                    setattr(contact, field_name, value)
-                    updated_fields.append(field_name)
-            if updated_fields:
-                contact.save(update_fields=updated_fields)
-            return contact
-        except Contact.DoesNotExist:
-            # Create new contact
-            create_kwargs = {
-                'organization': organization,
-                'email': email,
-                'source': 'form',
-            }
-            for field_name, value in mapped_values.items():
-                if field_name == 'email':
-                    continue
-                if value:
-                    create_kwargs[field_name] = value
-            return Contact.objects.create(**create_kwargs)
+
+        updated = []
+        for key, value in standard.items():
+            if key == 'email':
+                continue
+            setattr(contact, key, value)
+            updated.append(key)
+        if custom:
+            contact.custom_fields = CustomFieldService.merge(
+                organization, contact.custom_fields, custom,
+            )
+            updated.append('custom_fields')
+        if updated:
+            contact.save(update_fields=updated + ['updated_at'])
+        return contact
 
 
 class FormExportService:

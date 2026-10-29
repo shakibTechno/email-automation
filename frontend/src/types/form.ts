@@ -261,3 +261,11 @@ export const defaultConditionalLogic: ConditionalLogic = {
   logic: 'all',
   conditions: [],
 };
+
+/** A target a form field may be mapped to, served by the API so the builder's
+ *  list cannot drift from what the contact record actually holds. */
+export interface ContactFieldOption {
+  value: string;
+  label: string;
+  group: string;
+}

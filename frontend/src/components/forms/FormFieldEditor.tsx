@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   ChevronUp,
   ChevronDown,
@@ -8,6 +9,7 @@ import {
   X,
   Settings2,
 } from 'lucide-react';
+import { formsApi } from '@/api/forms';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,15 +54,23 @@ const widthOptions: { value: FieldWidth; label: string }[] = [
   { value: 'two_thirds', label: 'Two Thirds (2/3)' },
 ];
 
-const contactFieldOptions = [
-  { value: '', label: 'No mapping' },
-  { value: 'first_name', label: 'First Name' },
-  { value: 'last_name', label: 'Last Name' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'company', label: 'Company' },
-  { value: 'job_title', label: 'Job Title' },
-];
+/**
+ * What a form field may be mapped to.
+ *
+ * This used to be a list of six written out here, while the backend accepted
+ * every writable contact column and the organization's own custom fields. A
+ * form could not capture anything added to the contact after the list was
+ * typed, which is the whole reason it is fetched now.
+ *
+ * `useQuery` with a long staleTime: the answer changes only when someone adds
+ * a custom field, and every field editor on the page shares the one result.
+ */
+const useContactFieldOptions = () =>
+  useQuery({
+    queryKey: ['forms', 'contact-field-options'],
+    queryFn: formsApi.getContactFieldOptions,
+    staleTime: 5 * 60 * 1000,
+  });
 
 const hasOptions = (type: FieldType) =>
   ['dropdown', 'radio', 'checkbox'].includes(type);
@@ -91,6 +101,7 @@ export const FormFieldEditor = ({
   onMoveUp,
   onMoveDown,
 }: FormFieldEditorProps) => {
+  const { data: mappingOptions = [] } = useContactFieldOptions();
   const [newOption, setNewOption] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -270,9 +281,10 @@ export const FormFieldEditor = ({
                 <SelectValue placeholder="No mapping" />
               </SelectTrigger>
               <SelectContent>
-                {contactFieldOptions.map((opt) => (
-                  <SelectItem key={opt.value || '_none'} value={opt.value || '_none'}>
-                    {opt.label}
+                <SelectItem value="_none">No mapping</SelectItem>
+                {mappingOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.group === 'Custom fields' ? `${opt.label} (custom)` : opt.label}
                   </SelectItem>
                 ))}
               </SelectContent>

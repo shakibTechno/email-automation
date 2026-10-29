@@ -1,6 +1,8 @@
 """
 Test settings for Email Marketing Automation Platform.
 """
+import os
+
 from .base import *
 
 DEBUG = True
@@ -74,3 +76,23 @@ REST_FRAMEWORK = {
         'email_verification': '10000/hour',
     },
 }
+
+# Tests inherited the developer's own broker. base.py calls read_env(), which
+# loads .env into os.environ, and Celery's Settings.broker_url and
+# result_backend read os.environ *before* the Django settings object -- so
+# overriding CELERY_BROKER_URL here alone had no effect at all.
+#
+# The result: every .delay() in a test tried to reach a Redis that is not
+# running, and blocked on connection retries. Saving a contact fires one, which
+# is why the suites touching contacts, campaigns and workflows took over an
+# hour instead of seconds.
+#
+# An in-memory transport accepts the task and drops it. Tasks still do not
+# execute, which is what these tests already assume; they just no longer wait
+# on a socket that will never answer. Set CELERY_TASK_ALWAYS_EAGER in a test
+# that needs the task to actually run.
+os.environ['CELERY_BROKER_URL'] = 'memory://'
+os.environ['CELERY_RESULT_BACKEND'] = 'cache+memory://'
+CELERY_BROKER_URL = 'memory://'
+CELERY_RESULT_BACKEND = 'cache+memory://'
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = False

@@ -11,6 +11,7 @@ import {
   PublicFormData,
   EmbedCodeResponse,
   ShareUrlResponse,
+  ContactFieldOption,
 } from '@/types/form';
 import { PaginationParams } from '@/types/api';
 
@@ -46,6 +47,16 @@ export const formsApi = {
       per_page: pageSize,
       total_pages: Math.ceil((raw.count ?? 0) / pageSize),
     };
+  },
+
+  /** What a form field may be mapped to. Served rather than hardcoded: this
+   *  list held six entries while the backend accepted every writable contact
+   *  column, so a form could not capture anything added to the contact since. */
+  getContactFieldOptions: async (): Promise<ContactFieldOption[]> => {
+    const response = await apiClient.get<{ options: ContactFieldOption[] }>(
+      '/forms/contact-field-options',
+    );
+    return response.data.options;
   },
 
   getForm: async (id: string): Promise<Form> => {

@@ -83,6 +83,22 @@ class FormViewSet(viewsets.ModelViewSet):
         description="Duplicate a form as inactive",
         responses={201: FormSerializer}
     )
+    @action(detail=False, methods=['get'], url_path='contact-field-options')
+    def contact_field_options(self, request):
+        """
+        What a form field may be mapped to, for the builder's dropdown.
+
+        Served rather than hardcoded in the client: the builder's own list had
+        six entries while the backend accepted every writable contact column,
+        so a form could not capture anything added to the contact since that
+        list was typed.
+        """
+        return Response({
+            'options': FormSubmissionService.contact_field_options(
+                request.user.organization
+            ),
+        })
+
     @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None):
         """Clone a form and its fields as a new inactive form."""
