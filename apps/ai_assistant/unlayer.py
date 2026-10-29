@@ -3,12 +3,17 @@ Unlayer designs.
 
 The editor loads `design_json`, so anything generated has to be wrapped as a
 well-formed design or the template opens blank and the generation is lost.
-The model writes the email HTML itself; this module only builds the document
-around it.
+
+Two kinds of block live in a design. Typed blocks — heading, paragraph, button —
+become Unlayer's own tools and stay draggable and editable in the UI. An `html`
+block becomes Unlayer's HTML tool, editable only as code; it exists so the model
+can express a hero, a multi-column row or a table that the typed blocks cannot,
+without that cost being paid by the whole email.
 """
 import logging
 import random
 import string
+from html import escape
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +24,10 @@ SCHEMA_VERSION = 23
 #: with a verified shape that need no uploaded asset. Images need a real asset
 #: URL plus dimensions and content type, so they stay something you add in the
 #: editor, where the upload callback already exists.
+
+# `html` is the escape hatch: anything the typed blocks cannot express -- a
+# hero, a multi-column row, a table -- the model writes as markup instead.
+SUPPORTED_TYPES = ('heading', 'paragraph', 'button', 'html')
 
 _ID_ALPHABET = string.ascii_letters + string.digits + '_'
 
@@ -51,6 +60,118 @@ _LINK_STYLE = {
     'linkUnderline': True,
     'linkHoverUnderline': True,
 }
+
+
+def _lexical(text: str, *, paragraph_type: str, inline_tool: bool = False) -> str:
+    """
+    One line of text as a Lexical document, serialized the way Unlayer stores it.
+
+    `paragraph_type` differs per block: headings use `heading-paragraph`,
+    paragraphs `paragraph`, and buttons `extended-paragraph`.
+    """
+    import json
+
+    child = {
+        'detail': 0,
+        'format': 0,
+        'mode': 'normal',
+        'style': '',
+        'text': text,
+        'type': 'extended-text',
+        'version': 1,
+    }
+    paragraph = {
+        'children': [child],
+        'format': '',
+        'indent': 0,
+        'type': paragraph_type,
+        'version': 1,
+        'textFormat': 0,
+    }
+    if inline_tool:
+        paragraph['isInlineTool'] = True
+    else:
+        paragraph['textStyle'] = ''
+
+    return json.dumps({
+        'root': {
+            'children': [paragraph],
+            'format': '',
+            'indent': 0,
+            'type': 'root',
+            'version': 1,
+        }
+    })
+
+
+# Keys every content block carries regardless of type.
+
+
+def _heading(text: str, level: int, index: int) -> dict:
+    level = level if level in (1, 2, 3) else 2
+    return {
+        'id': _new_id(),
+        'type': 'heading',
+        'values': {
+            **_common(f'u_content_heading_{index}', 'u_content_heading'),
+            'textJson': _lexical(text, paragraph_type='heading-paragraph'),
+            'headingType': f'h{level}',
+            'fontSize': {1: '28px', 2: '22px', 3: '18px'}[level],
+            'textAlign': 'left',
+            'lineHeight': '140%',
+            'linkStyle': dict(_LINK_STYLE),
+            '_languages': {},
+        },
+    }
+
+
+def _paragraph(text: str, index: int) -> dict:
+    return {
+        'id': _new_id(),
+        'type': 'paragraph',
+        'values': {
+            **_common(f'u_content_paragraph_{index}', 'u_content_paragraph'),
+            'textJson': _lexical(text, paragraph_type='paragraph'),
+            'fontSize': '14px',
+            'textAlign': 'left',
+            'lineHeight': '160%',
+            'linkStyle': dict(_LINK_STYLE),
+            'hideDesktop': False,
+            '_languages': {},
+        },
+    }
+
+
+def _button(text: str, href: str, index: int) -> dict:
+    return {
+        'id': _new_id(),
+        'type': 'button',
+        'values': {
+            **_common(f'u_content_button_{index}', 'u_content_button'),
+            'textJson': _lexical(
+                text, paragraph_type='extended-paragraph', inline_tool=True,
+            ),
+            'href': {
+                'name': 'web',
+                'values': {'href': href, 'target': '_blank'},
+                'attrs': {'href': '{{href}}', 'target': '{{target}}'},
+            },
+            'buttonColors': {
+                'color': '#FFFFFF',
+                'backgroundColor': '#0879A1',
+                'hoverColor': '#FFFFFF',
+                'hoverBackgroundColor': '#0879A1',
+            },
+            'size': {'autoWidth': True, 'width': '100%'},
+            'fontSize': '14px',
+            'lineHeight': '120%',
+            'textAlign': 'center',
+            'padding': '10px 20px',
+            'border': {},
+            'borderRadius': '4px',
+            'hideDesktop': False,
+        },
+    }
 
 
 def _row(content: dict, row_index: int, column_index: int) -> dict:
@@ -165,14 +286,106 @@ def _html_content(html: str, index: int) -> dict:
     }
 
 
-def build_html_design(html: str, *, preheader: str = '') -> dict:
+def build_design(blocks: list[dict], *, preheader: str = '') -> tuple[dict, int]:
     """
-    Wrap a complete email the model wrote as one Unlayer HTML block.
+    Turn `[{type, text|html, href?, level?}, ...]` into a complete Unlayer design.
 
-    The editor can only edit it as code, which is the trade made when the model
-    writes the markup: it buys layouts the block vocabulary cannot express. The
-    design still has to be well-formed or the editor refuses to open it at all.
+    Typed blocks become Unlayer's own heading/paragraph/button tools, so the
+    reader can drag, edit and delete each one. An `html` block becomes Unlayer's
+    HTML tool: editable only as code, which is the price of letting the model
+    express a layout the typed blocks cannot.
+
+    Returns the design and how many blocks survived. Unrecognised or empty
+    blocks are skipped rather than guessed at — one fewer block beats a design
+    the editor silently refuses to load.
     """
-    counters = {'u_row': 1, 'u_column': 1, 'u_content_html': 1}
-    rows = [_row(_html_content(html, 1), 1, 1)]
-    return _design(rows, counters, preheader)
+    rows: list[dict] = []
+    counters = {'u_row': 0, 'u_column': 0}
+
+    for raw in blocks:
+        kind = (raw.get('type') or '').strip()
+        if kind not in SUPPORTED_TYPES:
+            logger.info(f'Skipping generated email block of type {kind!r}')
+            continue
+
+        # An html block carries markup; every other kind carries words.
+        body = (raw.get('html') if kind == 'html' else raw.get('text')) or ''
+        body = body.strip()
+        if not body:
+            logger.info(f'Skipping empty generated {kind} block')
+            continue
+
+        key = f'u_content_{kind}'
+        counters[key] = counters.get(key, 0) + 1
+        counters['u_row'] += 1
+        counters['u_column'] += 1
+
+        if kind == 'heading':
+            content = _heading(body, int(raw.get('level') or 2), counters[key])
+        elif kind == 'paragraph':
+            content = _paragraph(body, counters[key])
+        elif kind == 'button':
+            content = _button(body, (raw.get('href') or '#').strip(), counters[key])
+        else:
+            content = _html_content(body, counters[key])
+
+        rows.append(_row(content, counters['u_row'], counters['u_column']))
+
+    return _design(rows, counters, preheader), len(rows)
+
+
+def build_html(blocks: list[dict], *, preheader: str = '') -> str:
+    """
+    A plain email rendering of the same blocks.
+
+    Unlayer regenerates `html_content` from the design the first time the
+    template is saved, so this only has to be correct enough that a template
+    nobody opens still sends something sensible.
+    """
+    parts: list[str] = []
+    if preheader:
+        parts.append(
+            '<div style="display:none;max-height:0;overflow:hidden;'
+            f'mso-hide:all">{escape(preheader)}</div>'
+        )
+
+    for raw in blocks:
+        kind = (raw.get('type') or '').strip()
+        if kind not in SUPPORTED_TYPES:
+            continue
+        body = ((raw.get('html') if kind == 'html' else raw.get('text')) or '').strip()
+        if not body:
+            continue
+
+        if kind == 'heading':
+            level = int(raw.get('level') or 2)
+            level = level if level in (1, 2, 3) else 2
+            size = {1: '28px', 2: '22px', 3: '18px'}[level]
+            parts.append(
+                f'<h{level} style="font-size:{size};line-height:140%;margin:0 0 16px">'
+                f'{escape(body)}</h{level}>'
+            )
+        elif kind == 'paragraph':
+            parts.append(
+                '<p style="font-size:14px;line-height:160%;margin:0 0 16px">'
+                f'{escape(body)}</p>'
+            )
+        elif kind == 'button':
+            href = escape((raw.get('href') or '#').strip(), quote=True)
+            parts.append(
+                f'<p style="margin:0 0 16px"><a href="{href}" '
+                'style="display:inline-block;background:#3AAEE0;color:#ffffff;'
+                'padding:10px 20px;border-radius:4px;text-decoration:none">'
+                f'{escape(body)}</a></p>'
+            )
+        else:
+            # Already sanitized markup, emitted as-is: escaping it here would
+            # send the reader the source of their own email.
+            parts.append(body)
+
+    return (
+        '<div style="max-width:600px;margin:0 auto;padding:24px;'
+        'font-family:arial,helvetica,sans-serif;color:#000000">'
+        + ''.join(parts) +
+        '</div>'
+    )

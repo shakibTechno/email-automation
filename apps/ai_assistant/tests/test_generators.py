@@ -147,91 +147,128 @@ class FormGeneratorTests(JobFixtureMixin, TestCase):
 
 class EmailTemplateGeneratorTests(JobFixtureMixin, TestCase):
     """
-    The model writes the email's HTML. The block vocabulary it replaced could
-    only produce three stacked text styles, which is why every generated email
-    looked alike.
+    Typed blocks stay editable in the drag-and-drop editor; an html block buys
+    a layout the typed blocks cannot express, and costs code-only editing. The
+    mix is the point — neither the three-block vocabulary nor one HTML blob.
     """
 
-    HTML = (
-        '<table role="presentation" width="600" cellpadding="0" cellspacing="0" '
-        'border="0" style="max-width:600px">'
-        '<tr><td bgcolor="#1a1a2e" align="center" style="padding:32px">'
+    HERO = (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'border="0"><tr><td bgcolor="#1a1a2e" align="center" style="padding:32px">'
         '<h1 style="color:#ffffff;font-size:28px;margin:0">Stop guessing</h1>'
-        '</td></tr>'
-        '<tr><td style="padding:24px">'
-        '<p style="font-size:16px;line-height:1.6;color:#333333">'
-        'Your bounce rate is telling you something specific.</p>'
-        '</td></tr>'
-        '<tr><td align="center" style="padding:0 24px 32px">'
-        '<table role="presentation" cellpadding="0" cellspacing="0" border="0">'
-        '<tr><td bgcolor="#4f46e5" style="border-radius:6px;padding:14px 28px">'
-        '<a href="https://example.com/webinar" '
-        'style="display:inline-block;color:#ffffff;text-decoration:none">'
-        'Save my seat</a></td></tr></table>'
         '</td></tr></table>'
     )
+
+    BLOCKS = [
+        {'type': 'html', 'text': '', 'html': HERO, 'href': '', 'level': 2},
+        {'type': 'heading', 'text': 'Your bounce rate is a number',
+         'html': '', 'href': '', 'level': 2},
+        {'type': 'paragraph', 'text': 'It is telling you something specific.',
+         'html': '', 'href': '', 'level': 2},
+        {'type': 'button', 'text': 'Save my seat', 'html': '',
+         'href': 'https://example.com/webinar', 'level': 2},
+    ]
 
     PAYLOAD = {
         'name': 'Bounce rate webinar',
         'subject': 'Stop landing in spam',
         'preheader': 'A 45 minute session on deliverability.',
-        'html': HTML,
+        'blocks': BLOCKS,
     }
 
-    def test_creates_a_template_the_editor_can_load(self):
+    def _template(self, **overrides):
         job = self._job(GenerationJob.KIND_EMAIL_TEMPLATE)
-        template = email_templates.create(job, self.PAYLOAD)
+        return email_templates.create(job, {**self.PAYLOAD, **overrides})
 
-        self.assertEqual(template.subject, 'Stop landing in spam')
+    def _contents(self, template):
+        return [
+            row['columns'][0]['contents'][0]
+            for row in template.design_json['body']['rows']
+        ]
+
+    def test_typed_blocks_stay_editable_and_html_blocks_are_html(self):
+        template = self._template()
+
         self.assertEqual(template.design_json['schemaVersion'], SCHEMA_VERSION)
-        # One HTML block. The editor loads design_json, so wrapping it is what
-        # stops the template opening blank.
-        rows = template.design_json['body']['rows']
-        self.assertEqual(len(rows), 1)
-        content = rows[0]['columns'][0]['contents'][0]
-        self.assertEqual(content['type'], 'html')
-        self.assertIn('Stop guessing', content['values']['html'])
-        self.assertIn('Stop guessing', template.html_content)
-
-    def test_the_preheader_reaches_the_design(self):
-        job = self._job(GenerationJob.KIND_EMAIL_TEMPLATE)
-        template = email_templates.create(job, self.PAYLOAD)
         self.assertEqual(
-            template.design_json['body']['values']['preheaderText'],
-            'A 45 minute session on deliverability.',
+            [c['type'] for c in self._contents(template)],
+            ['html', 'heading', 'paragraph', 'button'],
+            'each block keeps its own Unlayer tool',
         )
+
+    def test_the_html_block_carries_its_markup(self):
+        template = self._template()
+        html_block = self._contents(template)[0]
+        self.assertIn('bgcolor="#1a1a2e"', html_block['values']['html'])
 
     def test_table_layout_and_inline_styles_survive(self):
         """
         Email layout is tables and presentational attributes. A sanitizer tuned
         for landing pages would strip exactly what makes the email render.
         """
-        job = self._job(GenerationJob.KIND_EMAIL_TEMPLATE)
-        template = email_templates.create(job, self.PAYLOAD)
-
-        for fragment in ('cellpadding="0"', 'bgcolor="#1a1a2e"', 'width="600"',
-                         'align="center"', 'style="max-width:600px"'):
+        template = self._template()
+        for fragment in ('cellpadding="0"', 'bgcolor="#1a1a2e"', 'align="center"'):
             self.assertIn(fragment, template.html_content, fragment)
 
-    def test_script_is_removed_from_a_generated_email(self):
-        job = self._job(GenerationJob.KIND_EMAIL_TEMPLATE)
-        template = email_templates.create(job, {
-            **self.PAYLOAD,
-            'html': self.HTML + '<script>fetch("https://evil.test")</script>',
-        })
+    def test_script_in_an_html_block_is_removed(self):
+        template = self._template(blocks=[
+            {'type': 'html', 'text': '',
+             'html': self.HERO + '<script>fetch("https://evil.test")</script>',
+             'href': '', 'level': 2},
+            *self.BLOCKS[1:],
+        ])
 
         self.assertNotIn('<script', template.html_content)
         self.assertNotIn('evil.test', template.html_content)
         self.assertIn('Stop guessing', template.html_content)
 
-    def test_rejects_output_that_is_not_an_email(self):
-        self.assertIsNotNone(email_templates.validate({'html': ''}))
-        self.assertIsNotNone(
-            email_templates.validate({'html': 'Sorry, I cannot help with that.'}),
-            'plain prose is not an email',
+    def test_the_fallback_html_renders_both_kinds(self):
+        """
+        Unlayer regenerates html_content on first save, so this only matters
+        for a template nobody opens — but that one still has to send.
+        """
+        template = self._template()
+
+        self.assertIn('Stop guessing', template.html_content)       # html block
+        self.assertIn('Your bounce rate', template.html_content)    # typed block
+        self.assertIn('https://example.com/webinar', template.html_content)
+
+    def test_words_in_a_typed_block_are_escaped_but_markup_is_not(self):
+        """A typed block is plain text: angle brackets in it are words."""
+        template = self._template(blocks=[
+            {'type': 'paragraph', 'text': 'Costs <10 minutes & no setup',
+             'html': '', 'href': '', 'level': 2},
+            {'type': 'html', 'text': '', 'html': self.HERO, 'href': '', 'level': 2},
+        ])
+
+        self.assertIn('&lt;10 minutes', template.html_content)
+        self.assertIn('<table', template.html_content)
+
+    def test_the_preheader_reaches_the_design(self):
+        template = self._template()
+        self.assertEqual(
+            template.design_json['body']['values']['preheaderText'],
+            'A 45 minute session on deliverability.',
         )
+
+    def test_unusable_blocks_are_skipped_not_guessed_at(self):
+        template = self._template(blocks=[
+            *self.BLOCKS,
+            {'type': 'carousel', 'text': 'x', 'html': '', 'href': '', 'level': 2},
+            {'type': 'html', 'text': '', 'html': '   ', 'href': '', 'level': 2},
+            {'type': 'paragraph', 'text': '', 'html': '', 'href': '', 'level': 2},
+        ])
+        self.assertEqual(len(self._contents(template)), 4)
+
+    def test_rejects_output_that_is_not_an_email(self):
+        self.assertIsNotNone(email_templates.validate({'blocks': []}))
+        self.assertIsNotNone(email_templates.validate(
+            {'blocks': [{'type': 'image', 'text': 'x'}]}
+        ))
         self.assertIsNotNone(
-            email_templates.validate({'html': '<div><span></span></div>'}),
+            email_templates.validate({'blocks': [
+                {'type': 'html', 'html': '<div><span></span></div>'},
+            ]}),
             'markup with no readable words is not an email',
         )
         self.assertIsNone(email_templates.validate(self.PAYLOAD))
