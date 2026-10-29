@@ -109,3 +109,62 @@ _DISALLOWED_MARKERS = (
 def _contains_disallowed(html: str) -> bool:
     lowered = html.lower().replace(' =', '=')
     return any(marker in lowered for marker in _DISALLOWED_MARKERS)
+
+
+# --------------------------------------------------------------------- email
+
+# Email markup is not page markup. Layout is done with tables because that is
+# what Outlook understands, every style must be inline because most clients
+# strip <style>, and the presentational attributes below are still load-bearing
+# in 2026. So this is a wider allowlist than the page one -- but wider only in
+# presentation: script, iframe, object, embed, form and inputs stay out, and a
+# generated email is sent to other people's inboxes, which is the last place a
+# scriptable payload should reach.
+EMAIL_ALLOWED_TAGS = ALLOWED_TAGS | {'center', 'font', 'tt', 'sub', 'sup', 'wbr'}
+
+_EMAIL_PRESENTATION = {
+    'align', 'valign', 'bgcolor', 'width', 'height', 'background',
+}
+EMAIL_ALLOWED_ATTRIBUTES = {
+    **{tag: set(attrs) for tag, attrs in ALLOWED_ATTRIBUTES.items()},
+    '*': ALLOWED_ATTRIBUTES['*'] | _EMAIL_PRESENTATION,
+    'table': _EMAIL_PRESENTATION | {
+        'cellpadding', 'cellspacing', 'border', 'role', 'class', 'id', 'style',
+    },
+    'td': ALLOWED_ATTRIBUTES['td'] | _EMAIL_PRESENTATION,
+    'th': ALLOWED_ATTRIBUTES['th'] | _EMAIL_PRESENTATION,
+    'tr': _EMAIL_PRESENTATION | {'class', 'id', 'style'},
+    'img': ALLOWED_ATTRIBUTES['img'] | {'border', 'align', 'style', 'class'},
+    'font': {'color', 'size', 'face'},
+}
+
+
+def sanitize_email_html(html: str) -> tuple[str, bool]:
+    """
+    Clean a generated email body for storage.
+
+    Same contract as sanitize_page_html: the cleaned markup, and whether
+    anything dangerous was present in the input.
+    """
+    if not html:
+        return '', False
+
+    def clean(markup):
+        return nh3.clean(
+            markup,
+            tags=EMAIL_ALLOWED_TAGS,
+            attributes=EMAIL_ALLOWED_ATTRIBUTES,
+            url_schemes=ALLOWED_URL_SCHEMES,
+            strip_comments=True,
+            link_rel='noopener noreferrer',
+        )
+
+    cleaned = clean(html)
+    if clean(cleaned) != cleaned:  # pragma: no cover - a second pass should be stable
+        logger.warning('Email sanitizer was not idempotent on generated markup')
+
+    removed_something = _contains_disallowed(html)
+    if removed_something:
+        logger.info('Sanitizer removed disallowed markup from a generated email')
+
+    return cleaned, removed_something

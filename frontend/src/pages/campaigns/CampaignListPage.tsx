@@ -11,9 +11,8 @@ import {
   Pause,
   XCircle,
   Send,
-  Archive, Sparkles } from 'lucide-react';
+  Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { AIGenerateDialog } from '@/components/ai/AIGenerateDialog';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -48,7 +47,6 @@ const statusFilters: { value: CampaignStatus | 'all'; label: string }[] = [
 
 export const CampaignListPage = () => {
   const navigate = useNavigate();
-  const [showAI, setShowAI] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | 'all'>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -102,9 +100,6 @@ export const CampaignListPage = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowAI(true)}>
-            <Sparkles className="h-3.5 w-3.5" /> Generate with AI
-          </Button>
           <Button size="sm" onClick={() => navigate('/campaigns/new')}>
             <Plus className="h-3.5 w-3.5" /> New campaign
           </Button>
@@ -384,17 +379,6 @@ export const CampaignListPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AIGenerateDialog
-        kind="campaign"
-        open={showAI}
-        onOpenChange={setShowAI}
-        // The campaign already exists by the time this fires, with its email
-        // written and attached — the wizard opens on it to pick an audience.
-        onGenerated={(id) => navigate(`/campaigns/${id}/edit`)}
-        title="Generate a campaign"
-        description="Describe what you want to send and AI drafts the email and the campaign."
-      />
     </div>
   );
 };

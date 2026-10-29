@@ -197,7 +197,7 @@ export const TemplateListPage = () => {
         onOpenChange={setShowAI}
         onGenerated={(id) => navigate(`/templates/${id}/edit`)}
         title="Generate an email template"
-        description="Describe the email and AI drafts it as editable blocks."
+        description="Describe the email and AI writes it as HTML, editable as code in the editor."
       />
     </div>
   );

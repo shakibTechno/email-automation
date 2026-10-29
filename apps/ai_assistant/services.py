@@ -68,14 +68,13 @@ def _generator_for(kind: str):
     Imported lazily so a generator that touches another app's models cannot
     create an import cycle at startup.
     """
-    from .generators import campaigns, email_templates, forms, landing_pages
+    from .generators import email_templates, forms, landing_pages
 
     try:
         return {
             GenerationJob.KIND_LANDING_PAGE: landing_pages,
             GenerationJob.KIND_FORM: forms,
             GenerationJob.KIND_EMAIL_TEMPLATE: email_templates,
-            GenerationJob.KIND_CAMPAIGN: campaigns,
         }[kind]
     except KeyError:
         raise AIError(f'Nothing knows how to generate "{kind}".') from None

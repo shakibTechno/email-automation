@@ -82,7 +82,7 @@ class GenerateView(APIView):
 
     permission_classes = [IsAuthenticated, IsOrganizationMember]
 
-    VALID_KINDS = {kind for kind, _ in GenerationJob.KIND_CHOICES}
+    VALID_KINDS = GenerationJob.GENERATABLE_KINDS
 
     @extend_schema(
         request=GenerationRequestSerializer,

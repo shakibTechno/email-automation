@@ -125,6 +125,16 @@ class GenerationJob(TimeStampedModel):
         (KIND_CAMPAIGN, 'Campaign'),
     ]
 
+    # What may be generated *now*. Campaign generation was withdrawn: choosing
+    # an audience, a schedule and a sender is the part of a campaign that
+    # carries the risk, and a drafted one invited sending without deciding any
+    # of it. The kind stays in KIND_CHOICES so jobs already recorded still read
+    # back. Both the API and the generator dispatch read this, so the two
+    # cannot disagree about what is available.
+    GENERATABLE_KINDS = frozenset({
+        KIND_LANDING_PAGE, KIND_FORM, KIND_EMAIL_TEMPLATE,
+    })
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
         'accounts.Organization',

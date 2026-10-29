@@ -346,7 +346,7 @@ export const FormListPage = () => {
         onOpenChange={setShowAI}
         onGenerated={(id) => navigate(`/forms/${id}/edit`)}
         title="Generate a form"
-        description="Describe what you need to capture and AI drafts the fields."
+        description="Describe what you need to capture and AI drafts the fields, the design and the consent wording."
       />
     </div>
   );
