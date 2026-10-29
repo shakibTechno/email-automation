@@ -31,6 +31,10 @@ class SendingIdentity:
     # Empty when this organization can send. Otherwise a sentence written for
     # the person reading it in Settings, not a socket error.
     unavailable: str = ''
+    # Set when mail goes out, but not as the address that was configured. A
+    # silent substitution is how someone finds out months later that every
+    # email went from the wrong address.
+    notice: str = ''
 
     def sender(self, name='', email='', reply_to=''):
         """
@@ -188,23 +192,34 @@ class EmailConfigService:
             own = EmailConfigService.get_postal_connection(organization)
             if own:
                 verified = EmailConfigService.verified_sending_domains(organization)
-                if not email and verified:
-                    # Verified a domain but never chose a From address — the
-                    # usual state straight after onboarding. Send from the
-                    # domain they verified rather than treating them as unable
-                    # to send at all.
-                    email = f'noreply@{sorted(verified)[0]}'
                 if email.rpartition('@')[2].lower() in verified:
                     return SendingIdentity(own, name, email, reply, False)
-                # A verified domain exists but the From does not sit on it —
-                # usually a From left behind by a domain that was removed.
-                # Postal would reject this outright, so use the shared sender
-                # and say so, rather than failing at send time.
-                logger.warning(
-                    'Org %s has a verified sending domain but its From address '
-                    '%r is not on one; using the shared identity.',
-                    organization.id, email,
-                )
+
+                # The From does not sit on a domain Postal has verified, so it
+                # would be rejected outright. An organization that has verified
+                # a domain of its own should send from that, not from the
+                # platform's shared address: it is theirs, it is aligned, and
+                # it keeps their branding. Two ways to get here — no From
+                # chosen yet, the usual state just after onboarding, and a From
+                # left behind by a domain that was removed.
+                if verified:
+                    substitute = f'{email.partition("@")[0] or "noreply"}@{sorted(verified)[0]}'
+                    logger.warning(
+                        'Org %s cannot send as %r (not a verified domain); '
+                        'sending as %r instead.',
+                        organization.id, email or '(unset)', substitute,
+                    )
+                    return SendingIdentity(
+                        own, name, substitute, reply, False,
+                        notice=(
+                            f'Your From address is set to {email or "nothing"}, which is '
+                            f'not on a domain you have verified, so {substitute} was used '
+                            f'instead. Update it under Sending Identity.'
+                            if email else
+                            f'No From address is set, so {substitute} was used. '
+                            f'Set one under Sending Identity.'
+                        ),
+                    )
             return shared_or_unavailable()
 
         if provider == 'smtp' and not config.smtp_host:
@@ -373,6 +388,8 @@ class EmailConfigService:
                 f'{identity.from_email}. Verify a sending domain of your own to '
                 f'send as your brand.'
             )
+        if identity.notice:
+            return True, f'Test email sent to {to_email}. {identity.notice}'
         return True, f'Test email sent successfully to {to_email}'
 
     @staticmethod

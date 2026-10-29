@@ -76,24 +76,56 @@ class ResolveIdentityTestCase(TestCase):
 
         self.assertFalse(identity.is_shared)
         self.assertEqual(identity.from_email, 'noreply@news.acme.com')
+        self.assertIn('No From address is set', identity.notice)
 
-    def test_from_address_on_a_removed_domain_falls_back_to_shared(self):
+    def test_a_from_on_a_removed_domain_uses_the_verified_one(self):
         """
-        The case that broke in production: a sending domain was deleted and the
-        From address was left behind pointing at it. Postal would reject that
-        outright, so the shared identity carries the message instead.
+        The case that broke a live invitation: a sending domain was deleted and
+        the From address was left pointing at it. The organization still has a
+        verified domain of its own, so mail goes from that rather than from the
+        platform's shared address -- it is theirs, it is aligned, and it keeps
+        their branding.
         """
         self._verify()
         self._config(from_name='Acme', from_email='hello@gone.acme.com')
 
         identity = EmailConfigService.resolve(self.org)
 
+        self.assertFalse(identity.is_shared)
+        self.assertEqual(identity.from_email, 'hello@news.acme.com')
+        self.assertEqual(identity.unavailable, '')
+        # Never silently: this is how someone finds out months later that every
+        # email went from an address they did not choose.
+        self.assertIn('hello@gone.acme.com', identity.notice)
+        self.assertIn('hello@news.acme.com', identity.notice)
+
+    def test_the_substitution_keeps_the_local_part(self):
+        self._verify()
+        self._config(from_name='Acme', from_email='offers@gone.acme.com')
+
+        self.assertEqual(
+            EmailConfigService.resolve(self.org).from_email, 'offers@news.acme.com'
+        )
+
+    def test_the_test_button_reports_a_substituted_address(self):
+        self._verify()
+        self._config(from_name='Acme', from_email='hello@gone.acme.com')
+
+        ok, message = EmailConfigService.test_connection(self.org, 'qa@example.com')
+
+        self.assertTrue(ok)
+        self.assertIn('hello@news.acme.com', message)
+        self.assertEqual(len(self.postal.sent), 1)
+
+    def test_no_verified_domain_still_falls_back_to_shared(self):
+        """Substitution needs a domain of their own; without one, shared."""
+        self._config(from_name='Acme', from_email='hello@acme.com')
+
+        identity = EmailConfigService.resolve(self.org)
+
         self.assertTrue(identity.is_shared)
         self.assertEqual(identity.from_email, 'hello@platform.test')
-        # The address they meant to send as is not lost — replies go there.
-        self.assertEqual(identity.reply_to, 'hello@gone.acme.com')
 
-    # --------------------------------------------------------- shared sender
     def test_organization_with_no_domain_uses_the_shared_identity(self):
         self._config(from_name='Acme', from_email='hello@acme.com')
 
