@@ -7,11 +7,15 @@ cannot be chosen independently — every case below is really one question, "wil
 the backend we picked accept the address we picked?", and the old code answered
 it in two places that could disagree.
 """
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
-from apps.accounts.models import Organization
+from django.core import mail
+
+from apps.accounts.models import Organization, User
+from apps.accounts.services import TeamService
 from apps.email_config.models import EmailConfiguration, SendingDomain
 from apps.email_config.provisioning import PostalProvisioningService
 from apps.email_config.services import EmailConfigService
@@ -232,3 +236,94 @@ class ResolveIdentityTestCase(TestCase):
         self.assertEqual(identity.unavailable, '')
         self.assertIsNotNone(identity.connection)
         self.assertFalse(identity.is_shared)
+
+
+@override_settings(**SHARED)
+class PlatformSenderTestCase(TestCase):
+    """
+    Account mail — invitations, password resets, verification — is about the
+    platform and links to it, so it does not go out on a tenant's domain.
+    """
+
+    def setUp(self):
+        self.org = Organization.objects.create(name='Acme Inc', slug='acme-inc')
+        self.owner = User.objects.create_user(
+            email='ada@acme.test', password='x', organization=self.org,
+            role='owner', first_name='Ada', last_name='Lovelace',
+        )
+        self.postal = FakePostal()
+        patcher = patch('apps.email_config.backends.send_message', self.postal)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        self.provisioner = FakeProvisioner()
+        prov_patcher = patch(
+            'apps.email_config.provisioning.get_provisioner',
+            return_value=self.provisioner,
+        )
+        prov_patcher.start()
+        self.addCleanup(prov_patcher.stop)
+
+    def _invite(self):
+        TeamService.invite_member(self.org, 'new@example.com', 'member', self.owner)
+        # Mail that went through Postal is in the fake's record; mail that fell
+        # back to Django's default backend is in its outbox.
+        if self.postal.sent:
+            sent = self.postal.sent[-1]
+            return SimpleNamespace(
+                from_email=sent['from'],
+                reply_to=[sent['reply_to']] if sent['reply_to'] else [],
+            )
+        self.assertEqual(len(mail.outbox), 1, 'nothing was sent at all')
+        message = mail.outbox[0]
+        return SimpleNamespace(
+            from_email=message.from_email, reply_to=list(message.reply_to or []),
+        )
+
+    def test_an_invitation_is_sent_from_the_platform_domain(self):
+        EmailConfiguration.objects.create(
+            organization=self.org, provider='platform_default',
+            from_name='Acme', from_email='hello@acme.com',
+        )
+
+        message = self._invite()
+
+        self.assertIn('hello@platform.test', message.from_email)
+        self.assertNotIn('acme.com', message.from_email)
+
+    def test_the_from_line_still_names_the_inviter_and_the_organization(self):
+        """Recognition is the whole job of an invitation's From line."""
+        message = self._invite()
+        self.assertIn('Ada Lovelace', message.from_email)
+        self.assertIn('Acme Inc', message.from_email)
+
+    def test_replies_still_reach_the_inviter(self):
+        message = self._invite()
+        self.assertEqual(message.reply_to, ['ada@acme.test'])
+
+    def test_an_organization_with_no_verified_domain_can_still_invite(self):
+        """
+        The case this exists for: a brand new account inviting its team before
+        it has done any DNS. On the organization's own identity that could not
+        send at all.
+        """
+        message = self._invite()
+        self.assertIn('hello@platform.test', message.from_email)
+
+    @override_settings(POSTAL_SHARED_API_KEY='', POSTAL_SHARED_FROM_EMAIL='')
+    def test_without_a_platform_sender_it_falls_back_rather_than_failing(self):
+        """
+        Worse for account mail, but far better than an invitation that cannot
+        be sent while the shared sender is still being set up.
+        """
+        PostalProvisioningService.add_domain(self.org, 'news.acme.com')
+        domain = SendingDomain.objects.get(organization=self.org)
+        PostalProvisioningService.check_domain(domain)
+        EmailConfiguration.objects.create(
+            organization=self.org, provider='platform_default',
+            from_name='Acme', from_email='hello@news.acme.com',
+        )
+
+        message = self._invite()
+
+        self.assertIn('news.acme.com', message.from_email)

@@ -123,6 +123,16 @@ class TeamService:
             template='accounts/email/team_invitation',
             to_email=invitation.email,
             organization=organization,
+            # Account mail: it is about joining the platform and links to it,
+            # so it goes out on the platform's domain rather than the
+            # organization's. A new organization has no verified domain yet,
+            # and inviting the rest of the team is one of the first things it
+            # does.
+            from_platform=True,
+            # The domain is the platform's; the name is not. "Ada at Acme" is
+            # what the recipient recognises, and recognition is the whole job
+            # of an invitation's From line.
+            sender_name=f'{inviter_name} at {organization.name}',
             # Replies go to the person who invited them, not to a noreply
             # address: the first question a recipient has is "is this real",
             # and the answer is a reply to the colleague who sent it.

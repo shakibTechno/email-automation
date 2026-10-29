@@ -117,6 +117,35 @@ class EmailConfigService:
         )
 
     @staticmethod
+    def platform_identity(display_name=''):
+        """
+        The platform speaking for itself, with no organization behind it.
+
+        Account mail — a team invitation, a password reset, an email
+        verification — is about the platform, links to the platform, and is
+        sent by the platform. Putting it on a tenant's sending domain ties it
+        to a reputation it has nothing to do with, and makes it impossible to
+        send at all for an organization that has not verified a domain yet,
+        which is exactly when an invitation goes out.
+
+        `display_name` still carries whoever the recipient would recognise, so
+        the From reads "Ada at Acme <hello@send.platform>". Only the domain is
+        the platform's.
+
+        Returns None when no shared sender is configured; the caller falls back
+        to the organization's own identity rather than not sending.
+        """
+        connection = EmailConfigService.get_shared_connection()
+        if connection is None:
+            return None
+        return SendingIdentity(
+            connection,
+            display_name or django_settings.APP_NAME,
+            django_settings.POSTAL_SHARED_FROM_EMAIL,
+            '', False,
+        )
+
+    @staticmethod
     def default_backend_is_configured():
         """
         Whether Django's own EMAIL_* settings point at something real.

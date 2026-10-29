@@ -38,9 +38,18 @@ def send_transactional_email(
     to_email,
     organization=None,
     reply_to=None,
+    from_platform=False,
+    sender_name='',
 ):
     """
     Render and send one message. Returns MailResult(ok, error).
+
+    `from_platform` marks account mail — an invitation, a password reset, an
+    email verification. It is about the platform and links to the platform, so
+    it goes out on the platform's own domain rather than the organization's:
+    tying it to a tenant's sending reputation is wrong, and an organization
+    that has not verified a domain yet could not send it at all, which is
+    precisely when an invitation goes out.
 
     Never raises. Every caller is a request handler whose primary job is not
     sending mail: an invitation row must still be created when the email fails,
@@ -50,7 +59,13 @@ def send_transactional_email(
     html_body = render_to_string(f'{template}.html', context)
     text_body = _html_to_text(html_body)
 
-    identity = _resolve_identity(organization)
+    identity = None
+    if from_platform:
+        identity = _platform_identity(sender_name)
+    if identity is None:
+        # No shared sender configured yet. The organization's own identity is
+        # worse for account mail but far better than not sending it.
+        identity = _resolve_identity(organization)
     if identity is not None and identity.unavailable:
         logger.error(
             'Transactional email %r to %s not sent: %s',
@@ -62,7 +77,9 @@ def send_transactional_email(
         from_header = settings.DEFAULT_FROM_EMAIL
         connection, reply_to_list = None, ([reply_to] if reply_to else None)
     else:
-        from_header, reply_to_list = identity.sender(reply_to=reply_to or '')
+        from_header, reply_to_list = identity.sender(
+            name=sender_name, reply_to=reply_to or '',
+        )
         connection = identity.connection
 
     message = EmailMultiAlternatives(
@@ -93,6 +110,20 @@ def send_transactional_email(
 
     logger.info('Transactional email %r sent to %s', template, to_email)
     return MailResult(True, '')
+
+
+def _platform_identity(sender_name):
+    """The platform's own sender, or None when none is configured."""
+    from apps.email_config.services import EmailConfigService
+
+    try:
+        return EmailConfigService.platform_identity(display_name=sender_name)
+    except Exception:
+        logger.warning(
+            'Could not build the platform sending identity; '
+            "falling back to the organization's.", exc_info=True,
+        )
+        return None
 
 
 def _resolve_identity(organization):
