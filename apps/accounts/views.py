@@ -13,7 +13,7 @@ from django.utils import timezone
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from apps.core.permissions import IsOrganizationMember, IsOrganizationAdmin, IsOrganizationOwner
 from .models import TeamInvitation
-from .services import TeamService, ActivityLogService
+from .services import AccountEmailService, TeamService, ActivityLogService
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -31,6 +31,7 @@ from .serializers import (
     OrganizationUpdateSerializer,
     OrganizationSerializer,
     TransferOwnershipSerializer,
+    EmailVerificationSerializer,
 )
 import logging
 
@@ -75,6 +76,12 @@ class RegisterView(generics.CreateAPIView):
 
         # Generate tokens
         tokens = get_tokens_for_user(user)
+
+        # Signing up without an invitation is the one path where nobody has
+        # vouched for the address, so this is where it gets confirmed. It does
+        # not gate the account: a failed send would otherwise lock someone out
+        # of an account they just paid attention to creating.
+        AccountEmailService.send_verification(user)
 
         # Serialize user data
         user_data = UserSerializer(user).data
@@ -270,6 +277,7 @@ class PasswordResetRequestView(APIView):
     Sends reset email with token.
     """
     permission_classes = [permissions.AllowAny]
+    throttle_scope = 'password_reset'
 
     @extend_schema(
         request=PasswordResetRequestSerializer,
@@ -284,14 +292,15 @@ class PasswordResetRequestView(APIView):
         reset_token = serializer.save()
 
         if reset_token:
-            # TODO: Send email with reset link
-            # For now, we'll just log it
-            logger.info(
-                f"Password reset requested for: {reset_token.user.email}, "
-                f"token: {reset_token.token}"
-            )
+            # Deliberately not logged with the token in it: this link is a
+            # credential until it is spent, and a log line is the easiest place
+            # to leak one.
+            logger.info('Password reset requested for %s', reset_token.user.email)
+            AccountEmailService.send_password_reset(reset_token)
 
-        # Always return success for security (don't reveal if email exists)
+        # The same answer either way, and the same amount of work: a request
+        # for an address with no account must not be distinguishable from one
+        # that got an email, by the response or by how long it took.
         return Response(
             {
                 'message': 'If a user with that email exists, '
@@ -588,3 +597,73 @@ class OrganizationSettingsView(APIView):
         )
 
         return Response(OrganizationSerializer(request.user.organization).data)
+
+
+class EmailVerificationView(APIView):
+    """
+    Spend a verification token.
+
+    Open to anyone: the link is followed from a mail client, which may well not
+    be the browser the account is signed in to.
+    """
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = 'email_verification'
+
+    @extend_schema(
+        request=EmailVerificationSerializer,
+        responses={
+            200: OpenApiResponse(description='Email address confirmed'),
+            400: OpenApiResponse(description='Invalid or expired token'),
+        },
+    )
+    def post(self, request):
+        serializer = EmailVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = AccountEmailService.verify(serializer.validated_data['token'])
+        if user is None:
+            # One answer for unknown, expired and already-spent: separating
+            # them tells an anonymous caller whether an address has an account.
+            return Response(
+                {'error': 'This confirmation link is invalid or has expired. '
+                          'Sign in and request a new one.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {'message': 'Email address confirmed.', 'email': user.email},
+            status=status.HTTP_200_OK,
+        )
+
+
+class ResendVerificationView(APIView):
+    """Send a fresh confirmation link to the signed-in user's own address."""
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = 'email_verification'
+
+    @extend_schema(
+        request=None,
+        responses={200: OpenApiResponse(description='Confirmation email sent')},
+    )
+    def post(self, request):
+        user = request.user
+        if user.is_email_verified:
+            return Response(
+                {'message': 'This address is already confirmed.'},
+                status=status.HTTP_200_OK,
+            )
+
+        result = AccountEmailService.send_verification(user)
+        if not result.ok:
+            # The signed-in user already owns this address, so there is nothing
+            # to withhold here -- unlike the reset flow, saying what went wrong
+            # is just useful.
+            return Response(
+                {'error': f'The confirmation email could not be sent: {result.error}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response(
+            {'message': f'A confirmation link has been sent to {user.email}.'},
+            status=status.HTTP_200_OK,
+        )

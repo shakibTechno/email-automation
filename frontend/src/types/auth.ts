@@ -66,10 +66,16 @@ export interface ForgotPasswordData {
   email: string;
 }
 
+/**
+ * Mirrors what `/auth/password-reset/confirm/` actually reads. This previously
+ * declared `password` / `password_confirmation`, which the endpoint has never
+ * accepted -- the same mismatch as ChangePasswordData below, and invisible for
+ * the same reason: nothing ever called it.
+ */
 export interface ResetPasswordData {
   token: string;
-  password: string;
-  password_confirmation: string;
+  new_password: string;
+  new_password_confirm: string;
 }
 
 /**

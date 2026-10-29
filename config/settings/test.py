@@ -62,3 +62,15 @@ if not TEST_WITH_POSTGRES:
 
 # Logging - Minimal in tests
 LOGGING['handlers']['console']['level'] = 'ERROR'
+
+# Throttle state lives in the cache and so leaks between tests in one process:
+# the fifth test to call password reset would be rejected because of the four
+# before it. Raised out of the way here, and exercised deliberately by the
+# tests that override it back down.
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_THROTTLE_RATES': {
+        'password_reset': '10000/hour',
+        'email_verification': '10000/hour',
+    },
+}

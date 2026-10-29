@@ -10,6 +10,8 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { RegisterPage } from '@/pages/auth/RegisterPage';
 import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/pages/auth/ResetPasswordPage';
+import { VerifyEmailPage } from '@/pages/auth/VerifyEmailPage';
 
 // Contact Pages
 import { ContactListPage } from '@/pages/contacts/ContactListPage';
@@ -141,6 +143,10 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          {/* Followed from a mail client, which may not be the browser
+              the account is signed in to, so it is a public route. */}
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
 
           {/* Public form page (no auth required) */}
           <Route path="/f/:id" element={<PublicFormPage />} />

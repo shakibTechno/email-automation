@@ -437,3 +437,8 @@ class EmailSenderConfigSerializer(serializers.ModelSerializer):
         fields = [
             'default_sender_name', 'default_sender_email', 'default_reply_to_email',
         ]
+
+
+class EmailVerificationSerializer(serializers.Serializer):
+    """The token from a confirmation link."""
+    token = serializers.CharField(max_length=255)

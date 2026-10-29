@@ -1,0 +1,39 @@
+{% extends "accounts/email/base_email.html" %}
+
+{% block subject %}Confirm your email address{% endblock %}
+
+{% block content %}
+  <p style="margin:0 0 16px 0; font-size:19px; font-weight:700; color:#18181b;">
+    Confirm your email address
+  </p>
+
+  <p style="margin:0 0 16px 0;">
+    {% if first_name %}Welcome, {{ first_name }}. {% endif %}An account on
+    {{ product_name }} was created with this address. Confirming it is what
+    lets us reach you about {{ organization_name }} — a password reset, a
+    billing notice, or a warning that your sending has been paused.
+  </p>
+
+  <p style="margin:0 0 20px 0;">
+    <a href="{{ verify_url }}"
+       style="display:inline-block; padding:11px 20px; background-color:#18181b; color:#ffffff; font-size:14px; font-weight:600; text-decoration:none; border-radius:6px;">
+      Confirm this address
+    </a>
+  </p>
+
+  <p style="margin:0 0 16px 0; font-size:13px; color:#52525b;">
+    The link expires {{ expires_at|date:"j F Y" }}. You can request a new one
+    from your profile at any time.
+  </p>
+
+  <p style="margin:0; font-size:12px; color:#71717a; word-break:break-all;">
+    Or paste this into your browser:<br>
+    {{ verify_url }}
+  </p>
+{% endblock %}
+
+{% block footer %}
+  You are receiving this because this address was used to create a
+  {{ product_name }} account. If that was not you, ignore this message — an
+  unconfirmed address is never used for anything else.
+{% endblock %}

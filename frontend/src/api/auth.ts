@@ -5,6 +5,7 @@ import {
   AuthResponse,
   ForgotPasswordData,
   ChangePasswordData,
+  ResetPasswordData,
   UpdateProfileData,
   User,
 } from '@/types/auth';
@@ -28,7 +29,7 @@ export const authApi = {
   },
 
   forgotPassword: async (data: ForgotPasswordData): Promise<ApiResponse<{ message: string }>> => {
-    const response = await apiClient.post<ApiResponse<{ message: string }>>('/auth/forgot-password', data);
+    const response = await apiClient.post<ApiResponse<{ message: string }>>('/auth/password-reset', data);
     return response.data;
   },
 
@@ -47,8 +48,29 @@ export const authApi = {
     return response.data;
   },
 
+  resetPassword: async (data: ResetPasswordData): Promise<ApiResponse<{ message: string }>> => {
+    const response = await apiClient.post<ApiResponse<{ message: string }>>(
+      '/auth/password-reset/confirm', data,
+    );
+    return response.data;
+  },
+
+  verifyEmail: async (token: string): Promise<{ message: string; email: string }> => {
+    const response = await apiClient.post<{ message: string; email: string }>(
+      '/auth/verify-email', { token },
+    );
+    return response.data;
+  },
+
+  resendVerification: async (): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>(
+      '/auth/verify-email/resend',
+    );
+    return response.data;
+  },
+
   refreshToken: async (): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/refresh');
+    const response = await apiClient.post<AuthResponse>('/auth/token/refresh');
     return response.data;
   },
 };

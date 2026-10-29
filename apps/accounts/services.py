@@ -11,9 +11,11 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.core.mail import send_transactional_email
+from apps.core.mail import MailResult, send_transactional_email
 
-from .models import TeamInvitation, ActivityLog, Organization
+from .models import (
+    ActivityLog, EmailVerificationToken, Organization, TeamInvitation,
+)
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -348,3 +350,130 @@ class TeamService:
                 'previous_owner': str(current_owner.id),
             },
         )
+
+
+class AccountEmailService:
+    """
+    The two account emails that prove someone owns an address.
+
+    Both are platform mail: they are about this account, they link to this
+    platform, and they must work for an organization that has verified no
+    sending domain of its own -- which is every organization on the day it
+    signs up, and exactly when these are sent.
+
+    Neither raises. A registration must still succeed when the mail fails, and
+    a password reset request must answer the same way whether or not the
+    address exists; the return value is how the caller tells the truth without
+    telling the sender anything about who has an account.
+    """
+
+    RESET_TTL = timedelta(hours=1)
+    # Longer than a reset, because nothing is at risk while it is unused and a
+    # confirmation mail is often read the next day.
+    VERIFICATION_TTL = timedelta(days=3)
+
+    @staticmethod
+    def reset_url(token):
+        """The SPA route that collects the new password, not the API."""
+        return f'{settings.FRONTEND_URL.rstrip("/")}/reset-password?token={token}'
+
+    @staticmethod
+    def verify_url(token):
+        return f'{settings.FRONTEND_URL.rstrip("/")}/verify-email?token={token}'
+
+    @staticmethod
+    def send_password_reset(reset_token):
+        """Send the reset link. Returns MailResult."""
+        user = reset_token.user
+        result = send_transactional_email(
+            subject=f'Reset your {settings.APP_NAME} password',
+            template='accounts/email/password_reset',
+            to_email=user.email,
+            organization=user.organization,
+            from_platform=True,
+            context={
+                'product_name': settings.APP_NAME,
+                'user_email': user.email,
+                'reset_url': AccountEmailService.reset_url(reset_token.token),
+                'expires_at': reset_token.expires_at,
+            },
+        )
+        if not result.ok:
+            # Logged without the token: this message carries a credential, and
+            # a traceback with one in it is a credential in the log file.
+            logger.error(
+                'Password reset email to %s failed: %s', user.email, result.error
+            )
+        return result
+
+    @staticmethod
+    def send_verification(user):
+        """
+        Issue a fresh verification token and send it. Returns MailResult.
+
+        Earlier unused tokens are spent first, so a resend invalidates the link
+        in the previous email rather than leaving several live at once.
+        """
+        if user.is_email_verified:
+            return MailResult(True, '')
+
+        EmailVerificationToken.objects.filter(
+            user=user, is_used=False
+        ).update(is_used=True)
+
+        token = EmailVerificationToken.objects.create(
+            user=user,
+            token=secrets.token_urlsafe(32),
+            expires_at=timezone.now() + AccountEmailService.VERIFICATION_TTL,
+        )
+
+        organization = user.organization
+        result = send_transactional_email(
+            subject='Confirm your email address',
+            template='accounts/email/email_verification',
+            to_email=user.email,
+            organization=organization,
+            from_platform=True,
+            context={
+                'product_name': settings.APP_NAME,
+                'first_name': user.first_name,
+                'organization_name': organization.name if organization else settings.APP_NAME,
+                'verify_url': AccountEmailService.verify_url(token.token),
+                'expires_at': token.expires_at,
+            },
+        )
+        if not result.ok:
+            logger.error(
+                'Verification email to %s failed: %s', user.email, result.error
+            )
+        return result
+
+    @staticmethod
+    @transaction.atomic
+    def verify(raw_token):
+        """
+        Spend a verification token. Returns the user, or None.
+
+        None covers unknown, expired and already-spent alike: telling an
+        anonymous caller which one it was says whether an address has an
+        account here.
+        """
+        token = (
+            EmailVerificationToken.objects
+            .select_for_update()
+            .select_related('user')
+            .filter(token=raw_token)
+            .first()
+        )
+        if token is None or not token.is_valid:
+            return None
+
+        token.is_used = True
+        token.save(update_fields=['is_used'])
+
+        user = token.user
+        if not user.is_email_verified:
+            user.is_email_verified = True
+            user.save(update_fields=['is_email_verified'])
+        logger.info('Email verified for %s', user.email)
+        return user

@@ -248,6 +248,18 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+
+    # Applies only to views that declare a `throttle_scope`, so adding it as a
+    # default costs nothing elsewhere. The two scopes below both send mail to
+    # an address the caller names, which makes them an amplifier for anyone who
+    # wants to bomb an inbox using our sending domain.
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'password_reset': env('THROTTLE_PASSWORD_RESET', default='5/hour'),
+        'email_verification': env('THROTTLE_EMAIL_VERIFICATION', default='5/hour'),
+    },
     'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
