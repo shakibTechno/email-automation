@@ -152,7 +152,11 @@ class CSVImportService:
 
         try:
             # Read CSV file
-            csv_content = csv_file.read().decode('utf-8')
+            # utf-8-sig, not utf-8: Excel writes a BOM on every CSV it saves,
+            # and decoded as plain utf-8 it survives as ﻿ glued to the
+            # first header name -- so the email column mapped to nothing and
+            # every row was skipped for having no email.
+            csv_content = csv_file.read().decode('utf-8-sig')
             csv_reader = csv.DictReader(io.StringIO(csv_content))
 
             # Validate headers
