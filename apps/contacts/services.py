@@ -162,9 +162,18 @@ class CSVImportService:
             # Validate headers
             self._validate_headers(csv_reader.fieldnames, field_mapping)
 
-            # Process rows
-            with transaction.atomic():
-                for row_number, row in enumerate(csv_reader, start=2):
+            # Process rows, each in its own transaction.
+            #
+            # One transaction around the whole loop meant that the first row to
+            # hit a database error -- a phone number longer than the column, say
+            # -- left the connection unusable, and every row after it failed with
+            # "You can't execute queries until the end of the 'atomic' block".
+            # _process_row catches and records its own errors, so the file looked
+            # like it had been processed; in fact one bad cell in row 5 discarded
+            # the 160 rows that were fine, which is the opposite of what its
+            # handlers say they do.
+            for row_number, row in enumerate(csv_reader, start=2):
+                with transaction.atomic():
                     self._process_row(
                         row, row_number, field_mapping,
                         skip_duplicates, update_existing
