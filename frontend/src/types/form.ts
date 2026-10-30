@@ -113,6 +113,7 @@ export interface Form {
   styling?: FormStyling;
   branding?: FormBranding;
   layout?: FormLayout;
+  display_rules?: FormDisplayRules;
   assign_tags?: { id: string; name: string; color: string }[];
   fields: FormField[];
   submission_count: number;
@@ -133,6 +134,7 @@ export interface CreateFormData {
   styling?: Partial<FormStyling>;
   branding?: Partial<FormBranding>;
   layout?: Partial<FormLayout>;
+  display_rules?: Partial<FormDisplayRules>;
   assign_tag_ids?: string[];
   fields: Omit<FormField, 'id'>[];
 }
@@ -269,3 +271,42 @@ export interface ContactFieldOption {
   label: string;
   group: string;
 }
+
+/** When and where a popup shows. Ignored for an inline form. */
+export interface FormDisplayRules {
+  trigger: 'time' | 'scroll' | 'exit_intent' | 'click';
+  delaySeconds: number;
+  scrollPercent: number;
+  clickSelector: string;
+  position: 'center' | 'bottom_right' | 'bottom_left' | 'top';
+  showOnce: boolean;
+  cooldownDays: number;
+  includeUrls: string[];
+  excludeUrls: string[];
+  devices: Array<'desktop' | 'mobile'>;
+  overlay: {
+    backdrop: boolean;
+    backdropColor: string;
+    borderRadius: string;
+    width: string;
+  };
+}
+
+export const defaultFormDisplayRules: FormDisplayRules = {
+  trigger: 'time',
+  delaySeconds: 5,
+  scrollPercent: 50,
+  clickSelector: '',
+  position: 'center',
+  showOnce: true,
+  cooldownDays: 7,
+  includeUrls: [],
+  excludeUrls: [],
+  devices: ['desktop', 'mobile'],
+  overlay: {
+    backdrop: true,
+    backdropColor: 'rgba(15, 23, 42, 0.55)',
+    borderRadius: '12px',
+    width: '420px',
+  },
+};

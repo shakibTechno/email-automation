@@ -20,9 +20,12 @@ class OrganizationSerializer(serializers.ModelSerializer):
             'email', 'phone', 'address_line1', 'address_line2',
             'city', 'state', 'country', 'postal_code',
             'max_contacts', 'max_emails_per_month',
+            'tracking_key',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'slug', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'slug', 'tracking_key', 'created_at', 'updated_at',
+        ]
 
 
 class UserSerializer(serializers.ModelSerializer):

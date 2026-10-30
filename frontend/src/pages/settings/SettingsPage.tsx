@@ -1,22 +1,29 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Users, Building2, Activity, TrendingUp, Mail, Sparkles, Globe, ListPlus,
+import {
+  Users, Building2, Activity, TrendingUp, Mail, Sparkles, Globe, ListPlus,
+  Code2,
 } from 'lucide-react';
 import { TeamTab } from './TeamTab';
 import { OrganizationTab } from './OrganizationTab';
 import { ActivityTab } from './ActivityTab';
 import { LeadScoringTab } from './LeadScoringTab';
-import { EmailTab } from './EmailTab';
-import { DomainsTab } from './DomainsTab';
+import { EmailTab } from './EmailTab';
+
+import { DomainsTab } from './DomainsTab';
+
 import { CustomFieldsTab } from './CustomFieldsTab';
 import { AITab } from './AITab';
+import { WebsiteTab } from './WebsiteTab';
 import { usePermissions } from '@/hooks/usePermissions';
 
 export function SettingsPage() {
-  const { canManageTeam, isProfessionalOrAbove, planAtLeast } = usePermissions();
-  // Mirrors CUSTOM_DOMAIN_MIN_PLAN on the server. The API refuses lower
-  // tiers regardless; hiding the tab just avoids offering what it will deny.
+  const { canManageTeam, isProfessionalOrAbove, planAtLeast } = usePermissions();
+
+  // Mirrors CUSTOM_DOMAIN_MIN_PLAN on the server. The API refuses lower
+
+  // tiers regardless; hiding the tab just avoids offering what it will deny.
+
   const canUseCustomDomains = planAtLeast('starter');
   const [activeTab, setActiveTab] = useState('team');
 
@@ -65,6 +72,10 @@ export function SettingsPage() {
               Domains
             </TabsTrigger>
           )}
+          <TabsTrigger value="website" className="flex items-center gap-2">
+            <Code2 className="h-4 w-4" />
+            Website
+          </TabsTrigger>
           <TabsTrigger value="ai" className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
             AI
@@ -98,6 +109,10 @@ export function SettingsPage() {
             <DomainsTab />
           </TabsContent>
         )}
+        <TabsContent value="website" className="mt-6">
+          <WebsiteTab />
+        </TabsContent>
+
         <TabsContent value="ai" className="mt-6">
           <AITab />
         </TabsContent>

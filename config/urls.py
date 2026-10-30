@@ -27,6 +27,10 @@ urlpatterns = [
     path('api/v1/', include('apps.templates.urls')),
     path('api/v1/', include('apps.campaigns.urls')),
     path('api/v1/', include('apps.forms.urls')),
+
+    # The website snippet. At the root, not under api/v1/, because this URL
+    # ships in the page source of every customer site that installs it.
+    path('', include('apps.tracking.urls')),
     path('api/v1/', include('apps.landing_pages.urls')),
     path('api/v1/', include('apps.workflows.urls')),
     path('api/v1/', include('apps.segments.urls')),

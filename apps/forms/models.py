@@ -72,6 +72,34 @@ def default_branding():
     }
 
 
+def default_display_rules():
+    """
+    When and where a popup shows. Ignored for an inline form.
+
+    One blob beside styling/branding/layout rather than a column each: the
+    design panel already reads whole blobs, and a trigger nobody uses costs a
+    key rather than a migration.
+    """
+    return {
+        'trigger': 'time',          # time | scroll | exit_intent | click
+        'delaySeconds': 5,
+        'scrollPercent': 50,
+        'clickSelector': '',
+        'position': 'center',       # center | bottom_right | bottom_left | top
+        'showOnce': True,
+        'cooldownDays': 7,
+        'includeUrls': [],          # empty means every page
+        'excludeUrls': [],
+        'devices': ['desktop', 'mobile'],
+        'overlay': {
+            'backdrop': True,
+            'backdropColor': 'rgba(15, 23, 42, 0.55)',
+            'borderRadius': '12px',
+            'width': '420px',
+        },
+    }
+
+
 def default_layout():
     """Default layout configuration for forms."""
     return {
@@ -134,6 +162,7 @@ class Form(TimeStampedModel, SoftDeleteModel):
     styling = models.JSONField(default=default_styling, blank=True)
     branding = models.JSONField(default=default_branding, blank=True)
     layout = models.JSONField(default=default_layout, blank=True)
+    display_rules = models.JSONField(default=default_display_rules, blank=True)
 
     # Auto-assign tags to contacts on submission
     assign_tags = models.ManyToManyField(

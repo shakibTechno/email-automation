@@ -53,6 +53,12 @@ class Organization(TimeStampedModel, SoftDeleteModel):
     domain = models.CharField(max_length=255, blank=True)
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='free')
 
+    # Identifies this organization to the website snippet. Public by design --
+    # it ships in the page source of the customer's own site -- so it names,
+    # it does not authorise. Nothing it unlocks is private: the popups it
+    # returns are already fetchable from the public form endpoints.
+    tracking_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
     # Account-level suspension. False blocks login and the whole tenant API
     # while leaving the data intact, so a suspension applied in error costs
     # nothing to undo. Sending is suspended separately and independently — see

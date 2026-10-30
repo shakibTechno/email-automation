@@ -6,6 +6,9 @@ export interface Organization {
   plan?: 'free' | 'starter' | 'professional' | 'business' | 'enterprise';
   created_at: string;
   updated_at: string;
+  /** Identifies this organization to the website snippet. Public by design —
+   *  it ships in the page source of the customer's own site. */
+  tracking_key?: string;
 }
 
 export interface User {

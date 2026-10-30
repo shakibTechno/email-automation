@@ -113,6 +113,7 @@ INSTALLED_APPS = [
     'apps.email_config',
     'apps.ai_assistant',
     'apps.landlord',
+    'apps.tracking',
 ]
 
 MIDDLEWARE = [
