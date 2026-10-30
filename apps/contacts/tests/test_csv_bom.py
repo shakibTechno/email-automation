@@ -86,3 +86,21 @@ class PartialImportTests(TestCase):
         self.assertNotIn('toolong@example.com', emails)
         self.assertEqual(result['imported'], 2)
         self.assertEqual(len(result['errors']), 1)
+
+
+class SelectCoercionTests(TestCase):
+    def test_a_dropdown_stores_the_option_as_declared(self):
+        """
+        Matching is case-insensitive so a CSV need not spell the option
+        exactly, but the value stored has to be the option itself -- stored
+        lowercased it sat outside its own option list, so nothing rendered it
+        as selected.
+        """
+        from apps.contacts.fields import coerce_value
+
+        options = ('SME', 'Education', 'Large / Enterprise')
+        self.assertEqual(coerce_value('select', 'sme', options=options), 'SME')
+        self.assertEqual(
+            coerce_value('select', 'large / ENTERPRISE', options=options),
+            'Large / Enterprise',
+        )

@@ -323,11 +323,19 @@ def coerce_value(type_, raw, *, label='value', options=()):
         return str(raw)
 
     if type_ == 'select' and options:
-        text = str(raw).strip().lower()
-        if text not in {str(o).lower() for o in options}:
+        # Matched without regard to case, because a CSV will not spell an
+        # option the way it was declared -- but stored as the option itself.
+        # Returning the lowercased input left the value outside its own
+        # option list, so nothing rendered it as selected and a segment rule
+        # built from the options matched none of it.
+        text = str(raw).strip()
+        chosen = next(
+            (str(o) for o in options if str(o).lower() == text.lower()), None,
+        )
+        if chosen is None:
             raise CoercionError(
                 f'{label} must be one of: {", ".join(str(o) for o in options)}.'
             )
-        return text
+        return chosen
 
     return str(raw)
