@@ -46,7 +46,14 @@ export const ConditionalLogicEditor = ({
 
   // Filter out current field and non-input fields from available fields for conditions
   const selectableFields = availableFields.filter(
-    (f) =>
+    // Narrowed rather than asserted, so the id really is a string by the time
+    // it reaches SelectItem.
+    (f): f is typeof f & { id: string } =>
+      // A field the builder has not saved yet has no id, and a condition
+      // stores field_id, so it cannot be referenced. It also cannot be
+      // offered: an empty SelectItem value makes Radix throw, which blanks
+      // the dialog.
+      Boolean(f.id) &&
       f.id !== currentFieldId &&
       !['section', 'divider', 'hidden'].includes(f.field_type)
   );
@@ -137,7 +144,7 @@ export const ConditionalLogicEditor = ({
                   </SelectTrigger>
                   <SelectContent>
                     {selectableFields.map((f) => (
-                      <SelectItem key={f.id} value={f.id || ''}>
+                      <SelectItem key={f.id} value={f.id}>
                         {f.label}
                       </SelectItem>
                     ))}

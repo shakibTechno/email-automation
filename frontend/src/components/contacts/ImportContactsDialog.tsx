@@ -23,8 +23,12 @@ import { cn } from '@/lib/utils';
  * not what is permitted — it can no longer be the thing standing between a
  * crafted request and another tenant's data.
  */
+// `''` is not a usable SelectItem value: Radix throws, which blanks the whole
+// dialog. Skipping a column is offered as this sentinel and mapped back to ''
+// before anything reads it, the same way the form builder does it.
+const SKIP = '_none';
+
 const CONTACT_FIELDS = [
-  { value: '',               label: '(Skip column)' },
   { value: 'email',          label: 'Email (required)' },
   { value: 'first_name',     label: 'First Name' },
   { value: 'last_name',      label: 'Last Name' },
@@ -83,7 +87,7 @@ function autoMap(col: string): string {
   const key = col.toLowerCase().replace(/[\s\-.]/g, '_');
   // Derived from the offered list rather than a second hardcoded array, which
   // is what let the two drift apart in the first place.
-  const known = CONTACT_FIELDS.map((f) => f.value).filter(Boolean);
+  const known = CONTACT_FIELDS.map((f) => f.value);
   return ALIASES[key] ?? (known.includes(key) ? key : '');
 }
 
@@ -289,13 +293,18 @@ export function ImportContactsDialog({ open, onClose }: Props) {
                   <div key={col} className="grid grid-cols-2 gap-2 items-center px-3 py-2">
                     <span className="text-sm truncate" title={col}>{col}</span>
                     <Select
-                      value={mapping[col] ?? ''}
-                      onValueChange={(v) => setMapping((prev) => ({ ...prev, [col]: v }))}
+                      value={mapping[col] || SKIP}
+                      onValueChange={(v) =>
+                        setMapping((prev) => ({ ...prev, [col]: v === SKIP ? '' : v }))
+                      }
                     >
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue placeholder="(Skip)" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value={SKIP} className="text-xs">
+                          (Skip column)
+                        </SelectItem>
                         {CONTACT_FIELDS.map((f) => (
                           <SelectItem key={f.value} value={f.value} className="text-xs">
                             {f.label}
