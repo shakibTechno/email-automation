@@ -5,6 +5,7 @@ import {
   Mail,
   Zap,
   FileText,
+  MousePointerClick,
   BarChart3,
   Settings,
   Tags,
@@ -52,6 +53,7 @@ const navigation: NavGroup[] = [
     label: 'Capture',
     items: [
       { name: 'Forms', href: '/forms', icon: FileText },
+      { name: 'Pop-ups', href: '/popups', icon: MousePointerClick },
       { name: 'Landing Pages', href: '/landing-pages', icon: Layout },
     ],
   },

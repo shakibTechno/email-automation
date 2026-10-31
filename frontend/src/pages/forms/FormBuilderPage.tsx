@@ -13,19 +13,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
 import { FormFieldEditor } from '@/components/forms/FormFieldEditor';
 import { FormPreview } from '@/components/forms/FormPreview';
 import { FormDesignPanel } from '@/components/forms/FormDesignPanel';
-import { PopupRulesPanel } from '@/components/forms/PopupRulesPanel';
 import { EmbedCodeDialog } from '@/components/forms/EmbedCodeDialog';
 import { useForms, useForm } from '@/hooks/useForms';
 import {
@@ -36,12 +28,9 @@ import {
   FormStyling,
   FormBranding,
   FormLayout,
-  FormType,
-  FormDisplayRules,
   defaultFormStyling,
   defaultFormBranding,
   defaultFormLayout,
-  defaultFormDisplayRules,
 } from '@/types/form';
 import { toast } from 'sonner';
 import { StepIndicator } from '@/components/ui/step-indicator';
@@ -94,9 +83,6 @@ export const FormBuilderPage = () => {
   const [styling, setStyling] = useState<FormStyling>(defaultFormStyling);
   const [branding, setBranding] = useState<FormBranding>(defaultFormBranding);
   const [layout, setLayout] = useState<FormLayout>(defaultFormLayout);
-  const [formType, setFormType] = useState<FormType>('inline');
-  const [displayRules, setDisplayRules] =
-    useState<FormDisplayRules>(defaultFormDisplayRules);
 
   // Populate form when editing
   useEffect(() => {
@@ -120,10 +106,6 @@ export const FormBuilderPage = () => {
       }
       if (existingForm.layout) {
         setLayout({ ...defaultFormLayout, ...existingForm.layout });
-      }
-      setFormType(existingForm.form_type || 'inline');
-      if (existingForm.display_rules) {
-        setDisplayRules({ ...defaultFormDisplayRules, ...existingForm.display_rules });
       }
     }
   }, [isEdit, existingForm]);
@@ -155,9 +137,6 @@ export const FormBuilderPage = () => {
   const buildFormData = (): CreateFormData => ({
     name,
     description: description || undefined,
-    // Never sent before this, which is why every form built in the UI stayed
-    // 'inline' however it was configured.
-    form_type: formType,
     submit_button_text: submitButtonText,
     success_message: successMessage,
     redirect_url: redirectUrl || undefined,
@@ -166,7 +145,6 @@ export const FormBuilderPage = () => {
     styling,
     branding,
     layout,
-    display_rules: formType === 'inline' ? undefined : displayRules,
     fields: fields.map((f, i) => ({
       field_type: f.field_type,
       label: f.label,
@@ -189,7 +167,7 @@ export const FormBuilderPage = () => {
     name: name || 'Untitled Form',
     description,
     status: 'inactive',
-    form_type: formType,
+    form_type: 'inline',
     submit_button_text: submitButtonText,
     success_message: successMessage,
     redirect_url: redirectUrl,
@@ -198,7 +176,6 @@ export const FormBuilderPage = () => {
     styling,
     branding,
     layout,
-    display_rules: formType === 'inline' ? undefined : displayRules,
     fields: fields.map((f, i) => ({ ...f, id: f.id || `temp-${i}`, order: i })),
     submission_count: 0,
     created_at: new Date().toISOString(),
@@ -295,29 +272,6 @@ export const FormBuilderPage = () => {
                     className="mt-1"
                     rows={2}
                   />
-                </div>
-                <div>
-                  <Label>Display as</Label>
-                  <Select
-                    value={formType}
-                    onValueChange={(v) => setFormType(v as FormType)}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="inline">Inline &mdash; embedded in a page</SelectItem>
-                      <SelectItem value="popup">Popup &mdash; centred overlay</SelectItem>
-                      <SelectItem value="slide_in">Slide-in &mdash; corner panel</SelectItem>
-                      <SelectItem value="top_bar">Top bar</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {formType !== 'inline' && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Shows on your own site through the website snippet in
-                      Settings &rarr; Website.
-                    </p>
-                  )}
                 </div>
                 <div>
                   <Label>Submit Button Text</Label>
@@ -431,13 +385,6 @@ export const FormBuilderPage = () => {
               <h2 className="font-semibold mb-3 flex items-center gap-2">
                 <Palette className="h-4 w-4" /> Design & Styling
               </h2>
-              {formType !== 'inline' && (
-                <PopupRulesPanel
-                  formType={formType}
-                  rules={displayRules}
-                  onChange={setDisplayRules}
-                />
-              )}
               <FormDesignPanel
                 styling={styling}
                 branding={branding}
