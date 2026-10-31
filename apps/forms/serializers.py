@@ -5,7 +5,7 @@ from rest_framework import serializers
 from django.db import transaction
 from .models import (
     Form, FormField, FormSubmission, default_styling, default_branding,
-    default_layout, default_display_rules, default_conditional_logic,
+    default_layout, default_conditional_logic,
 )
 from apps.contacts.models import Tag
 from apps.contacts.serializers import TagSerializer
@@ -55,7 +55,7 @@ class FormSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'status', 'form_type',
             'submit_button_text', 'success_message', 'redirect_url',
             'show_gdpr_consent', 'gdpr_consent_text',
-            'styling', 'branding', 'layout', 'display_rules',
+            'styling', 'branding', 'layout',
             'assign_tags', 'notification_emails',
             'submission_count', 'fields',
             'created_by', 'created_by_name',
@@ -85,9 +85,6 @@ class FormCreateSerializer(serializers.ModelSerializer):
     styling = serializers.JSONField(required=False, default=default_styling)
     branding = serializers.JSONField(required=False, default=default_branding)
     layout = serializers.JSONField(required=False, default=default_layout)
-    display_rules = serializers.JSONField(
-        required=False, default=default_display_rules
-    )
 
     class Meta:
         model = Form
@@ -95,7 +92,7 @@ class FormCreateSerializer(serializers.ModelSerializer):
             'name', 'description', 'form_type',
             'submit_button_text', 'success_message', 'redirect_url',
             'show_gdpr_consent', 'gdpr_consent_text',
-            'styling', 'branding', 'layout', 'display_rules',
+            'styling', 'branding', 'layout',
             'assign_tag_ids', 'fields'
         ]
 
@@ -155,7 +152,6 @@ class FormUpdateSerializer(serializers.ModelSerializer):
     styling = serializers.JSONField(required=False)
     branding = serializers.JSONField(required=False)
     layout = serializers.JSONField(required=False)
-    display_rules = serializers.JSONField(required=False)
 
     class Meta:
         model = Form
@@ -163,7 +159,7 @@ class FormUpdateSerializer(serializers.ModelSerializer):
             'name', 'description', 'status', 'form_type',
             'submit_button_text', 'success_message', 'redirect_url',
             'show_gdpr_consent', 'gdpr_consent_text',
-            'styling', 'branding', 'layout', 'display_rules',
+            'styling', 'branding', 'layout',
             'assign_tag_ids', 'fields'
         ]
 
@@ -220,7 +216,7 @@ class PublicFormSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'form_type',
             'submit_button_text', 'show_gdpr_consent',
             'gdpr_consent_text', 'styling', 'branding', 'layout',
-            'display_rules', 'fields'
+            'fields'
         ]
         read_only_fields = fields
 

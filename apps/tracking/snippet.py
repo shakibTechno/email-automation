@@ -21,21 +21,45 @@ from django.conf import settings
 CACHE_SECONDS = 300
 
 
-def build_config(organization, forms, *, form_origin):
+def build_config(organization, popups, *, form_origin):
     """The JSON object inlined into the script."""
     return {
         'origin': form_origin.rstrip('/'),
         'key': str(organization.tracking_key),
         'track': organization.tracking_enabled,
         'requireConsent': organization.tracking_requires_consent,
-        'popups': [
-            {
-                'id': str(form.id),
-                'type': form.form_type,
-                'rules': form.display_rules or {},
-            }
-            for form in forms
-        ],
+        'popups': [_popup_config(popup) for popup in popups],
+    }
+
+
+def _popup_config(popup):
+    """
+    One popup, flattened for the browser.
+
+    Only what the script needs to draw and decide. Notably absent: anything
+    about who the visitor is, because this response is cached per
+    organization and shared by every visitor to their site.
+    """
+    return {
+        'id': str(popup.id),
+        'type': popup.popup_type,
+        'content': {
+            'title': popup.title,
+            'description': popup.description,
+            'imageUrl': popup.image_url,
+            'imageAlt': popup.image_alt,
+            'ctaText': popup.cta_text,
+            'ctaUrl': popup.cta_url,
+            'secondaryCtaText': popup.secondary_cta_text,
+            'secondaryCtaUrl': popup.secondary_cta_url,
+        },
+        # The form is rendered in an iframe by the existing public form route,
+        # so the popup only needs to know whether there is one.
+        'formId': str(popup.form_id) if popup.form_id else None,
+        'design': popup.design or {},
+        'triggers': popup.triggers or {},
+        'targeting': popup.targeting or {},
+        'frequency': popup.frequency or {},
     }
 
 

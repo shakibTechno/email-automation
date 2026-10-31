@@ -11,13 +11,15 @@ import logging
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db.models import Q
+from django.utils import timezone
 from django.http import HttpResponse
 from django.views.decorators.cache import cache_control
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.models import Organization
-from apps.forms.models import Form
+from apps.popups.models import Popup
 
 from .services import (
     MAX_BODY_BYTES, MAX_EVENTS_PER_REQUEST, buffer_events,
@@ -26,9 +28,6 @@ from .snippet import CACHE_SECONDS, build_config, render
 from .throttle import over_limit
 
 logger = logging.getLogger(__name__)
-
-POPUP_TYPES = ('popup', 'slide_in', 'top_bar')
-
 
 @require_GET
 @cache_control(public=True, max_age=CACHE_SECONDS)
@@ -46,18 +45,23 @@ def snippet(request):
     if organization is None:
         return _js('/* mailflow: unknown or missing site key */\n')
 
-    forms = (
-        Form.objects
+    # Published, inside its schedule, not deleted. Decided here rather than in
+    # the browser so a visitor's clock cannot resurrect an expired popup.
+    now = timezone.now()
+    popups = (
+        Popup.objects
         .filter(
             organization=organization,
-            status='active',
-            form_type__in=POPUP_TYPES,
+            status=Popup.STATUS_PUBLISHED,
+            deleted_at__isnull=True,
         )
-        .only('id', 'form_type', 'display_rules')
+        .filter(Q(starts_at__isnull=True) | Q(starts_at__lte=now))
+        .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
+        .select_related('form')
     )
 
     config = build_config(
-        organization, forms,
+        organization, popups,
         form_origin=getattr(settings, 'FRONTEND_URL', '') or '',
     )
     return _js(render(config))
