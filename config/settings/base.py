@@ -472,6 +472,17 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.workflows.tasks.process_date_triggers',
         'schedule': crontab(hour=0, minute=5),  # Daily at 00:05
     },
+    # Every 30s: the collector buffers in Redis and returns 204, so this is
+    # what actually writes a page view. Redis here is also the Celery broker,
+    # so a backlog is not just stale data.
+    'drain-tracking-buffer': {
+        'task': 'apps.tracking.tasks.drain_tracking_buffer',
+        'schedule': 30.0,
+    },
+    'prune-tracked-events': {
+        'task': 'apps.tracking.tasks.prune_tracked_events',
+        'schedule': crontab(hour=3, minute=20),  # Daily at 03:20
+    },
     'check-trial-expirations': {
         'task': 'apps.billing.tasks.check_trial_expirations',
         'schedule': crontab(hour=0, minute=15),  # Daily at 00:15
@@ -563,6 +574,10 @@ POSTAL_PROVISIONER_TOKEN = env('POSTAL_PROVISIONER_TOKEN', default='')
 # Provisioned once by hand -- see mailstack/MULTI-TENANT.md. The hourly send
 # limit lives on that Postal tenant, not here, so shared sending cannot be
 # widened by editing application config.
+# How long a page view is kept. Anonymous visitors age out with their
+# events; identified ones are CRM data and are kept.
+TRACKING_RETENTION_DAYS = env.int('TRACKING_RETENTION_DAYS', default=365)
+
 POSTAL_SHARED_API_KEY = env('POSTAL_SHARED_API_KEY', default='')
 POSTAL_SHARED_FROM_EMAIL = env('POSTAL_SHARED_FROM_EMAIL', default='')
 POSTAL_WEBHOOK_VERIFY = env.bool('POSTAL_WEBHOOK_VERIFY', default=True)

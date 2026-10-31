@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { PublicFormRenderer } from '@/components/forms/PublicFormRenderer';
@@ -30,6 +31,25 @@ export const PublicFormPage = () => {
   // parent owns navigation.
   const embed = searchParams.get('embed') === '1';
 
+  // The page that framed us holds the visitor id -- it is first-party
+  // storage on their origin, which we cannot read from here. Asked for on
+  // mount so it is in hand before anyone submits.
+  const visitorId = useRef<string>('');
+  useEffect(() => {
+    if (!embed || window.parent === window) return;
+    const onMessage = (e: MessageEvent) => {
+      const data = e.data || {};
+      if (data.source === 'mailflow-site' && data.type === 'visitor') {
+        visitorId.current = String(data.visitorId || '').slice(0, 64);
+      }
+    };
+    window.addEventListener('message', onMessage);
+    window.parent.postMessage(
+      { source: 'mailflow-form', type: 'who', formId: id }, '*',
+    );
+    return () => window.removeEventListener('message', onMessage);
+  }, [embed, id]);
+
   const { form, isLoading, error } = usePublicForm(id || '');
   const { submitForm, isSubmitting, isSuccess, data: submitResponse } = useSubmitForm(id || '');
 
@@ -39,6 +59,7 @@ export const PublicFormPage = () => {
         data: values,
         gdpr_consent_given: gdprConsent,
         source_url: window.location.href,
+        visitor_id: visitorId.current || undefined,
       });
 
       if (embed) {

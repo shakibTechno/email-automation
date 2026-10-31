@@ -746,6 +746,29 @@ class ActivityTimelineService:
         except Exception:
             pass
 
+        # --- Website visits ---
+        try:
+            from apps.tracking.models import TrackedEvent
+            visits = (
+                TrackedEvent.objects
+                .filter(contact=contact)
+                .order_by('-occurred_at')[:50]
+            )
+            for visit in visits:
+                events.append({
+                    'type': 'page_viewed',
+                    'title': visit.title or visit.path or 'Visited a page',
+                    'description': visit.path or '',
+                    'timestamp': visit.occurred_at,
+                    'meta': {
+                        'url': visit.url,
+                        'path': visit.path,
+                        'referrer': visit.referrer,
+                    },
+                })
+        except Exception:
+            pass
+
         # --- CRM activities ---
         try:
             from apps.crm.models import Activity

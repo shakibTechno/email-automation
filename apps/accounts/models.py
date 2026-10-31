@@ -58,6 +58,12 @@ class Organization(TimeStampedModel, SoftDeleteModel):
     # it does not authorise. Nothing it unlocks is private: the popups it
     # returns are already fetchable from the public form endpoints.
     tracking_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    tracking_enabled = models.BooleanField(default=True)
+    # Off by default. Anonymous page views are personal data under GDPR, and
+    # a customer with a consent banner needs the snippet to wait for it --
+    # but a customer who has not thought about it yet should not silently
+    # collect nothing either, so this is theirs to turn on.
+    tracking_requires_consent = models.BooleanField(default=False)
 
     # Account-level suspension. False blocks login and the whole tenant API
     # while leaving the data intact, so a suspension applied in error costs

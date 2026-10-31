@@ -30,10 +30,12 @@ class ScoringRule(TimeStampedModel, SoftDeleteModel):
     EVENT_WORKFLOW_COMPLETED = 'workflow_completed'
     EVENT_UNSUBSCRIBED = 'unsubscribed'
     EVENT_BOUNCED = 'bounced'
+    EVENT_PAGE_VIEWED = 'page_viewed'
     EVENT_CHOICES = [
         (EVENT_EMAIL_OPENED, 'Email Opened'),
         (EVENT_EMAIL_CLICKED, 'Email Clicked'),
         (EVENT_FORM_SUBMITTED, 'Form Submitted'),
+        (EVENT_PAGE_VIEWED, 'Visited a Page'),
         (EVENT_TAG_ADDED, 'Tag Added'),
         (EVENT_TAG_REMOVED, 'Tag Removed'),
         (EVENT_WORKFLOW_COMPLETED, 'Workflow Completed'),

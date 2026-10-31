@@ -25,6 +25,9 @@ def build_config(organization, forms, *, form_origin):
     """The JSON object inlined into the script."""
     return {
         'origin': form_origin.rstrip('/'),
+        'key': str(organization.tracking_key),
+        'track': organization.tracking_enabled,
+        'requireConsent': organization.tracking_requires_consent,
         'popups': [
             {
                 'id': str(form.id),
@@ -50,7 +53,8 @@ SCRIPT = r"""(function () {
   'use strict';
 
   var CONFIG = __MAILFLOW_CONFIG__;
-  if (!CONFIG || !CONFIG.popups || !CONFIG.popups.length) return;
+  if (!CONFIG) return;
+  CONFIG.popups = CONFIG.popups || [];
 
   var STORE_PREFIX = 'mf_popup_';
 
@@ -225,6 +229,110 @@ SCRIPT = r"""(function () {
     document.addEventListener('keydown', popup._onKey);
   }
 
+
+  /* ------------------------------------------------------------- tracking */
+
+  var VISITOR_KEY = 'mf_vid';
+
+  /* The id lives in localStorage on the customer's own origin, so it is
+     first-party. A cookie set by us would be third-party and is blocked by
+     Safari and Firefox and going away in Chrome; a cookie on their domain is
+     not ours to set. One store, one failure mode.
+
+     Safari still purges script-writable storage on origins with no
+     interaction for 7 days, so expect some visitors to return as new ones.
+     No cookie strategy fixes that either. */
+  function visitorId() {
+    var id = null;
+    try { id = window.localStorage.getItem(VISITOR_KEY); } catch (e) {}
+    if (id) return id;
+    id = (window.crypto && window.crypto.randomUUID)
+      ? window.crypto.randomUUID()
+      : 'v' + Date.now() + Math.random().toString(36).slice(2, 10);
+    try { window.localStorage.setItem(VISITOR_KEY, id); } catch (e) {}
+    return id;
+  }
+
+  function consented() {
+    if (!CONFIG.requireConsent) return true;
+    /* The customer's own banner sets this. We do not draw one for them. */
+    return window.__mfConsent === true;
+  }
+
+  function send(events) {
+    if (!CONFIG.key || !events.length || !consented()) return;
+    var body = JSON.stringify({ k: CONFIG.key, vid: visitorId(), e: events });
+    var url = CONFIG.origin + '/track/collect';
+    try {
+      /* text/plain keeps this a *simple* request: no preflight, no CORS. And
+         sendBeacon survives the page unloading, which fetch does not. */
+      var blob = new Blob([body], { type: 'text/plain;charset=UTF-8' });
+      if (navigator.sendBeacon && navigator.sendBeacon(url, blob)) return;
+    } catch (e) {}
+    try {
+      fetch(url, {
+        method: 'POST', body: body, keepalive: true,
+        credentials: 'omit', mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' }
+      });
+    } catch (e) {}
+  }
+
+  function pageview() {
+    /* A headless browser taking a screenshot is not a visitor, and a
+       prerendered page was never seen. Two cheap checks catch most of it;
+       user-agent blocklists are a time sink with a bad hit rate. */
+    if (navigator.webdriver) return;
+    if (document.visibilityState === 'prerender') return;
+    send([{
+      t: 'pageview',
+      u: location.href.slice(0, 2000),
+      p: (location.pathname + location.search).slice(0, 500),
+      ti: (document.title || '').slice(0, 255),
+      r: (document.referrer || '').slice(0, 2000),
+      at: new Date().toISOString()
+    }]);
+  }
+
+  function watchNavigation() {
+    /* Single-page sites change the URL without reloading, so history has to
+       be wrapped or every visit looks like one page. */
+    var last = location.href;
+    var fire = function () {
+      if (location.href === last) return;
+      last = location.href;
+      pageview();
+    };
+    ['pushState', 'replaceState'].forEach(function (name) {
+      var original = history[name];
+      if (typeof original !== 'function') return;
+      history[name] = function () {
+        var result = original.apply(this, arguments);
+        setTimeout(fire, 0);
+        return result;
+      };
+    });
+    window.addEventListener('popstate', fire);
+  }
+
+  /* The form inside a popup posts its visitor id with the submission, so the
+     server links the visitor to the contact it already resolved from the
+     email. The email itself never crosses the frame boundary -- every script
+     on this page can listen for `message`, including their ad tech. */
+  function answerVisitorRequests() {
+    window.addEventListener('message', function (e) {
+      if (e.origin !== CONFIG.origin) return;
+      var data = e.data || {};
+      if (data.source !== 'mailflow-form' || data.type !== 'who') return;
+      try {
+        e.source.postMessage(
+          { source: 'mailflow-site', type: 'visitor', visitorId: visitorId() },
+          CONFIG.origin
+        );
+      } catch (err) {}
+    });
+  }
+
   /* --------------------------------------------------------------- triggers */
 
   function arm(popup) {
@@ -310,6 +418,11 @@ SCRIPT = r"""(function () {
   });
 
   function start() {
+    answerVisitorRequests();
+    if (CONFIG.track !== false) {
+      pageview();
+      watchNavigation();
+    }
     CONFIG.popups.forEach(function (popup) {
       if (!targeted(popup) || suppressed(popup)) return;
       arm(popup);

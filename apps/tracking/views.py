@@ -6,18 +6,24 @@ than a DRF one -- the same choice `apps/campaigns/tracking_views.py` makes for
 the open pixel, and for the same reason: there is no user, no session and
 nothing for authentication or permission classes to do.
 """
+import json
 import logging
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.views.decorators.cache import cache_control
-from django.views.decorators.http import require_GET
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.models import Organization
 from apps.forms.models import Form
 
+from .services import (
+    MAX_BODY_BYTES, MAX_EVENTS_PER_REQUEST, buffer_events,
+)
 from .snippet import CACHE_SECONDS, build_config, render
+from .throttle import over_limit
 
 logger = logging.getLogger(__name__)
 
@@ -75,4 +81,64 @@ def _js(body):
     # string. Django's cache_control sets max-age; this stops a proxy serving
     # one tenant's popups to another.
     response['Vary'] = 'Accept-Encoding'
+    return response
+
+
+@csrf_exempt
+@require_POST
+def collect(request):
+    """
+    `POST /track/collect` -- page views from the snippet.
+
+    Sent with `navigator.sendBeacon` as text/plain, which is a *simple*
+    request: no preflight, no CORS, and it survives the page unloading, which
+    `fetch` does not reliably do. The browser still sends `Origin`, so it is
+    still checkable.
+
+    Always 204, whatever happened. A visitor's browser can do nothing with an
+    error, and a 429 only tells an abuser their flood is working.
+    """
+    if int(request.META.get('CONTENT_LENGTH') or 0) > MAX_BODY_BYTES:
+        return _no_content()
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except (ValueError, UnicodeDecodeError):
+        return _no_content()
+
+    key = str(payload.get('k') or '').strip()
+    visitor_key = str(payload.get('vid') or '').strip()[:64]
+    events = payload.get('e')
+    if not (key and visitor_key and isinstance(events, list)):
+        return _no_content()
+
+    organization = _organization_for(key)
+    if organization is None:
+        return _no_content()
+
+    # Keyed on the site, not the IP: an IP throttle punishes a whole office
+    # behind one NAT and does nothing against a distributed flood.
+    if over_limit(organization.id, request):
+        return _no_content()
+
+    buffer_events(organization.id, [
+        {
+            'vid': visitor_key,
+            't': str(event.get('t') or 'pageview')[:30],
+            'u': str(event.get('u') or '')[:2000],
+            'p': str(event.get('p') or '')[:500],
+            'ti': str(event.get('ti') or '')[:255],
+            'r': str(event.get('r') or '')[:2000],
+            'at': str(event.get('at') or '')[:40],
+        }
+        for event in events[:MAX_EVENTS_PER_REQUEST]
+        if isinstance(event, dict)
+    ])
+    return _no_content()
+
+
+def _no_content():
+    response = HttpResponse(status=204)
+    # sendBeacon ignores the body, but a proxy should not cache a write.
+    response['Cache-Control'] = 'no-store'
     return response

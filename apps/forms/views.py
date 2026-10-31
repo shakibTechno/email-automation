@@ -343,6 +343,18 @@ class PublicFormViewSet(viewsets.GenericViewSet):
             source_url=serializer.validated_data.get('source_url', ''),
         )
 
+        # Link this browser's earlier visits to the contact the service just
+        # resolved from the submitted email. Server-side on purpose: the
+        # client supplies only an opaque visitor id, never a contact.
+        visitor_key = serializer.validated_data.get('visitor_id', '')
+        if visitor_key and submission.contact_id:
+            try:
+                from apps.tracking.services import identify
+                identify(form.organization, visitor_key, submission.contact)
+            except Exception:
+                # A submission must never fail because tracking did.
+                logger.exception('Could not identify visitor %s', visitor_key)
+
         # Update GDPR consent on submission
         if serializer.validated_data.get('gdpr_consent_given'):
             submission.gdpr_consent_given = True

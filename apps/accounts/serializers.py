@@ -20,7 +20,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             'email', 'phone', 'address_line1', 'address_line2',
             'city', 'state', 'country', 'postal_code',
             'max_contacts', 'max_emails_per_month',
-            'tracking_key',
+            'tracking_key', 'tracking_enabled', 'tracking_requires_consent',
             'created_at', 'updated_at'
         ]
         read_only_fields = [

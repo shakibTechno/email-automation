@@ -185,6 +185,10 @@ export interface PublicFormData {
   data: Record<string, any>;
   gdpr_consent_given?: boolean;
   source_url?: string;
+  /** Opaque id for this browser, supplied by the page that framed the form.
+   *  It links earlier visits to whatever contact the server resolves from the
+   *  submitted email; it never names a contact itself. */
+  visitor_id?: string;
 }
 
 export interface EmbedCodeResponse {

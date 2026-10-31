@@ -230,6 +230,14 @@ class FormSubmissionCreateSerializer(serializers.Serializer):
 
     data = serializers.DictField(child=serializers.CharField(allow_blank=True))
     gdpr_consent_given = serializers.BooleanField(default=False)
+    # Opaque, client-supplied, and used only to attach this submission's
+    # visitor to the contact the server resolves from the email. It never
+    # names a contact itself: a client that could do that would be an
+    # email-enumeration oracle and could attach an invented browsing history
+    # to a real person, which feeds lead scores, segments and therefore sends.
+    visitor_id = serializers.CharField(
+        max_length=64, required=False, allow_blank=True,
+    )
     source_url = serializers.URLField(required=False, allow_blank=True, default='')
 
     def validate(self, attrs):

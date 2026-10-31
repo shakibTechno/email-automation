@@ -115,12 +115,38 @@ export const WebsiteTab = () => {
 
       <Card>
         <CardHeader>
+          <CardTitle>Visitor tracking</CardTitle>
+          <CardDescription>
+            The same snippet records which pages people view. A visitor stays
+            anonymous until they submit one of your forms &mdash; then the
+            pages they read before that are attached to their contact.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            <strong className="text-foreground">Tracking is{' '}
+            {organization?.tracking_enabled === false ? 'off' : 'on'}.</strong>{' '}
+            {organization?.tracking_requires_consent
+              ? 'The snippet waits for consent before recording anything.'
+              : 'The snippet records as soon as the page loads.'}
+          </p>
+          <p>
+            Page views are kept for a year. Anonymous visitors are deleted
+            with them; anyone who became a contact is kept.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Before you publish</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p>
-            Popups collect personal data, so if your site has a cookie or
-            consent banner, place the snippet behind it.
+            Page views and popups both collect personal data. If your site has
+            a cookie or consent banner, turn on &ldquo;require consent&rdquo;
+            and have your banner set{' '}
+            <code>window.__mfConsent = true</code> once the visitor agrees.
           </p>
           <p>
             Test on a staging page first. A popup set to show on every page

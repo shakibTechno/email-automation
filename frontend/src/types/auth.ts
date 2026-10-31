@@ -9,6 +9,10 @@ export interface Organization {
   /** Identifies this organization to the website snippet. Public by design —
    *  it ships in the page source of the customer's own site. */
   tracking_key?: string;
+  tracking_enabled?: boolean;
+  /** When true the snippet waits for `window.__mfConsent === true` before
+   *  recording anything. */
+  tracking_requires_consent?: boolean;
 }
 
 export interface User {
