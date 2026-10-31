@@ -480,6 +480,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.tracking.tasks.drain_tracking_buffer',
         'schedule': 30.0,
     },
+    'publish-due-popups': {
+        'task': 'apps.popups.tasks.publish_due_popups',
+        'schedule': 60.0,  # Every minute; a schedule nobody can see is useless
+    },
     'prune-tracked-events': {
         'task': 'apps.tracking.tasks.prune_tracked_events',
         'schedule': crontab(hour=3, minute=20),  # Daily at 03:20
@@ -578,6 +582,13 @@ POSTAL_PROVISIONER_TOKEN = env('POSTAL_PROVISIONER_TOKEN', default='')
 # How long a page view is kept. Anonymous visitors age out with their
 # events; identified ones are CRM data and are kept.
 TRACKING_RETENTION_DAYS = env.int('TRACKING_RETENTION_DAYS', default=365)
+
+# Location targeting for pop-ups. Needs a MaxMind GeoLite2-Country.mmdb on
+# disk; unset, a pop-up with a country rule shows to nobody, which is the safe
+# direction. Free download needs a MaxMind account, and the licence requires
+# refreshing it, so this is opt-in per deployment:
+#   GEOIP_PATH=/var/lib/geoip
+GEOIP_PATH = env('GEOIP_PATH', default='')
 
 POSTAL_SHARED_API_KEY = env('POSTAL_SHARED_API_KEY', default='')
 POSTAL_SHARED_FROM_EMAIL = env('POSTAL_SHARED_FROM_EMAIL', default='')

@@ -92,6 +92,16 @@ export const usePopup = (id: string) => {
   return { popup: data, isLoading, error };
 };
 
+export const usePopupAnalytics = (id: string, days = 30) => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['popup-analytics', id, days],
+    queryFn: () => popupsApi.getAnalytics(id, days),
+    enabled: !!id,
+    staleTime: 60000,
+  });
+  return { analytics: data, isLoading, error };
+};
+
 export const usePopupTemplates = () =>
   useQuery({
     queryKey: ['popup-templates'],

@@ -69,9 +69,12 @@ def default_triggers():
 
 def default_targeting():
     """
-    Who sees it. Everything here is evaluated in the visitor's browser from
-    what the page already knows; the rules that need a server are not in this
-    blob and are not offered yet.
+    Who sees it.
+
+    Everything above `country` is decided in the visitor's browser from what
+    the page already knows. `country` and `audience` cannot be: they cost the
+    script one extra request before it may draw anything, so they are left
+    empty and only the organizations that fill them pay for it.
     """
     return {
         'includeUrls': [],        # empty means every page
@@ -80,6 +83,8 @@ def default_targeting():
         'visitorType': 'any',     # any | new | returning
         'referrers': [],          # substring match on document.referrer
         'utm': {},                # e.g. {'utm_campaign': 'spring'}
+        'country': [],            # two-letter codes; needs GEOIP_PATH set
+        'audience': {'segments': [], 'tags': [], 'contactFields': []},
     }
 
 

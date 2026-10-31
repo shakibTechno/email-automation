@@ -189,6 +189,9 @@ export interface PublicFormData {
    *  It links earlier visits to whatever contact the server resolves from the
    *  submitted email; it never names a contact itself. */
   visitor_id?: string;
+  /** Set when the form was submitted from inside a popup, so the conversion
+   *  is credited to it. */
+  popup_id?: string;
 }
 
 export interface EmbedCodeResponse {

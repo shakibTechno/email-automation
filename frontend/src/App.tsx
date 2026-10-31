@@ -32,7 +32,9 @@ import { CampaignDetailPage } from '@/pages/campaigns/CampaignDetailPage';
 // Form Pages
 import { FormListPage } from '@/pages/forms/FormListPage';
 import { FormBuilderPage } from '@/pages/forms/FormBuilderPage';
-import { PopupListPage, PopupBuilderPage } from '@/pages/popups';
+import {
+  PopupListPage, PopupBuilderPage, PopupAnalyticsPage,
+} from '@/pages/popups';
 import { FormDetailPage } from '@/pages/forms/FormDetailPage';
 import { PublicFormPage } from '@/pages/forms/PublicFormPage';
 
@@ -216,6 +218,7 @@ function App() {
 
           <Route path="/popups" element={<PopupListPage />} />
           <Route path="/popups/:id/edit" element={<PopupBuilderPage />} />
+          <Route path="/popups/:id/analytics" element={<PopupAnalyticsPage />} />
 
             {/* Landing Page routes */}
             <Route path="/landing-pages" element={<LandingPageListPage />} />

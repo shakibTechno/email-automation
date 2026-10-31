@@ -7,7 +7,7 @@ import requests
 from datetime import timedelta
 from django.utils import timezone
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Q
 
 from .models import (
     Workflow,
@@ -1113,6 +1113,42 @@ class WorkflowTriggerService:
                     'campaign_id': str(campaign_recipient.campaign_id),
                     'link_url': link_url,
                 }
+            )
+
+    @staticmethod
+    def trigger_popup_interaction(popup, contact, node_type, extra=None):
+        """
+        Start workflows waiting on a pop-up being shown or clicked.
+
+        One method for both, because the two differ only in the node type and
+        splitting them would be two copies of the same query.
+
+        Only fires for a visitor we can name. A workflow acts on a contact,
+        and most people who see a pop-up are nobody yet.
+        """
+        if contact is None:
+            return
+
+        workflows = Workflow.objects.filter(
+            organization=contact.organization,
+            status='active',
+            nodes__node_type=node_type,
+        ).filter(
+            Q(nodes__config__popup_id=str(popup.id))
+            | Q(nodes__config__popup_id__isnull=True)
+            | Q(nodes__config__popup_id='')
+        ).distinct()
+
+        for workflow in workflows:
+            WorkflowExecutionService.start_execution(
+                workflow=workflow,
+                contact=contact,
+                trigger_data={
+                    'type': node_type.replace('trigger_', ''),
+                    'popup_id': str(popup.id),
+                    'popup_name': popup.name,
+                    **(extra or {}),
+                },
             )
 
     @staticmethod

@@ -234,6 +234,9 @@ class FormSubmissionCreateSerializer(serializers.Serializer):
     visitor_id = serializers.CharField(
         max_length=64, required=False, allow_blank=True,
     )
+    # Which popup this form was submitted from, when it was submitted from
+    # one. Credits the conversion to it; an inline form sends nothing.
+    popup_id = serializers.UUIDField(required=False, allow_null=True)
     source_url = serializers.URLField(required=False, allow_blank=True, default='')
 
     def validate(self, attrs):

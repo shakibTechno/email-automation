@@ -134,6 +134,8 @@ def collect(request):
             'ti': str(event.get('ti') or '')[:255],
             'r': str(event.get('r') or '')[:2000],
             'at': str(event.get('at') or '')[:40],
+            # Only meaningful on popup events; ignored on a page view.
+            'pu': str(event.get('pu') or '')[:36],
         }
         for event in events[:MAX_EVENTS_PER_REQUEST]
         if isinstance(event, dict)
@@ -145,4 +147,53 @@ def _no_content():
     response = HttpResponse(status=204)
     # sendBeacon ignores the body, but a proxy should not cache a write.
     response['Cache-Control'] = 'no-store'
+    return response
+
+
+@csrf_exempt
+@require_POST
+def audience(request):
+    """
+    `POST /track/audience` -- what this visitor matches, for targeting that
+    the cached script cannot carry.
+
+    Only called when an organization actually uses that targeting, and it
+    answers in booleans about questions its own popups already ask. Handing a
+    browser the list of segments someone belongs to would publish an
+    organization's audience structure to anyone with dev tools open.
+    """
+    if int(request.META.get('CONTENT_LENGTH') or 0) > MAX_BODY_BYTES:
+        return _json({})
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except (ValueError, UnicodeDecodeError):
+        return _json({})
+
+    organization = _organization_for(str(payload.get('k') or '').strip())
+    visitor_key = str(payload.get('vid') or '').strip()[:64]
+    if organization is None or not visitor_key:
+        return _json({})
+    if over_limit(organization.id, request):
+        return _json({})
+
+    from .audience import answer, country_for
+
+    result = answer(organization, visitor_key)
+    result['country'] = country_for(request)
+    return _json(result)
+
+
+def _json(payload):
+    from django.http import JsonResponse
+
+    response = JsonResponse(payload)
+    # Per visitor, so nothing in between may cache it.
+    response['Cache-Control'] = 'no-store'
+    # Readable cross-origin, and `*` rather than an echoed Origin on purpose:
+    # the body is booleans about questions the caller's own popups already
+    # ask, it carries no credentials, and CORS_ALLOW_CREDENTIALS is globally
+    # true -- an echoed origin would invite the browser to send cookies to an
+    # endpoint that has no use for them.
+    response['Access-Control-Allow-Origin'] = '*'
     return response

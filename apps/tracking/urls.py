@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import collect, snippet
+from .views import audience, collect, snippet
 
 app_name = 'tracking'
 
@@ -12,4 +12,5 @@ urlpatterns = [
     # Under /track/, which nginx already proxies to Django and which is
     # already the public, unauthenticated, CSRF-exempt namespace.
     path('track/collect', collect, name='collect'),
+    path('track/audience', audience, name='audience'),
 ]

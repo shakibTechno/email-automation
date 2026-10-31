@@ -1,3 +1,5 @@
+import { Plus, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,9 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { useTags } from '@/hooks/useTags';
+import { useSegments } from '@/hooks/useSegments';
 import {
-  PopupDesign, PopupFrequency, PopupPosition, PopupTargeting, PopupTrigger,
-  PopupTriggers, PopupType, popupTriggerLabels,
+  PopupAudienceTargeting, PopupContactFieldRule, PopupDesign, PopupFrequency,
+  PopupPosition, PopupTargeting, PopupTrigger, PopupTriggers, PopupType,
+  popupTriggerLabels,
 } from '@/types/popup';
 
 interface Props {
@@ -26,16 +31,60 @@ interface Props {
 const toList = (value: string) =>
   value.split('\n').map((line) => line.trim()).filter(Boolean);
 
+const toCodes = (value: string) =>
+  value.split(',').map((part) => part.trim().toUpperCase()).filter(Boolean);
+
+/** Fields a marketer plausibly segments a pop-up on, not all forty of them. */
+const CONTACT_FIELDS = [
+  { value: 'company', label: 'Company' },
+  { value: 'job_title', label: 'Job title' },
+  { value: 'city', label: 'City' },
+  { value: 'country', label: 'Country (on the contact)' },
+  { value: 'lifecycle_stage', label: 'Lifecycle stage' },
+  { value: 'lead_source', label: 'Lead source' },
+  { value: 'phone', label: 'Phone' },
+];
+
+const OPERATORS: { value: PopupContactFieldRule['operator']; label: string }[] = [
+  { value: 'is_not_empty', label: 'is set' },
+  { value: 'is_empty', label: 'is empty' },
+  { value: 'equals', label: 'is' },
+  { value: 'not_equals', label: 'is not' },
+  { value: 'contains', label: 'contains' },
+];
+
+/** Needs no value box: the operator is the whole rule. */
+const VALUELESS = ['is_not_empty', 'is_empty'];
+
+const emptyAudience: PopupAudienceTargeting = {
+  segments: [], tags: [], contactFields: [],
+};
+
+
 export const PopupBehaviourPanel = ({
   popupType, triggers, targeting, frequency, design,
   onTriggersChange, onTargetingChange, onFrequencyChange, onDesignChange,
 }: Props) => {
+  const { tags } = useTags();
+  const { data: segmentData } = useSegments();
+  const segments = segmentData?.results || [];
+
   const setTrigger = (partial: Partial<PopupTriggers>) =>
     onTriggersChange({ ...triggers, ...partial });
   const setTargeting = (partial: Partial<PopupTargeting>) =>
     onTargetingChange({ ...targeting, ...partial });
   const setDesign = (partial: Partial<PopupDesign>) =>
     onDesignChange({ ...design, ...partial });
+
+  // Pop-ups saved before audience targeting existed have no audience key.
+  const audience = targeting.audience || emptyAudience;
+  const setAudience = (partial: Partial<PopupAudienceTargeting>) =>
+    setTargeting({ audience: { ...audience, ...partial } });
+  const setRule = (index: number, partial: Partial<PopupContactFieldRule>) =>
+    setAudience({
+      contactFields: audience.contactFields.map((rule, i) =>
+        (i === index ? { ...rule, ...partial } : rule)),
+    });
 
   return (
     <div className="space-y-3.5">
@@ -209,6 +258,148 @@ export const PopupBehaviourPanel = ({
               <Label htmlFor={`popup-device-${item}`} className="capitalize">{item}</Label>
             </div>
           ))}
+        </div>
+
+        <div>
+          <Label>Countries</Label>
+          <Input
+            className="mt-1" placeholder="IE, GB, US"
+            value={(targeting.country || []).join(', ')}
+            onChange={(e) => setTargeting({ country: toCodes(e.target.value) })}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Two-letter codes, empty for everywhere. A visitor whose country we
+            cannot work out does <strong>not</strong> see it &mdash; an
+            Ireland-only offer shown to the whole world is the worse mistake.
+          </p>
+        </div>
+      </Card>
+
+      <Card className="space-y-3 p-4">
+        <h3 className="text-sm font-semibold">Only people you already know</h3>
+        <p className="text-xs text-muted-foreground">
+          These match the contact behind the visit, so they only show to
+          someone who has already submitted a form on your site. Leave them
+          empty to reach everybody.
+        </p>
+
+        <div>
+          <Label>In these segments</Label>
+          <div className="mt-1 max-h-32 space-y-1.5 overflow-y-auto rounded-md border p-2">
+            {segments.length === 0 && (
+              <p className="text-xs text-muted-foreground">No segments yet.</p>
+            )}
+            {segments.map((segment) => (
+              <div key={segment.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`popup-segment-${segment.id}`}
+                  checked={audience.segments.includes(segment.id)}
+                  onCheckedChange={(checked) =>
+                    setAudience({
+                      segments: checked
+                        ? [...audience.segments, segment.id]
+                        : audience.segments.filter((s) => s !== segment.id),
+                    })
+                  }
+                />
+                <Label htmlFor={`popup-segment-${segment.id}`} className="font-normal">
+                  {segment.name}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <Label>With all of these tags</Label>
+          <div className="mt-1 max-h-32 space-y-1.5 overflow-y-auto rounded-md border p-2">
+            {tags.length === 0 && (
+              <p className="text-xs text-muted-foreground">No tags yet.</p>
+            )}
+            {tags.map((tag) => (
+              <div key={tag.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`popup-tag-${tag.id}`}
+                  checked={audience.tags.includes(tag.id)}
+                  onCheckedChange={(checked) =>
+                    setAudience({
+                      tags: checked
+                        ? [...audience.tags, tag.id]
+                        : audience.tags.filter((t) => t !== tag.id),
+                    })
+                  }
+                />
+                <Label htmlFor={`popup-tag-${tag.id}`} className="font-normal">
+                  {tag.name}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Contact properties</Label>
+          {audience.contactFields.map((rule, index) => (
+            <div key={index} className="flex gap-2">
+              <Select
+                value={rule.field}
+                onValueChange={(v) => setRule(index, { field: v })}
+              >
+                <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CONTACT_FIELDS.map((field) => (
+                    <SelectItem key={field.value} value={field.value}>
+                      {field.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={rule.operator}
+                onValueChange={(v) =>
+                  setRule(index, { operator: v as PopupContactFieldRule['operator'] })
+                }
+              >
+                <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {OPERATORS.map((op) => (
+                    <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!VALUELESS.includes(rule.operator) && (
+                <Input
+                  className="w-[130px]" placeholder="Value"
+                  value={rule.value}
+                  onChange={(e) => setRule(index, { value: e.target.value })}
+                />
+              )}
+              <Button
+                type="button" variant="ghost" size="icon"
+                onClick={() =>
+                  setAudience({
+                    contactFields: audience.contactFields.filter((_, i) => i !== index),
+                  })
+                }
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button
+            type="button" variant="outline" size="sm"
+            onClick={() =>
+              setAudience({
+                contactFields: [
+                  ...audience.contactFields,
+                  { field: 'company', operator: 'is_not_empty', value: '' },
+                ],
+              })
+            }
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Add a property rule
+          </Button>
         </div>
       </Card>
 

@@ -343,6 +343,21 @@ class PublicFormViewSet(viewsets.GenericViewSet):
             source_url=serializer.validated_data.get('source_url', ''),
         )
 
+        # Credit the popup this was submitted from. Scoped to the form's own
+        # organization, so a hand-edited popup id cannot inflate another
+        # tenant's numbers.
+        popup_id = serializer.validated_data.get('popup_id')
+        if popup_id:
+            try:
+                from django.db.models import F
+
+                from apps.popups.models import Popup
+                Popup.objects.filter(
+                    id=popup_id, organization=form.organization,
+                ).update(conversion_count=F('conversion_count') + 1)
+            except Exception:
+                logger.exception('Could not credit popup %s', popup_id)
+
         # Link this browser's earlier visits to the contact the service just
         # resolved from the submitted email. Server-side on purpose: the
         # client supplies only an opaque visitor id, never a contact.

@@ -89,6 +89,20 @@ def on_campaign_recipient_updated(sender, instance, created, **kwargs):
     except Exception as e:
         logger.exception(f"Error in lead scoring signal (campaign_recipient): {e}")
 
+    # The same two transitions drive workflows. WorkflowTriggerService has had
+    # trigger_email_opened and trigger_email_clicked since it was written and
+    # nothing has ever called them, so the "Email Opened" trigger the builder
+    # offers has never fired for anybody. This is the call that was missing.
+    try:
+        from apps.workflows.services import WorkflowTriggerService
+
+        if instance.opened_at and not getattr(instance, '_pre_opened_at', None):
+            WorkflowTriggerService.trigger_email_opened(instance)
+        if instance.clicked_at and not getattr(instance, '_pre_clicked_at', None):
+            WorkflowTriggerService.trigger_email_clicked(instance)
+    except Exception as e:
+        logger.exception(f"Error firing email workflows: {e}")
+
 
 # ---------------------------------------------------------------------------
 # FormSubmission — form submitted

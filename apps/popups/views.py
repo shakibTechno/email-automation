@@ -91,6 +91,15 @@ class PopupViewSet(viewsets.ModelViewSet):
         popup.save(update_fields=['status', 'updated_at'])
         return Response(PopupSerializer(popup, context=self.get_serializer_context()).data)
 
+    @action(detail=True, methods=['get'])
+    def analytics(self, request, pk=None):
+        """Impressions, clicks, conversions and the rates, for this pop-up."""
+        from .services import PopupAnalyticsService
+
+        popup = self.get_object()
+        days = max(7, min(int(request.query_params.get('days', 30)), 365))
+        return Response(PopupAnalyticsService.get_popup_analytics(popup, days))
+
     @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None):
         """

@@ -93,6 +93,8 @@ class WorkflowNode(TimeStampedModel):
     TRIGGER_CONTACT_CREATED = 'trigger_contact_created'
     TRIGGER_EMAIL_OPENED = 'trigger_email_opened'
     TRIGGER_EMAIL_CLICKED = 'trigger_email_clicked'
+    TRIGGER_POPUP_SHOWN = 'trigger_popup_shown'
+    TRIGGER_POPUP_CLICKED = 'trigger_popup_clicked'
     TRIGGER_DATE_FIELD = 'trigger_date_field'
 
     # Action types
@@ -124,6 +126,8 @@ class WorkflowNode(TimeStampedModel):
         (TRIGGER_CONTACT_CREATED, 'Contact Created'),
         (TRIGGER_EMAIL_OPENED, 'Email Opened'),
         (TRIGGER_EMAIL_CLICKED, 'Email Clicked'),
+        (TRIGGER_POPUP_SHOWN, 'Pop-up Shown'),
+        (TRIGGER_POPUP_CLICKED, 'Pop-up Clicked'),
         (TRIGGER_DATE_FIELD, 'Date Field'),
         (TRIGGER_DEAL_STAGE_CHANGED, 'Deal Stage Changed'),
         (TRIGGER_DEAL_CREATED, 'Deal Created'),

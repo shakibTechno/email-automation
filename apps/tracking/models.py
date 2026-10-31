@@ -63,6 +63,12 @@ class TrackedEvent(TimeStampedModel):
     field. Nothing writes anything but 'pageview' yet.
     """
     EVENT_PAGEVIEW = 'pageview'
+    EVENT_POPUP_SHOWN = 'popup_shown'
+    EVENT_POPUP_CLICKED = 'popup_clicked'
+    EVENT_POPUP_DISMISSED = 'popup_dismissed'
+    # A conversion is deliberately absent: the FormSubmission row already is
+    # one, and counting it twice is how two numbers drift apart.
+    POPUP_EVENTS = (EVENT_POPUP_SHOWN, EVENT_POPUP_CLICKED, EVENT_POPUP_DISMISSED)
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
@@ -80,6 +86,11 @@ class TrackedEvent(TimeStampedModel):
     )
 
     event_type = models.CharField(max_length=30, default=EVENT_PAGEVIEW)
+    # Set on popup events, null on page views.
+    popup = models.ForeignKey(
+        'popups.Popup', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='events',
+    )
     # Truncated, never rejected: a 400 to a visitor's browser is invisible and
     # the event is lost either way. A URLField would discard a weird-but-real
     # address for nothing.
@@ -97,6 +108,7 @@ class TrackedEvent(TimeStampedModel):
             models.Index(fields=['organization', 'occurred_at']),
             models.Index(fields=['visitor', 'occurred_at']),
             models.Index(fields=['contact', 'occurred_at']),
+            models.Index(fields=['popup', 'event_type']),
         ]
 
     def __str__(self):

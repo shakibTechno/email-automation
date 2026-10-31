@@ -57,6 +57,19 @@ export interface PopupTriggers {
   clickSelector: string;
 }
 
+/** A rule on the person behind the visit, not the visit. */
+export interface PopupContactFieldRule {
+  field: string;
+  operator: 'is_not_empty' | 'is_empty' | 'equals' | 'not_equals' | 'contains';
+  value: string;
+}
+
+export interface PopupAudienceTargeting {
+  segments: string[];
+  tags: string[];
+  contactFields: PopupContactFieldRule[];
+}
+
 export interface PopupTargeting {
   includeUrls: string[];
   excludeUrls: string[];
@@ -64,6 +77,10 @@ export interface PopupTargeting {
   visitorType: 'any' | 'new' | 'returning';
   referrers: string[];
   utm: Record<string, string>;
+  /** Two-letter country codes. Empty means everywhere. */
+  country: string[];
+  /** Only shows to visitors we can tie to a contact, so most people see nothing. */
+  audience: PopupAudienceTargeting;
 }
 
 export interface PopupFrequency {
@@ -186,7 +203,26 @@ export const defaultPopupTargeting: PopupTargeting = {
   visitorType: 'any',
   referrers: [],
   utm: {},
+  country: [],
+  audience: { segments: [], tags: [], contactFields: [] },
 };
+
+export interface PopupAnalyticsPoint {
+  date: string;
+  impressions: number;
+  clicks: number;
+}
+
+export interface PopupAnalytics {
+  impressions: number;
+  unique_views: number;
+  clicks: number;
+  dismissals: number;
+  conversions: number;
+  conversion_rate: number;
+  dismiss_rate: number;
+  over_time: PopupAnalyticsPoint[];
+}
 
 export const defaultPopupFrequency: PopupFrequency = {
   mode: 'once_per_visitor',

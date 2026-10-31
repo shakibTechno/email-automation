@@ -112,3 +112,6 @@ nul
 # to the mail server directly.
 mailstack/
 .claude/settings.local.json
+
+coverage.xml
+htmlcov/

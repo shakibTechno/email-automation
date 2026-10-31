@@ -1,6 +1,7 @@
 import apiClient from './client';
 import {
-  CreatePopupData, Popup, PopupListResponse, PopupTemplate, UpdatePopupData,
+  CreatePopupData, Popup, PopupAnalytics, PopupListResponse, PopupTemplate,
+  UpdatePopupData,
 } from '@/types/popup';
 
 export interface PopupFilters {
@@ -57,6 +58,13 @@ export const popupsApi = {
 
   duplicatePopup: async (id: string): Promise<Popup> => {
     const response = await apiClient.post<Popup>(`/popups/${id}/duplicate`);
+    return response.data;
+  },
+
+  getAnalytics: async (id: string, days = 30): Promise<PopupAnalytics> => {
+    const response = await apiClient.get<PopupAnalytics>(
+      `/popups/${id}/analytics`, { params: { days } },
+    );
     return response.data;
   },
 

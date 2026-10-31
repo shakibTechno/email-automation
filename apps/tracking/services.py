@@ -132,6 +132,7 @@ def _write(rows):
     )
 
     events = []
+    popup_tally = {}
     for (org_id, visitor_key), items in by_visitor.items():
         if org_id not in {str(i) for i in known}:
             continue
@@ -144,11 +145,24 @@ def _write(rows):
             if timezone.is_naive(occurred):
                 occurred = timezone.make_aware(occurred)
             latest = max(latest, occurred) if latest else occurred
+            event_type = item.get('t') or TrackedEvent.EVENT_PAGEVIEW
+            popup_id = item.get('pu') or None
+            if event_type in TrackedEvent.POPUP_EVENTS:
+                # A popup event naming a popup this key does not own is
+                # dropped rather than written against the wrong tenant.
+                if popup_id not in owned_popups(org_id):
+                    continue
+                popup_tally[(org_id, popup_id, event_type)] = (
+                    popup_tally.get((org_id, popup_id, event_type), 0) + 1
+                )
+            else:
+                popup_id = None
             events.append(TrackedEvent(
                 organization_id=org_id,
                 visitor=visitor,
                 contact=visitor.contact,
-                event_type=item.get('t') or TrackedEvent.EVENT_PAGEVIEW,
+                event_type=event_type,
+                popup_id=popup_id,
                 url=(item.get('u') or '')[:2000],
                 path=(item.get('p') or '')[:500],
                 title=(item.get('ti') or '')[:255],
@@ -161,10 +175,57 @@ def _write(rows):
         )
         _touch_contact_activity(visitor)
         _score_page_view(visitor)
+        _fire_popup_workflows(visitor, items)
 
     if events:
         TrackedEvent.objects.bulk_create(events, batch_size=500)
+    _apply_popup_tally(popup_tally)
     return len(events)
+
+
+def owned_popups(org_id):
+    """The popup ids this organization owns, cached briefly."""
+    key = f'tracking:popups:{org_id}'
+    ids = cache.get(key)
+    if ids is None:
+        from apps.popups.models import Popup
+        ids = {
+            str(pk) for pk in
+            Popup.objects.filter(organization_id=org_id).values_list('id', flat=True)
+        }
+        cache.set(key, ids, 300)
+    return ids
+
+
+COUNTER_FOR = {
+    TrackedEvent.EVENT_POPUP_SHOWN: 'impression_count',
+    TrackedEvent.EVENT_POPUP_CLICKED: 'click_count',
+}
+
+
+def _apply_popup_tally(tally):
+    """
+    Move the cached counters once per batch.
+
+    One UPDATE per popup per drain rather than per event: these are the
+    highest-volume writes in the project and a read-modify-write per
+    impression would both be slow and lose counts under concurrency.
+    """
+    from django.db.models import F
+
+    from apps.popups.models import Popup
+
+    totals = {}
+    for (_org_id, popup_id, event_type), count in tally.items():
+        field = COUNTER_FOR.get(event_type)
+        if field:
+            totals.setdefault(popup_id, {}).setdefault(field, 0)
+            totals[popup_id][field] += count
+
+    for popup_id, fields in totals.items():
+        Popup.objects.filter(pk=popup_id).update(**{
+            name: F(name) + amount for name, amount in fields.items()
+        })
 
 
 def models_f_add(visitor, count):
@@ -258,3 +319,45 @@ def _score_page_view(visitor):
         _fire_behavioral_rules(visitor.contact, ScoringRule.EVENT_PAGE_VIEWED)
     except Exception:
         logger.exception('Could not score a page view')
+
+
+def _fire_popup_workflows(visitor, items):
+    """
+    Let a workflow react to a pop-up being shown or clicked.
+
+    Only for an identified visitor: a workflow acts on a contact, and most
+    people who see a pop-up are nobody yet. Capped per contact per popup per
+    day for the same reason page-view scoring is -- this is a high-volume
+    path and a workflow is an expensive thing to start twice.
+    """
+    if visitor.contact_id is None:
+        return
+
+    from apps.tracking.models import TrackedEvent
+
+    wanted = {
+        TrackedEvent.EVENT_POPUP_SHOWN: 'trigger_popup_shown',
+        TrackedEvent.EVENT_POPUP_CLICKED: 'trigger_popup_clicked',
+    }
+    seen = set()
+    for item in items:
+        node_type = wanted.get(item.get('t'))
+        popup_id = item.get('pu')
+        if not node_type or not popup_id or (node_type, popup_id) in seen:
+            continue
+        seen.add((node_type, popup_id))
+
+        key = f'tracking:popupwf:{visitor.contact_id}:{popup_id}:{node_type}'
+        if not cache.add(key, '1', 86400):
+            continue
+        try:
+            from apps.popups.models import Popup
+            from apps.workflows.services import WorkflowTriggerService
+
+            popup = Popup.objects.filter(pk=popup_id).first()
+            if popup:
+                WorkflowTriggerService.trigger_popup_interaction(
+                    popup, visitor.contact, node_type,
+                )
+        except Exception:
+            logger.exception('Could not fire popup workflows')
