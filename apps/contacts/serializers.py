@@ -95,16 +95,37 @@ class CustomFieldSerializer(serializers.ModelSerializer):
         return value
 
 
-class CustomFieldsValidationMixin:
+class ContactWriteMixin:
     """
-    Validates `custom_fields` against the organization's definitions.
+    What the three write serializers share — full, create and update.
 
-    A mixin because three serializers accept the field — full, create and
-    update — and only one of them having the check is how a create slipped
-    past it: the API create path uses ContactCreateSerializer, so an
-    undeclared key was still accepted there while the full serializer
-    rejected it.
+    A mixin because only one of the three having a check is how a create
+    slipped past the custom-field validation: the API create path uses
+    ContactCreateSerializer, so an undeclared key was still accepted there
+    while the full serializer rejected it.
     """
+
+    def to_internal_value(self, data):
+        """
+        Treat '' as "no value" for every nullable non-text field.
+
+        An HTML date input that was never filled in sends '', which DRF's
+        DateField rejects outright — so a contact with no birthday could not
+        be saved at all, and clearing a date was impossible. '' stays a real
+        value for text and choice fields, where it means an empty string and
+        a blank option respectively.
+        """
+        if isinstance(data, dict):
+            blanked = [
+                name for name, field in self.fields.items()
+                if data.get(name) == '' and field.allow_null
+                and not isinstance(
+                    field, (serializers.CharField, serializers.ChoiceField)
+                )
+            ]
+            if blanked:
+                data = {**data, **{name: None for name in blanked}}
+        return super().to_internal_value(data)
 
     def validate_custom_fields(self, value):
         request = self.context.get('request')
@@ -146,7 +167,7 @@ class ContactListSerializer(serializers.ModelSerializer):
         return None
 
 
-class ContactSerializer(CustomFieldsValidationMixin, serializers.ModelSerializer):
+class ContactSerializer(ContactWriteMixin, serializers.ModelSerializer):
     """Full serializer for Contact model."""
 
     full_name = serializers.CharField(read_only=True)
@@ -251,7 +272,7 @@ class ContactSerializer(CustomFieldsValidationMixin, serializers.ModelSerializer
         return instance
 
 
-class ContactCreateSerializer(CustomFieldsValidationMixin, serializers.ModelSerializer):
+class ContactCreateSerializer(ContactWriteMixin, serializers.ModelSerializer):
     """Serializer for creating a contact."""
 
     tags = serializers.PrimaryKeyRelatedField(
@@ -302,7 +323,7 @@ class ContactCreateSerializer(CustomFieldsValidationMixin, serializers.ModelSeri
         return contact
 
 
-class ContactUpdateSerializer(CustomFieldsValidationMixin, serializers.ModelSerializer):
+class ContactUpdateSerializer(ContactWriteMixin, serializers.ModelSerializer):
     """Serializer for updating a contact."""
 
     tags = serializers.PrimaryKeyRelatedField(

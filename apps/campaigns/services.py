@@ -3,7 +3,7 @@ Services for the Email Campaigns app.
 """
 import logging
 import re
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from apps.contacts.models import Contact, ContactTag
 
@@ -95,25 +95,42 @@ class CampaignService:
 
     @staticmethod
     def send_test_email(campaign, test_emails):
-        """Send a test email to the specified addresses."""
+        """
+        Send a test email to the specified addresses.
+
+        Goes through the organization's resolved identity, same as the real
+        send in tasks.py. A bare send_mail() here used Django's default
+        backend -- localhost:25, nothing inside a container -- so the first
+        thing anyone tried on the platform failed with "Connection refused"
+        while every real campaign sent fine.
+        """
+        from apps.email_config.services import EmailConfigService
+
+        identity = EmailConfigService.resolve(campaign.organization)
+        if identity.unavailable:
+            # A sentence the sender can act on, not a socket error.
+            raise RuntimeError(identity.unavailable)
+
         html_content = CampaignService.render_html(campaign)
         subject = campaign.subject or '(No subject)'
-        from_email = (
-            f"{campaign.sender_name} <{campaign.sender_email}>"
-            if campaign.sender_name and campaign.sender_email
-            else settings.DEFAULT_FROM_EMAIL
+        from_email, reply_to = identity.sender(
+            name=campaign.sender_name,
+            email=campaign.sender_email,
+            reply_to=campaign.reply_to_email,
         )
 
         for email in test_emails:
             try:
-                send_mail(
+                msg = EmailMultiAlternatives(
                     subject=f"[TEST] {subject}",
-                    message='',
+                    body='',
                     from_email=from_email,
-                    recipient_list=[email],
-                    html_message=html_content,
-                    fail_silently=False,
+                    to=[email],
+                    reply_to=reply_to,
+                    connection=identity.connection,
                 )
+                msg.attach_alternative(html_content, 'text/html')
+                msg.send(fail_silently=False)
                 logger.info(f"Test email sent to {email} for campaign {campaign.id}")
             except Exception as e:
                 logger.error(f"Failed to send test email to {email}: {e}")
