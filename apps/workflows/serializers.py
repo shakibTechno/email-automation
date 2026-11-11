@@ -73,6 +73,10 @@ class WorkflowSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'status',
             'canvas_data', 'goal_node_id', 'goal_description',
+            'reentry', 'reentry_cooldown_days', 'entry_segment',
+            'respect_quiet_hours', 'send_window_start', 'send_window_end',
+            'send_weekdays', 'exit_on_goal', 'goal_rules',
+            'webhook_token',
             'contacts_entered', 'contacts_active', 'contacts_completed',
             'contacts_goal_reached',
             'nodes', 'edges',
@@ -82,6 +86,9 @@ class WorkflowSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'contacts_entered', 'contacts_active',
             'contacts_completed', 'contacts_goal_reached',
+            # The inbound URL is minted by the server; letting a client set it
+            # would let one workflow claim another's.
+            'webhook_token',
             'activated_at', 'created_by', 'created_at', 'updated_at'
         ]
 
@@ -122,8 +129,36 @@ class WorkflowCreateSerializer(serializers.ModelSerializer):
         fields = [
             'name', 'description', 'canvas_data',
             'goal_node_id', 'goal_description',
+            'reentry', 'reentry_cooldown_days', 'entry_segment',
+            'respect_quiet_hours', 'send_window_start', 'send_window_end',
+            'send_weekdays', 'exit_on_goal', 'goal_rules',
             'nodes', 'edges'
         ]
+
+    def validate_entry_segment(self, value):
+        """A workflow may only be gated by a segment from its own account."""
+        if value is None:
+            return value
+        request = self.context.get('request')
+        organization = getattr(getattr(request, 'user', None), 'organization', None)
+        if organization is None or value.organization_id != organization.id:
+            raise serializers.ValidationError('That segment belongs to another account.')
+        return value
+
+    def validate_send_weekdays(self, value):
+        """0 is Monday and 6 is Sunday; anything else would never match."""
+        if not isinstance(value, list):
+            raise serializers.ValidationError('Give the days as a list.')
+        cleaned = []
+        for day in value:
+            try:
+                day = int(day)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError('Days must be numbers from 0 to 6.')
+            if not 0 <= day <= 6:
+                raise serializers.ValidationError('Days must be numbers from 0 to 6.')
+            cleaned.append(day)
+        return sorted(set(cleaned))
 
     def to_representation(self, instance):
         """Return using the full WorkflowSerializer for the response."""
@@ -190,8 +225,36 @@ class WorkflowUpdateSerializer(serializers.ModelSerializer):
         fields = [
             'name', 'description', 'canvas_data',
             'goal_node_id', 'goal_description',
+            'reentry', 'reentry_cooldown_days', 'entry_segment',
+            'respect_quiet_hours', 'send_window_start', 'send_window_end',
+            'send_weekdays', 'exit_on_goal', 'goal_rules',
             'nodes', 'edges'
         ]
+
+    def validate_entry_segment(self, value):
+        """A workflow may only be gated by a segment from its own account."""
+        if value is None:
+            return value
+        request = self.context.get('request')
+        organization = getattr(getattr(request, 'user', None), 'organization', None)
+        if organization is None or value.organization_id != organization.id:
+            raise serializers.ValidationError('That segment belongs to another account.')
+        return value
+
+    def validate_send_weekdays(self, value):
+        """0 is Monday and 6 is Sunday; anything else would never match."""
+        if not isinstance(value, list):
+            raise serializers.ValidationError('Give the days as a list.')
+        cleaned = []
+        for day in value:
+            try:
+                day = int(day)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError('Days must be numbers from 0 to 6.')
+            if not 0 <= day <= 6:
+                raise serializers.ValidationError('Days must be numbers from 0 to 6.')
+            cleaned.append(day)
+        return sorted(set(cleaned))
 
     def to_representation(self, instance):
         """Return using the full WorkflowSerializer for the response."""

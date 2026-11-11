@@ -145,7 +145,7 @@ adds those when the email is sent.\
 """
 
 
-def build_user_prompt(*, prompt: str, audience: str = '') -> str:
+def build_user_prompt(*, prompt: str, audience: str = '', organization=None) -> str:
     parts = [f'Write a marketing email about:\n\n{prompt.strip()}']
     if audience.strip():
         parts.append(f'It is going to: {audience.strip()}')

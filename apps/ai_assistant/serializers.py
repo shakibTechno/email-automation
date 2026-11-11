@@ -83,6 +83,7 @@ class GenerationJobSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'kind', 'status', 'prompt', 'audience',
             'result_id', 'landing_page', 'form', 'email_template', 'campaign',
+            'workflow',
             'error_message', 'was_sanitized',
             'provider', 'model', 'input_tokens', 'output_tokens',
             'created_at', 'started_at', 'finished_at',

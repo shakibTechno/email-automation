@@ -7,6 +7,9 @@ from apps.core.models import TimeStampedModel, SoftDeleteModel
 from apps.accounts.models import Organization
 from apps.contacts.models import Contact
 import uuid
+from datetime import time
+
+from . import catalog
 
 
 class WorkflowManager(models.Manager):
@@ -43,15 +46,62 @@ class Workflow(TimeStampedModel, SoftDeleteModel):
     # React Flow canvas state (nodes, edges, viewport)
     canvas_data = models.JSONField(default=dict, blank=True)
 
+    # ── Who may enter, and how often ─────────────────────────────────────────
+    # Until this existed, start_execution refused a contact who had *any*
+    # execution row, of any status. So a contact could enter a workflow once
+    # in their lifetime: cart-abandon fired once per customer ever,
+    # re-engagement could never re-engage, and testing a flow burned the
+    # tester's own contact for good.
+    REENTRY_ONCE = 'once'            # the old behaviour, kept for old flows
+    REENTRY_ONE_AT_A_TIME = 'one_at_a_time'
+    REENTRY_ALWAYS = 'always'
+    REENTRY_CHOICES = [
+        (REENTRY_ONCE, 'Once ever'),
+        (REENTRY_ONE_AT_A_TIME, 'Again, but never twice at the same time'),
+        (REENTRY_ALWAYS, 'Every time the trigger fires'),
+    ]
+    reentry = models.CharField(
+        max_length=20, choices=REENTRY_CHOICES, default=REENTRY_ONE_AT_A_TIME,
+    )
+    # 0 means no cooldown. Applies to one_at_a_time and always.
+    reentry_cooldown_days = models.PositiveIntegerField(default=0)
+
+    # Optional gate on top of the trigger: the trigger says what happened,
+    # this says who it counts for.
+    entry_segment = models.ForeignKey(
+        'segments.Segment', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='gated_workflows',
+        help_text='Only contacts matching this segment may enter.',
+    )
+
+    # ── When mail may go out ─────────────────────────────────────────────────
+    # A 24-hour wait otherwise lands at 03:00. Nothing is dropped: a step that
+    # comes due outside these hours waits for the next open window.
+    respect_quiet_hours = models.BooleanField(default=False)
+    send_window_start = models.TimeField(default=time(9, 0))
+    send_window_end = models.TimeField(default=time(18, 0))
+    # 0=Monday .. 6=Sunday, matching Python's weekday(). Empty means every day.
+    send_weekdays = models.JSONField(default=list, blank=True)
+
     # Goal tracking
     goal_node_id = models.CharField(max_length=100, blank=True)
     goal_description = models.CharField(max_length=255, blank=True)
+    # A goal normally ends the run wherever the contact has got to — chasing
+    # someone who already converted is the complaint this prevents. Off keeps
+    # the old behaviour, where the goal was only a node you had to reach.
+    exit_on_goal = models.BooleanField(default=True)
+    # Rules that mean "this contact is done", checked before each step.
+    goal_rules = models.JSONField(default=dict, blank=True)
 
     # Cached statistics
     contacts_entered = models.PositiveIntegerField(default=0)
     contacts_active = models.PositiveIntegerField(default=0)
     contacts_completed = models.PositiveIntegerField(default=0)
     contacts_goal_reached = models.PositiveIntegerField(default=0)
+
+    # The path segment for this workflow's own inbound URL. Unguessable
+    # because possessing it is the whole authorisation for starting a run.
+    webhook_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
     # Timestamps
     activated_at = models.DateTimeField(null=True, blank=True)
@@ -86,66 +136,68 @@ class WorkflowNode(TimeStampedModel):
     Individual node within a workflow.
     Represents triggers, actions, conditions, and goals.
     """
-    # Trigger types
+    # Node type names. The catalogue in catalog.py is the declaration — it
+    # carries the label, the description, the icon and the config shape, and
+    # NODE_TYPE_CHOICES below is derived from it. These constants exist so
+    # call sites read as names rather than strings and stay greppable.
+
+    # Triggers
     TRIGGER_FORM_SUBMISSION = 'trigger_form_submission'
     TRIGGER_TAG_ADDED = 'trigger_tag_added'
     TRIGGER_TAG_REMOVED = 'trigger_tag_removed'
     TRIGGER_CONTACT_CREATED = 'trigger_contact_created'
+    TRIGGER_CONTACT_FIELD_CHANGED = 'trigger_contact_field_changed'
     TRIGGER_EMAIL_OPENED = 'trigger_email_opened'
     TRIGGER_EMAIL_CLICKED = 'trigger_email_clicked'
+    TRIGGER_EMAIL_BOUNCED = 'trigger_email_bounced'
+    TRIGGER_EMAIL_UNSUBSCRIBED = 'trigger_email_unsubscribed'
     TRIGGER_POPUP_SHOWN = 'trigger_popup_shown'
     TRIGGER_POPUP_CLICKED = 'trigger_popup_clicked'
+    TRIGGER_PAGE_VISITED = 'trigger_page_visited'
+    TRIGGER_SEGMENT_ENTERED = 'trigger_segment_entered'
+    TRIGGER_SEGMENT_LEFT = 'trigger_segment_left'
+    TRIGGER_LEAD_SCORE_THRESHOLD = 'trigger_lead_score_threshold'
     TRIGGER_DATE_FIELD = 'trigger_date_field'
+    TRIGGER_DEAL_CREATED = 'trigger_deal_created'
+    TRIGGER_DEAL_STAGE_CHANGED = 'trigger_deal_stage_changed'
+    TRIGGER_DEAL_WON = 'trigger_deal_won'
+    TRIGGER_DEAL_LOST = 'trigger_deal_lost'
+    TRIGGER_SEQUENCE_COMPLETED = 'trigger_sequence_completed'
+    TRIGGER_TASK_COMPLETED = 'trigger_task_completed'
+    TRIGGER_WEBHOOK_RECEIVED = 'trigger_webhook_received'
 
-    # Action types
+    # Actions
     ACTION_SEND_EMAIL = 'action_send_email'
+    ACTION_WAIT = 'action_wait'
+    ACTION_WAIT_UNTIL = 'action_wait_until'
     ACTION_ADD_TAG = 'action_add_tag'
     ACTION_REMOVE_TAG = 'action_remove_tag'
     ACTION_UPDATE_CONTACT = 'action_update_contact'
-    ACTION_WAIT = 'action_wait'
+    ACTION_ASSIGN_CONTACT = 'action_assign_contact'
+    ACTION_ADD_TO_SEGMENT = 'action_add_to_segment'
+    ACTION_REMOVE_FROM_SEGMENT = 'action_remove_from_segment'
+    ACTION_ENROLL_SEQUENCE = 'action_enroll_sequence'
+    ACTION_REMOVE_SEQUENCE = 'action_remove_sequence'
+    ACTION_ENROLL_WORKFLOW = 'action_enroll_workflow'
+    ACTION_REMOVE_FROM_WORKFLOW = 'action_remove_from_workflow'
+    ACTION_UPDATE_LEAD_SCORE = 'action_update_lead_score'
+    ACTION_CREATE_DEAL = 'action_create_deal'
+    ACTION_UPDATE_DEAL = 'action_update_deal'
+    ACTION_CREATE_TASK = 'action_create_task'
+    ACTION_ADD_NOTE = 'action_add_note'
+    ACTION_NOTIFY_TEAM = 'action_notify_team'
+    ACTION_UNSUBSCRIBE = 'action_unsubscribe'
     ACTION_WEBHOOK = 'action_webhook'
     ACTION_GOAL = 'action_goal'
+    ACTION_END_FLOW = 'action_end_flow'
 
-    # Lead scoring trigger / action
-    TRIGGER_LEAD_SCORE_THRESHOLD = 'trigger_lead_score_threshold'
-    ACTION_UPDATE_LEAD_SCORE = 'action_update_lead_score'
-
-    # CRM deal triggers / actions
-    TRIGGER_DEAL_STAGE_CHANGED = 'trigger_deal_stage_changed'
-    TRIGGER_DEAL_CREATED = 'trigger_deal_created'
-    ACTION_UPDATE_DEAL = 'action_update_deal'
-
-    # Logic types
+    # Logic
     CONDITION_IF_ELSE = 'condition_if_else'
+    CONDITION_SWITCH = 'condition_switch'
+    CONDITION_SPLIT_TEST = 'condition_split_test'
 
-    NODE_TYPE_CHOICES = [
-        # Triggers
-        (TRIGGER_FORM_SUBMISSION, 'Form Submission'),
-        (TRIGGER_TAG_ADDED, 'Tag Added'),
-        (TRIGGER_TAG_REMOVED, 'Tag Removed'),
-        (TRIGGER_CONTACT_CREATED, 'Contact Created'),
-        (TRIGGER_EMAIL_OPENED, 'Email Opened'),
-        (TRIGGER_EMAIL_CLICKED, 'Email Clicked'),
-        (TRIGGER_POPUP_SHOWN, 'Pop-up Shown'),
-        (TRIGGER_POPUP_CLICKED, 'Pop-up Clicked'),
-        (TRIGGER_DATE_FIELD, 'Date Field'),
-        (TRIGGER_DEAL_STAGE_CHANGED, 'Deal Stage Changed'),
-        (TRIGGER_DEAL_CREATED, 'Deal Created'),
-        # Actions
-        (ACTION_SEND_EMAIL, 'Send Email'),
-        (ACTION_ADD_TAG, 'Add Tag'),
-        (ACTION_REMOVE_TAG, 'Remove Tag'),
-        (ACTION_UPDATE_CONTACT, 'Update Contact'),
-        (ACTION_WAIT, 'Wait/Delay'),
-        (ACTION_WEBHOOK, 'Webhook'),
-        (ACTION_GOAL, 'Goal'),
-        (ACTION_UPDATE_DEAL, 'Update Deal'),
-        # Logic
-        (CONDITION_IF_ELSE, 'If/Else Condition'),
-        # Lead scoring
-        (TRIGGER_LEAD_SCORE_THRESHOLD, 'Lead Score Threshold'),
-        (ACTION_UPDATE_LEAD_SCORE, 'Update Lead Score'),
-    ]
+    # Derived from the catalogue. There is no second list to keep in step.
+    NODE_TYPE_CHOICES = catalog.NODE_TYPE_CHOICES
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workflow = models.ForeignKey(
@@ -198,10 +250,19 @@ class WorkflowEdge(TimeStampedModel):
     """
     Edge connecting two nodes in a workflow.
     """
+    # One per branch a node can offer. 'named' carries its label in
+    # source_handle, which is how a switch node with four paths avoids four
+    # more rows here.
     EDGE_TYPE_CHOICES = [
         ('default', 'Default'),
         ('true', 'True Branch'),
         ('false', 'False Branch'),
+        ('a', 'Split A'),
+        ('b', 'Split B'),
+        ('met', 'Condition Met'),
+        ('timeout', 'Timed Out'),
+        ('fallback', 'Fallback'),
+        ('named', 'Named Branch'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -241,6 +302,36 @@ class WorkflowEdge(TimeStampedModel):
 
     def __str__(self):
         return f"{self.source_node.label or self.source_node.node_type} -> {self.target_node.label or self.target_node.node_type}"
+
+
+class WorkflowSegmentWatch(TimeStampedModel):
+    """
+    Who was in a watched segment the last time we looked.
+
+    "Entered a segment" and "left a segment" are changes, and a dynamic
+    segment stores no membership to compare against -- only its cached count.
+    This is that comparison point, one row per contact per watching node.
+
+    Seeded from the segment's current membership when the workflow is
+    activated, which is the whole point: without a baseline, switching on a
+    workflow triggered by "entered segment" would treat every existing member
+    as having just joined and mail all of them at once.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    node = models.ForeignKey(
+        WorkflowNode, on_delete=models.CASCADE, related_name='segment_watch',
+    )
+    contact = models.ForeignKey(
+        Contact, on_delete=models.CASCADE, related_name='workflow_segment_watch',
+    )
+
+    class Meta:
+        db_table = 'workflow_segment_watch'
+        unique_together = [['node', 'contact']]
+        indexes = [models.Index(fields=['node'])]
+
+    def __str__(self):
+        return f'{self.contact_id} in {self.node_id}'
 
 
 class WorkflowExecution(TimeStampedModel):
@@ -283,6 +374,9 @@ class WorkflowExecution(TimeStampedModel):
 
     # For wait/delay nodes
     resume_at = models.DateTimeField(null=True, blank=True)
+    # Set only by Wait Until: when to stop waiting and take the timeout
+    # branch. resume_at is when to look again; this is when to give up.
+    wait_deadline = models.DateTimeField(null=True, blank=True)
 
     # What triggered this execution
     trigger_data = models.JSONField(default=dict, blank=True)
@@ -302,13 +396,27 @@ class WorkflowExecution(TimeStampedModel):
     class Meta:
         db_table = 'workflow_executions'
         ordering = ['-started_at']
-        # One active execution per contact per workflow
-        unique_together = [['workflow', 'contact']]
+        # There used to be unique_together on (workflow, contact) here, under
+        # a comment claiming it allowed "one active execution per contact".
+        # It did not: it covered every status, so a completed or cancelled run
+        # barred that contact from the workflow for good. That constraint was
+        # the re-entry rule, and no setting could override it.
+        #
+        # Re-entry is decided by WorkflowExecutionService.refusal_to_enter,
+        # which can tell the three modes apart. Two triggers firing for the
+        # same contact within milliseconds could still slip a duplicate run
+        # past it.
+        # shortcut: the re-entry check is not serialised, so a simultaneous
+        # double trigger can start two runs; take a row lock on the workflow
+        # if duplicate runs are ever observed.
         indexes = [
             models.Index(fields=['workflow', 'status']),
             models.Index(fields=['contact']),
             models.Index(fields=['status']),
             models.Index(fields=['resume_at']),
+            # What the dropped constraint was incidentally providing: the
+            # lookup every entry decision makes.
+            models.Index(fields=['workflow', 'contact', 'status']),
         ]
 
     def __str__(self):

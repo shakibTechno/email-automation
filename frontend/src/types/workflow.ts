@@ -3,33 +3,21 @@ export type WorkflowStatus = 'draft' | 'active' | 'paused' | 'archived';
 export type ExecutionStatus = 'active' | 'waiting' | 'completed' | 'failed' | 'cancelled';
 export type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
 
-// Node types
-export type TriggerNodeType =
-  | 'trigger_form_submission'
-  | 'trigger_tag_added'
-  | 'trigger_tag_removed'
-  | 'trigger_contact_created'
-  | 'trigger_email_opened'
-  | 'trigger_email_clicked'
-  | 'trigger_date_field'
-  | 'trigger_deal_stage_changed'
-  | 'trigger_deal_created';
+/**
+ * Node type names.
+ *
+ * Deliberately `string`, not a union. The server's catalogue is the list, and
+ * a hand-written union here is the thing that drifted from it last time: four
+ * node types existed server-side and were simply absent from the builder.
+ * These aliases stay so existing call sites keep reading as what they are.
+ */
+export type TriggerNodeType = string;
+export type ActionNodeType = string;
+export type ConditionNodeType = string;
+export type WorkflowNodeType = string;
 
-export type ActionNodeType =
-  | 'action_send_email'
-  | 'action_add_tag'
-  | 'action_remove_tag'
-  | 'action_update_contact'
-  | 'action_wait'
-  | 'action_webhook'
-  | 'action_goal'
-  | 'action_update_deal';
-
-export type ConditionNodeType = 'condition_if_else';
-
-export type WorkflowNodeType = TriggerNodeType | ActionNodeType | ConditionNodeType;
-
-export type EdgeType = 'default' | 'true' | 'false';
+/** Branch names. A switch node names its own, so this is not exhaustive. */
+export type EdgeType = string;
 
 // Node configuration interfaces
 export interface TriggerFormSubmissionConfig {
@@ -390,166 +378,50 @@ export interface UpdateWorkflowData {
   edges?: WorkflowEdgeInput[];
 }
 
-// Node type metadata for UI
-export interface NodeTypeInfo {
+/**
+ * One node type, as the server describes it.
+ *
+ * There used to be a hand-written NODE_TYPES array here. It drifted from the
+ * backend's own list: four node types worked server-side and were invisible
+ * in the builder, so nobody could use them. The catalogue is now served from
+ * GET /workflows/node-types/ and this file holds only its shape.
+ */
+export interface NodeConfigFieldOption {
+  value: string;
+  label: string;
+}
+
+export interface NodeConfigField {
+  key: string;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'boolean' | 'select' | 'asset'
+    | 'duration' | 'rules';
+  asset: string;
+  options: NodeConfigFieldOption[];
+  required: boolean;
+  default: unknown;
+  help: string;
+  depends_on: { field: string; values: string[] } | null;
+}
+
+export interface NodeCatalogEntry {
   type: WorkflowNodeType;
   category: 'trigger' | 'action' | 'condition';
   label: string;
   description: string;
   icon: string;
-  color: string;
+  /** 'custom' means a hand-written panel owns this node's settings. */
+  ui: 'auto' | 'custom';
+  terminal: boolean;
+  branches: string[];
+  config_fields: NodeConfigField[];
 }
 
-export const NODE_TYPES: NodeTypeInfo[] = [
-  // Triggers
-  {
-    type: 'trigger_form_submission',
-    category: 'trigger',
-    label: 'Form Submission',
-    description: 'When a form is submitted',
-    icon: 'FileText',
-    color: '#3b82f6',
-  },
-  {
-    type: 'trigger_tag_added',
-    category: 'trigger',
-    label: 'Tag Added',
-    description: 'When a tag is added to a contact',
-    icon: 'Tag',
-    color: '#3b82f6',
-  },
-  {
-    type: 'trigger_tag_removed',
-    category: 'trigger',
-    label: 'Tag Removed',
-    description: 'When a tag is removed from a contact',
-    icon: 'TagOff',
-    color: '#3b82f6',
-  },
-  {
-    type: 'trigger_contact_created',
-    category: 'trigger',
-    label: 'Contact Created',
-    description: 'When a new contact is created',
-    icon: 'UserPlus',
-    color: '#3b82f6',
-  },
-  {
-    type: 'trigger_email_opened',
-    category: 'trigger',
-    label: 'Email Opened',
-    description: 'When an email is opened',
-    icon: 'MailOpen',
-    color: '#3b82f6',
-  },
-  {
-    type: 'trigger_email_clicked',
-    category: 'trigger',
-    label: 'Email Clicked',
-    description: 'When a link in an email is clicked',
-    icon: 'MousePointerClick',
-    color: '#3b82f6',
-  },
-  {
-    type: 'trigger_date_field',
-    category: 'trigger',
-    label: 'Date Field',
-    description: 'Trigger on a specific date (birthday, anniversary)',
-    icon: 'Calendar',
-    color: '#3b82f6',
-  },
-  {
-    type: 'trigger_deal_stage_changed',
-    category: 'trigger',
-    label: 'Deal Stage Changed',
-    description: 'When a deal moves to a new pipeline stage',
-    icon: 'Briefcase',
-    color: '#3b82f6',
-  },
-  {
-    type: 'trigger_deal_created',
-    category: 'trigger',
-    label: 'Deal Created',
-    description: 'When a new deal is created',
-    icon: 'PlusSquare',
-    color: '#3b82f6',
-  },
-  // Actions
-  {
-    type: 'action_send_email',
-    category: 'action',
-    label: 'Send Email',
-    description: 'Send an email to the contact',
-    icon: 'Mail',
-    color: '#22c55e',
-  },
-  {
-    type: 'action_add_tag',
-    category: 'action',
-    label: 'Add Tag',
-    description: 'Add a tag to the contact',
-    icon: 'TagPlus',
-    color: '#22c55e',
-  },
-  {
-    type: 'action_remove_tag',
-    category: 'action',
-    label: 'Remove Tag',
-    description: 'Remove a tag from the contact',
-    icon: 'TagMinus',
-    color: '#22c55e',
-  },
-  {
-    type: 'action_update_contact',
-    category: 'action',
-    label: 'Update Contact',
-    description: 'Update a contact field',
-    icon: 'UserCog',
-    color: '#22c55e',
-  },
-  {
-    type: 'action_wait',
-    category: 'action',
-    label: 'Wait',
-    description: 'Wait for a specified duration',
-    icon: 'Clock',
-    color: '#22c55e',
-  },
-  {
-    type: 'action_webhook',
-    category: 'action',
-    label: 'Webhook',
-    description: 'Send data to an external URL',
-    icon: 'Webhook',
-    color: '#22c55e',
-  },
-  {
-    type: 'action_goal',
-    category: 'action',
-    label: 'Goal',
-    description: 'Mark workflow goal as reached',
-    icon: 'Target',
-    color: '#8b5cf6',
-  },
-  {
-    type: 'action_update_deal',
-    category: 'action',
-    label: 'Update Deal',
-    description: 'Update a field on the deal that triggered this workflow',
-    icon: 'Briefcase',
-    color: '#22c55e',
-  },
-  // Conditions
-  {
-    type: 'condition_if_else',
-    category: 'condition',
-    label: 'If/Else',
-    description: 'Branch based on conditions',
-    icon: 'GitBranch',
-    color: '#f59e0b',
-  },
-];
+export interface WorkflowImportReport {
+  nodes_created: number;
+  edges_created: number;
+  unresolved: { kind: string; name: string; node: string }[];
+  /** Steps that will fail until someone fills them in. */
+  needs_attention: string[];
+}
 
-export const getNodeTypeInfo = (type: WorkflowNodeType): NodeTypeInfo | undefined => {
-  return NODE_TYPES.find((n) => n.type === type);
-};

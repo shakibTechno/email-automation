@@ -12,6 +12,7 @@ from drf_spectacular.views import (
 )
 
 from apps.email_config.webhooks import postal_webhook
+from apps.workflows.webhook_views import inbound as workflow_inbound
 from apps.landing_pages.internal_views import tls_allow
 from apps.landing_pages.views import PublicLandingPageView
 
@@ -63,6 +64,11 @@ urlpatterns = [
     # Registered with AND without a trailing slash on purpose: the provisioner
     # writes the no-slash form into every tenant's webhook config, and
     # APPEND_SLASH would answer that POST with a 301 and lose the body.
+    # A workflow's own inbound URL. Unauthenticated: holding the token is the
+    # authorisation, and the token identifies the tenant, so nothing is taken
+    # from the request body to decide whose account this touches.
+    path('webhooks/workflow/<uuid:token>', workflow_inbound, name='workflow-inbound'),
+    path('webhooks/workflow/<uuid:token>/', workflow_inbound, name='workflow-inbound-slash'),
     path('webhooks/postal', postal_webhook, name='postal-webhook'),
     path('webhooks/postal/', postal_webhook, name='postal-webhook-slash'),
 

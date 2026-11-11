@@ -118,11 +118,13 @@ class GenerationJob(TimeStampedModel):
     KIND_FORM = 'form'
     KIND_EMAIL_TEMPLATE = 'email_template'
     KIND_CAMPAIGN = 'campaign'
+    KIND_WORKFLOW = 'workflow'
     KIND_CHOICES = [
         (KIND_LANDING_PAGE, 'Landing page'),
         (KIND_FORM, 'Form'),
         (KIND_EMAIL_TEMPLATE, 'Email template'),
         (KIND_CAMPAIGN, 'Campaign'),
+        (KIND_WORKFLOW, 'Workflow'),
     ]
 
     # What may be generated *now*. Campaign generation was withdrawn: choosing
@@ -132,7 +134,7 @@ class GenerationJob(TimeStampedModel):
     # back. Both the API and the generator dispatch read this, so the two
     # cannot disagree about what is available.
     GENERATABLE_KINDS = frozenset({
-        KIND_LANDING_PAGE, KIND_FORM, KIND_EMAIL_TEMPLATE,
+        KIND_LANDING_PAGE, KIND_FORM, KIND_EMAIL_TEMPLATE, KIND_WORKFLOW,
     })
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -178,6 +180,11 @@ class GenerationJob(TimeStampedModel):
         on_delete=models.SET_NULL, null=True, blank=True,
         related_name='generation_jobs',
     )
+    workflow = models.ForeignKey(
+        'workflows.Workflow',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='generation_jobs',
+    )
     error_message = models.TextField(blank=True)
     # True when the sanitizer dropped something, so the UI can say the draft
     # was altered rather than silently differing from what the model wrote.
@@ -210,6 +217,7 @@ class GenerationJob(TimeStampedModel):
             self.KIND_FORM: self.form,
             self.KIND_EMAIL_TEMPLATE: self.email_template,
             self.KIND_CAMPAIGN: self.campaign,
+            self.KIND_WORKFLOW: self.workflow,
         }.get(self.kind)
 
     @property

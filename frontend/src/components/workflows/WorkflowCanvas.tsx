@@ -17,7 +17,8 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import { nodeTypes } from './nodes';
-import { WorkflowNodeType, getNodeTypeInfo } from '@/types/workflow';
+import { WorkflowNodeType } from '@/types/workflow';
+import { useNodeCatalog } from '@/hooks/useNodeCatalog';
 
 interface WorkflowCanvasProps {
   nodes: Node[];
@@ -94,6 +95,8 @@ export default function WorkflowCanvas({
     [edges, onEdgesChange]
   );
 
+  const { data: catalog = [] } = useNodeCatalog();
+
   // Handle drag & drop from palette
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -119,7 +122,7 @@ export default function WorkflowCanvas({
         y: event.clientY - bounds.top,
       });
 
-      const nodeInfo = getNodeTypeInfo(type);
+      const nodeInfo = catalog.find((entry) => entry.type === type);
 
       const newNode: Node = {
         id: getId(),
@@ -134,7 +137,7 @@ export default function WorkflowCanvas({
 
       onNodesChange([...nodes, newNode]);
     },
-    [nodes, onNodesChange]
+    [nodes, onNodesChange, catalog]
   );
 
   const handleInit = useCallback((instance: ReactFlowInstance) => {

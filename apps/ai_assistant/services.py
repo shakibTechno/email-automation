@@ -68,13 +68,14 @@ def _generator_for(kind: str):
     Imported lazily so a generator that touches another app's models cannot
     create an import cycle at startup.
     """
-    from .generators import email_templates, forms, landing_pages
+    from .generators import email_templates, forms, landing_pages, workflows
 
     try:
         return {
             GenerationJob.KIND_LANDING_PAGE: landing_pages,
             GenerationJob.KIND_FORM: forms,
             GenerationJob.KIND_EMAIL_TEMPLATE: email_templates,
+            GenerationJob.KIND_WORKFLOW: workflows,
         }[kind]
     except KeyError:
         raise AIError(f'Nothing knows how to generate "{kind}".') from None
@@ -119,6 +120,10 @@ class GenerationService:
                 system=generator.SYSTEM_PROMPT,
                 user=generator.build_user_prompt(
                     prompt=job.prompt, audience=job.audience,
+                    # The workflow generator needs the account's own tag,
+                    # template and segment names: a model with no inventory
+                    # invents plausible ones and every step arrives broken.
+                    organization=job.organization,
                 ),
                 schema=generator.SCHEMA,
             )

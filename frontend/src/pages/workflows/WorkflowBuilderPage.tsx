@@ -3,6 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Node, Edge } from 'reactflow';
 import WorkflowCanvas from '@/components/workflows/WorkflowCanvas';
 import WorkflowToolbar from '@/components/workflows/WorkflowToolbar';
+import WorkflowSettingsDialog, {
+  WorkflowSettings, defaultWorkflowSettings,
+} from '@/components/workflows/WorkflowSettingsDialog';
 import NodePalette from '@/components/workflows/NodePalette';
 import { NodeConfigPanel } from '@/components/workflows/panels';
 import WorkflowValidationDialog from '@/components/workflows/dialogs/WorkflowValidationDialog';
@@ -34,12 +37,17 @@ export default function WorkflowBuilderPage() {
   const [showValidation, setShowValidation] = useState(false);
   const [validation, setValidation] = useState<WorkflowValidation | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<WorkflowSettings>(
+    defaultWorkflowSettings(),
+  );
 
   // Load workflow data
   useEffect(() => {
     if (workflow) {
       setName(workflow.name);
       setDescription(workflow.description);
+      setSettings(defaultWorkflowSettings(workflow));
 
       // Convert backend nodes to React Flow nodes
       const rfNodes: Node[] = workflow.nodes.map((node) => ({
@@ -141,6 +149,7 @@ export default function WorkflowBuilderPage() {
     const payload = {
       name,
       description,
+      ...settings,
       nodes: nodeInputs,
       edges: edgeInputs,
     };
@@ -232,6 +241,17 @@ export default function WorkflowBuilderPage() {
         onActivate={handleActivate}
         onDeactivate={handleDeactivate}
         onBack={() => navigate('/workflows')}
+        onSettings={() => setShowSettings(true)}
+      />
+
+      <WorkflowSettingsDialog
+        open={showSettings}
+        onOpenChange={setShowSettings}
+        settings={settings}
+        onChange={(next) => {
+          setSettings(next);
+          setHasChanges(true);
+        }}
       />
 
       <div className="flex-1 flex overflow-hidden">

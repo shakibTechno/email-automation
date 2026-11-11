@@ -189,6 +189,13 @@ class DealService:
         )
 
         DealService.update_pipeline_stats(deal.pipeline)
+
+        try:
+            from apps.workflows.services import WorkflowTriggerService
+
+            WorkflowTriggerService.trigger_deal_closed(deal, won=True)
+        except Exception:
+            logger.exception('Error triggering win_deal workflows for %s', deal.id)
         return deal
 
     @staticmethod
@@ -218,6 +225,13 @@ class DealService:
         )
 
         DealService.update_pipeline_stats(deal.pipeline)
+
+        try:
+            from apps.workflows.services import WorkflowTriggerService
+
+            WorkflowTriggerService.trigger_deal_closed(deal, won=False)
+        except Exception:
+            logger.exception('Error triggering lose_deal workflows for %s', deal.id)
         return deal
 
     @staticmethod
@@ -472,6 +486,13 @@ class CRMTaskService:
         task.status = 'done'
         task.completed_at = timezone.now()
         task.save(update_fields=['status', 'completed_at'])
+
+        try:
+            from apps.workflows.services import WorkflowTriggerService
+
+            WorkflowTriggerService.trigger_task_completed(task)
+        except Exception:
+            logger.exception('Error triggering task-completed workflows for %s', task.id)
         return task
 
     @staticmethod

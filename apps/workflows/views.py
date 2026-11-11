@@ -63,6 +63,92 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         """Soft delete the workflow."""
         instance.soft_delete()
 
+    @action(detail=False, methods=['get'], url_path='node-types')
+    def node_types(self, request):
+        """
+        Every step a workflow can contain, with its config shape.
+
+        The builder's palette and its generic config form render from this.
+        There used to be a second copy of this list in the frontend and the
+        two drifted: four node types worked in the backend and were invisible
+        in the builder, so nobody could use them.
+        """
+        from . import catalog
+
+        return Response({'results': catalog.as_catalog()})
+
+    @action(detail=True, methods=['get'])
+    def export(self, request, pk=None):
+        """
+        This workflow as portable JSON.
+
+        Carries what each reference is *called* as well as its id, which is
+        what lets an import re-point it. Counters, status and the webhook
+        token are left out: they describe this copy, not the design.
+        """
+        from . import definition
+
+        workflow = self.get_object()
+        payload = definition.export_definition(workflow)
+        response = Response(payload)
+        slug = (
+            ''.join(
+                char if char.isalnum() or char in '-_' else '-'
+                for char in workflow.name.lower()
+            ).strip('-')
+            or 'workflow'
+        )
+        response['Content-Disposition'] = (
+            f'attachment; filename="{slug}.workflow.json"'
+        )
+        return response
+
+    @action(detail=False, methods=['post'], url_path='import')
+    def import_workflow(self, request):
+        """
+        Build a workflow from an exported file.
+
+        Arrives as a draft with a report of anything that could not be
+        matched in this account. A workflow that started mailing the moment
+        it was uploaded, with half its references pointing nowhere, is not a
+        defensible default.
+        """
+        from . import definition
+
+        payload = request.data.get('definition', request.data)
+        if hasattr(payload, 'read'):
+            # Posted as a file rather than JSON.
+            import json
+
+            try:
+                payload = json.loads(payload.read().decode('utf-8'))
+            except (ValueError, UnicodeDecodeError):
+                return Response(
+                    {'detail': 'That file is not readable JSON.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            definition.validate_definition(payload)
+        except definition.DefinitionError as exc:
+            return Response(
+                {'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        workflow, report = definition.build_from_definition(
+            organization=request.user.organization,
+            payload=payload,
+            user=request.user,
+            name_override=(request.data.get('name') or '').strip(),
+        )
+        return Response(
+            {
+                'workflow': WorkflowSerializer(workflow).data,
+                'report': report,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
         """Activate a workflow after validation."""

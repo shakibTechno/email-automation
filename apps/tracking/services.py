@@ -133,6 +133,8 @@ def _write(rows):
 
     events = []
     popup_tally = {}
+    # (visitor, items) for the workflows fired after the rows are written.
+    written = []
     for (org_id, visitor_key), items in by_visitor.items():
         if org_id not in {str(i) for i in known}:
             continue
@@ -176,10 +178,15 @@ def _write(rows):
         _touch_contact_activity(visitor)
         _score_page_view(visitor)
         _fire_popup_workflows(visitor, items)
+        written.append((visitor, items))
 
     if events:
         TrackedEvent.objects.bulk_create(events, batch_size=500)
     _apply_popup_tally(popup_tally)
+    # After the write, deliberately: a "visited this page 3 times" trigger
+    # counts rows, and firing before the insert would always be one short.
+    for visitor, items in written:
+        _fire_page_workflows(visitor, items)
     return len(events)
 
 
@@ -321,6 +328,57 @@ def _score_page_view(visitor):
         logger.exception('Could not score a page view')
 
 
+
+def _organization_wants_page_triggers(organization_id):
+    """
+    Whether any active workflow here is waiting on a page visit.
+
+    This is the highest-volume path in the product, so an account with no
+    such workflow must not pay a query per page view. Cached for a minute,
+    which is also how long a newly activated workflow takes to start
+    noticing visits.
+    """
+    key = f'tracking:pagewf:{organization_id}'
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
+    from apps.workflows.models import Workflow, WorkflowNode
+
+    wanted = Workflow.objects.filter(
+        organization_id=organization_id, status='active',
+        deleted_at__isnull=True,
+        nodes__node_type=WorkflowNode.TRIGGER_PAGE_VISITED,
+    ).exists()
+    cache.set(key, wanted, 60)
+    return wanted
+
+
+def _fire_page_workflows(visitor, items):
+    """
+    Let a workflow react to a known contact reading a page.
+
+    Identified visitors only, for the same reason pop-up workflows are: a
+    workflow acts on a contact, and most traffic is nobody yet.
+    """
+    if visitor.contact_id is None:
+        return
+    if not _organization_wants_page_triggers(visitor.organization_id):
+        return
+
+    from apps.workflows.services import WorkflowTriggerService
+
+    for path in {(item.get('p') or '').strip() for item in items}:
+        if not path:
+            continue
+        try:
+            WorkflowTriggerService.trigger_page_visited(
+                visitor.organization, visitor.contact, path,
+            )
+        except Exception:
+            logger.exception('Could not fire page-visit workflows for %s', path)
+
+
 def _fire_popup_workflows(visitor, items):
     """
     Let a workflow react to a pop-up being shown or clicked.
@@ -335,9 +393,11 @@ def _fire_popup_workflows(visitor, items):
 
     from apps.tracking.models import TrackedEvent
 
+    from apps.workflows.models import WorkflowNode
+
     wanted = {
-        TrackedEvent.EVENT_POPUP_SHOWN: 'trigger_popup_shown',
-        TrackedEvent.EVENT_POPUP_CLICKED: 'trigger_popup_clicked',
+        TrackedEvent.EVENT_POPUP_SHOWN: WorkflowNode.TRIGGER_POPUP_SHOWN,
+        TrackedEvent.EVENT_POPUP_CLICKED: WorkflowNode.TRIGGER_POPUP_CLICKED,
     }
     seen = set()
     for item in items:

@@ -6,6 +6,7 @@ import {
   CheckCircle,
   ArrowLeft,
   Loader2,
+  Settings,
 } from 'lucide-react';
 import { WorkflowStatus } from '@/types/workflow';
 
@@ -16,6 +17,7 @@ interface WorkflowToolbarProps {
   isActivating?: boolean;
   hasChanges?: boolean;
   onSave: () => void;
+  onSettings?: () => void;
   onValidate: () => void;
   onActivate: () => void;
   onDeactivate: () => void;
@@ -29,6 +31,7 @@ export default function WorkflowToolbar({
   isActivating = false,
   hasChanges = false,
   onSave,
+  onSettings,
   onValidate,
   onActivate,
   onDeactivate,
@@ -64,6 +67,13 @@ export default function WorkflowToolbar({
       </div>
 
       <div className="flex items-center gap-2">
+        {onSettings && (
+          <Button variant="outline" size="sm" onClick={onSettings}>
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+        )}
+
         <Button
           variant="outline"
           onClick={onValidate}

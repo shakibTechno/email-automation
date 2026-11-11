@@ -1,7 +1,9 @@
 import { Node } from 'reactflow';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { WorkflowNodeType, TriggerNodeType, ActionNodeType, getNodeTypeInfo } from '@/types/workflow';
+import { WorkflowNodeType, TriggerNodeType, ActionNodeType } from '@/types/workflow';
+import { useNodeType } from '@/hooks/useNodeCatalog';
+import AutoConfigPanel from './AutoConfigPanel';
 import TriggerConfigPanel from './TriggerConfigPanel';
 import ActionConfigPanel from './ActionConfigPanel';
 import ConditionConfigPanel from './ConditionConfigPanel';
@@ -20,7 +22,7 @@ export default function NodeConfigPanel({
   onDelete,
 }: NodeConfigPanelProps) {
   const nodeType = node.type as WorkflowNodeType;
-  const nodeInfo = getNodeTypeInfo(nodeType);
+  const nodeInfo = useNodeType(nodeType);
 
   const handleConfigChange = (config: Record<string, unknown>) => {
     onUpdate(node.id, {
@@ -37,6 +39,20 @@ export default function NodeConfigPanel({
   };
 
   const renderConfigPanel = () => {
+    // Most node types are a list of fields and are rendered from the
+    // catalogue. Only the ones marked 'custom' have a hand-written panel --
+    // a pipeline that filters the stage list beside it, a template picker
+    // with a preview. Adding a simple node type needs no frontend change.
+    if (nodeInfo && nodeInfo.ui === 'auto') {
+      return (
+        <AutoConfigPanel
+          spec={nodeInfo}
+          config={node.data.config || {}}
+          onChange={handleConfigChange}
+        />
+      );
+    }
+
     if (nodeType.startsWith('trigger_')) {
       return (
         <TriggerConfigPanel

@@ -109,3 +109,24 @@ def start_workflow_execution(workflow_id: str, contact_id: str, trigger_data: di
         return str(execution.id)
 
     return None
+
+
+@shared_task
+def sweep_segment_triggers():
+    """
+    Fire "entered segment" and "left segment" for every watching node.
+
+    Polled rather than signalled: a contact can start matching a dynamic
+    segment because a field changed, because a tag was applied, or because a
+    date passed and nothing happened at all, so there is no event to hook.
+    """
+    from .services import WorkflowTriggerService
+
+    try:
+        fired = WorkflowTriggerService.sweep_segment_triggers()
+    except Exception:
+        logger.exception('Segment trigger sweep failed')
+        return 0
+    if fired:
+        logger.info('Segment sweep started %d workflow run(s)', fired)
+    return fired

@@ -42,6 +42,23 @@ class CampaignsConfig(AppConfig):
                     recipient.advance_status('bounced', {'bounced_at': now})
                     # Mark the contact as bounced
                     recipient.contact.mark_bounced()
+                    try:
+                        from apps.workflows.services import WorkflowTriggerService
+
+                        WorkflowTriggerService.trigger_email_bounced(
+                            recipient,
+                            # Anymail reports a reject_reason, not a hard/soft
+                            # class; anything we cannot tell apart is treated
+                            # as hard, which is the safer suppression.
+                            bounce_type=(
+                                'soft' if getattr(event, 'reject_reason', '')
+                                == 'bounced' else 'hard'
+                            ),
+                        )
+                    except Exception:
+                        logger.exception(
+                            'Error triggering bounce workflows for %s', recipient_id
+                        )
                 elif event_type == 'complained':
                     recipient.advance_status('complained', {'complained_at': now})
 

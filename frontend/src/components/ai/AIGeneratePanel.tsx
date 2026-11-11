@@ -49,6 +49,18 @@ const COPY: Record<GenerationKind, {
       'A newsletter signup asking only for an email address',
     ],
   },
+  workflow: {
+    action: 'Generate workflow',
+    question: 'What do you want to automate?',
+    placeholder: 'Describe what should happen, and when. For example: when someone downloads the pricing guide, wait two days and follow up if they have not replied.',
+    progress: 'Designing your workflow…',
+    note: 'The workflow arrives as a draft, built from the templates, tags and segments you already have. Steps it could not match are marked — check those, then activate it when you are happy.',
+    examples: [
+      'Welcome new subscribers, then follow up after three days if they have not opened anything',
+      'When someone visits the pricing page twice, tag them and tell the sales team',
+      'Win back contacts who have not opened an email in sixty days',
+    ],
+  },
   email_template: {
     action: 'Generate email',
     question: 'What is this email about?',

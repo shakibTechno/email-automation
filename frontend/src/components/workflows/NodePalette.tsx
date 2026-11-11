@@ -1,183 +1,135 @@
-import { DragEvent } from 'react';
-import {
-  FileText,
-  Tag,
-  UserPlus,
-  MailOpen,
-  MousePointer,
-  Calendar,
-  Mail,
-  UserCog,
-  Clock,
-  Webhook,
-  Target,
-  GitBranch,
-} from 'lucide-react';
+import { DragEvent, useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { NODE_TYPES, WorkflowNodeType } from '@/types/workflow';
+import { categoryColor, useNodeCatalog } from '@/hooks/useNodeCatalog';
+import { NodeCatalogEntry } from '@/types/workflow';
+import { nodeIcon } from './nodeIcons';
 
-interface NodePaletteItemProps {
-  type: WorkflowNodeType;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-  color: string;
-  category: 'trigger' | 'action' | 'condition';
-}
-
-const iconMap: Record<string, React.ReactNode> = {
-  FileText: <FileText className="h-4 w-4" />,
-  Tag: <Tag className="h-4 w-4" />,
-  TagOff: <Tag className="h-4 w-4" />,
-  TagPlus: <Tag className="h-4 w-4" />,
-  TagMinus: <Tag className="h-4 w-4" />,
-  UserPlus: <UserPlus className="h-4 w-4" />,
-  MailOpen: <MailOpen className="h-4 w-4" />,
-  MousePointerClick: <MousePointer className="h-4 w-4" />,
-  Calendar: <Calendar className="h-4 w-4" />,
-  Mail: <Mail className="h-4 w-4" />,
-  UserCog: <UserCog className="h-4 w-4" />,
-  Clock: <Clock className="h-4 w-4" />,
-  Webhook: <Webhook className="h-4 w-4" />,
-  Target: <Target className="h-4 w-4" />,
-  GitBranch: <GitBranch className="h-4 w-4" />,
-};
-
-function NodePaletteItem({
-  type,
-  label,
-  description,
-  icon,
-  color,
-  category,
-}: NodePaletteItemProps) {
+function NodePaletteItem({ node }: { node: NodeCatalogEntry }) {
   const onDragStart = (event: DragEvent<HTMLDivElement>) => {
-    event.dataTransfer.setData('application/reactflow', type);
-    event.dataTransfer.setData('nodeLabel', label);
+    event.dataTransfer.setData('application/reactflow', node.type);
+    event.dataTransfer.setData('nodeLabel', node.label);
     event.dataTransfer.effectAllowed = 'move';
   };
 
+  const color = categoryColor[node.category];
   const categoryStyles = {
     trigger: 'border-info/[.30] hover:border-info/[.50] hover:bg-info/[.10]',
     action: 'border-success/[.30] hover:border-success/[.50] hover:bg-success/[.10]',
     condition: 'border-warning/[.30] hover:border-warning/[.50] hover:bg-warning/[.10]',
-  };
+  }[node.category];
 
   return (
     <div
       draggable
       onDragStart={onDragStart}
+      title={node.description}
       className={cn(
         'flex items-center gap-3 p-3 rounded-lg border cursor-grab',
         'transition-all duration-150 active:cursor-grabbing',
-        categoryStyles[category]
+        categoryStyles,
       )}
     >
       <div
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-        style={{ backgroundColor: color + '20', color }}
+        style={{ backgroundColor: `${color}20`, color }}
       >
-        {icon}
+        {nodeIcon(node.icon)}
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{label}</p>
-        <p className="text-xs text-muted-foreground truncate">{description}</p>
+        <p className="truncate text-sm font-medium text-foreground">{node.label}</p>
+        <p className="truncate text-xs text-muted-foreground">{node.description}</p>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, nodes }: { title: string; nodes: NodeCatalogEntry[] }) {
+  if (nodes.length === 0) return null;
+  return (
+    <div>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </h3>
+      <div className="space-y-2">
+        {nodes.map((node) => (
+          <NodePaletteItem key={node.type} node={node} />
+        ))}
       </div>
     </div>
   );
 }
 
 export default function NodePalette() {
-  const triggers = NODE_TYPES.filter((n) => n.category === 'trigger');
-  const actions = NODE_TYPES.filter(
-    (n) => n.category === 'action' && n.type !== 'action_goal'
-  );
-  const conditions = NODE_TYPES.filter((n) => n.category === 'condition');
-  const goals = NODE_TYPES.filter((n) => n.type === 'action_goal');
+  const { data: catalog = [], isLoading, error } = useNodeCatalog();
+  const [query, setQuery] = useState('');
+
+  const groups = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const matches = needle
+      ? catalog.filter(
+          (node) =>
+            node.label.toLowerCase().includes(needle) ||
+            node.description.toLowerCase().includes(needle),
+        )
+      : catalog;
+
+    return {
+      triggers: matches.filter((n) => n.category === 'trigger'),
+      actions: matches.filter(
+        (n) => n.category === 'action' && n.type !== 'action_goal',
+      ),
+      conditions: matches.filter((n) => n.category === 'condition'),
+      goals: matches.filter((n) => n.type === 'action_goal'),
+      total: matches.length,
+    };
+  }, [catalog, query]);
+
+  if (error) {
+    return (
+      <p className="p-4 text-sm text-destructive">
+        The list of steps could not be loaded. Reload the page to try again.
+      </p>
+    );
+  }
 
   return (
-    <div className="p-4 space-y-6">
-      <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Triggers
-        </h3>
-        <div className="space-y-2">
-          {triggers.map((node) => (
-            <NodePaletteItem
-              key={node.type}
-              type={node.type}
-              label={node.label}
-              description={node.description}
-              icon={iconMap[node.icon] || <FileText className="h-4 w-4" />}
-              color={node.color}
-              category="trigger"
-            />
-          ))}
-        </div>
+    <div className="space-y-6 p-4">
+      {/* Forty-nine steps is too many to scan, and scrolling past the one you
+          want is how people conclude a feature does not exist. */}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          className="pl-8"
+          placeholder="Search steps"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
       </div>
 
-      <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Actions
-        </h3>
-        <div className="space-y-2">
-          {actions.map((node) => (
-            <NodePaletteItem
-              key={node.type}
-              type={node.type}
-              label={node.label}
-              description={node.description}
-              icon={iconMap[node.icon] || <Mail className="h-4 w-4" />}
-              color={node.color}
-              category="action"
-            />
-          ))}
-        </div>
-      </div>
+      {isLoading && (
+        <p className="text-sm text-muted-foreground">Loading steps&hellip;</p>
+      )}
 
-      <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Logic
-        </h3>
-        <div className="space-y-2">
-          {conditions.map((node) => (
-            <NodePaletteItem
-              key={node.type}
-              type={node.type}
-              label={node.label}
-              description={node.description}
-              icon={iconMap[node.icon] || <GitBranch className="h-4 w-4" />}
-              color={node.color}
-              category="condition"
-            />
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Goals
-        </h3>
-        <div className="space-y-2">
-          {goals.map((node) => (
-            <NodePaletteItem
-              key={node.type}
-              type={node.type}
-              label={node.label}
-              description={node.description}
-              icon={iconMap[node.icon] || <Target className="h-4 w-4" />}
-              color={node.color}
-              category="action"
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="pt-4 border-t">
-        <p className="text-xs text-subtle-foreground text-center">
-          Drag nodes to the canvas to build your workflow
+      {!isLoading && groups.total === 0 && (
+        <p className="text-sm text-muted-foreground">
+          No step matches &ldquo;{query}&rdquo;.
         </p>
-      </div>
+      )}
+
+      <Section title="Triggers" nodes={groups.triggers} />
+      <Section title="Actions" nodes={groups.actions} />
+      <Section title="Logic" nodes={groups.conditions} />
+      <Section title="Goals" nodes={groups.goals} />
+
+      {!isLoading && (
+        <div className="border-t pt-4">
+          <p className="text-center text-xs text-subtle-foreground">
+            Drag a step onto the canvas to add it
+          </p>
+        </div>
+      )}
     </div>
   );
 }

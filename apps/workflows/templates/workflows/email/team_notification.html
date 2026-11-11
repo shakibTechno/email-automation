@@ -1,0 +1,34 @@
+{% extends "accounts/email/base_email.html" %}
+
+{% comment %}
+  An internal notice raised by a workflow. It goes to a colleague, not to a
+  lead, so it carries no unsubscribe link and no branding — it reads as a
+  message from the system rather than as a campaign.
+{% endcomment %}
+
+{% block subject %}{{ subject }}{% endblock %}
+
+{% block content %}
+  {% if message %}
+    <p style="margin:0 0 16px 0;">{{ message|linebreaksbr }}</p>
+  {% endif %}
+
+  <p style="margin:0 0 8px 0; font-size:13px; font-weight:700; color:#71717a; text-transform:uppercase; letter-spacing:0.04em;">
+    Contact
+  </p>
+  <p style="margin:0 0 16px 0;">
+    {% if contact_name %}{{ contact_name }}<br />{% endif %}
+    <a href="{{ contact_url }}" style="color:#4f46e5;">{{ contact_email }}</a>
+  </p>
+
+  <p style="margin:0; font-size:13px; color:#71717a;">
+    Raised by the workflow &ldquo;{{ workflow_name }}&rdquo;.
+  </p>
+{% endblock %}
+
+{% block footer %}
+  <p style="margin:0; font-size:12px; color:#a1a1aa;">
+    You are receiving this because a workflow in {{ organization_name }} was
+    set up to notify you.
+  </p>
+{% endblock %}

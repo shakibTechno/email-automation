@@ -13,6 +13,8 @@ import {
   WorkflowTemplateFilters,
   WorkflowAnalytics,
   WorkflowValidation,
+  NodeCatalogEntry,
+  WorkflowImportReport,
 } from '@/types/workflow';
 import { PaginationParams } from '@/types/api';
 
@@ -31,6 +33,28 @@ export const workflowsApi = {
       per_page: pageSize,
       total_pages: Math.ceil((raw.count ?? 0) / pageSize),
     };
+  },
+
+  /** Every step the builder may offer, and its config shape. */
+  getNodeTypes: async (): Promise<NodeCatalogEntry[]> => {
+    const response = await apiClient.get('/workflows/node-types');
+    return response.data.results ?? response.data;
+  },
+
+  exportWorkflow: async (id: string): Promise<unknown> => {
+    const response = await apiClient.get(`/workflows/${id}/export`);
+    return response.data;
+  },
+
+  importWorkflow: async (
+    definition: unknown,
+    name?: string,
+  ): Promise<{ workflow: Workflow; report: WorkflowImportReport }> => {
+    const response = await apiClient.post('/workflows/import', {
+      definition,
+      ...(name ? { name } : {}),
+    });
+    return response.data;
   },
 
   getWorkflow: async (id: string): Promise<Workflow> => {

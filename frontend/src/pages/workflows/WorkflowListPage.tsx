@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Play, Pause, Copy, Trash2, Eye, MoreHorizontal } from 'lucide-react';
+import {
+  Plus, Search, Play, Pause, Copy, Trash2, Eye, MoreHorizontal, Upload,
+  Download, Sparkles,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { AIGenerateDialog } from '@/components/ai/AIGenerateDialog';
+import ImportWorkflowDialog from '@/components/workflows/ImportWorkflowDialog';
+import { workflowsApi } from '@/api/workflows';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -45,6 +52,8 @@ export default function WorkflowListPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [showImport, setShowImport] = useState(false);
+  const [showAI, setShowAI] = useState(false);
   const [deleteWorkflow, setDeleteWorkflow] = useState<WorkflowListItem | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
 
@@ -69,6 +78,30 @@ export default function WorkflowListPage() {
     }
   };
 
+
+  /**
+   * Download the workflow as a file.
+   *
+   * Built here rather than by pointing the browser at the endpoint, because
+   * that request needs the Authorization header the axios client adds.
+   */
+  const handleExport = async (id: string, name: string) => {
+    try {
+      const definition = await workflowsApi.exportWorkflow(id);
+      const blob = new Blob([JSON.stringify(definition, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${name.replace(/[^a-z0-9-_]+/gi, '-').toLowerCase()}.workflow.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('The workflow could not be exported.');
+    }
+  };
+
   return (
     <div className="w-full space-y-4">
       {/* Header */}
@@ -79,10 +112,20 @@ export default function WorkflowListPage() {
             Automate your marketing with visual workflows
           </p>
         </div>
-        <Button onClick={() => setShowTemplateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Workflow
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import
+          </Button>
+          <Button variant="outline" onClick={() => setShowAI(true)}>
+            <Sparkles className="h-4 w-4 mr-2" />
+            Generate with AI
+          </Button>
+          <Button onClick={() => setShowTemplateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Workflow
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -233,6 +276,15 @@ export default function WorkflowListPage() {
                             <Copy className="h-4 w-4 mr-2" />
                             Duplicate
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleExport(workflow.id, workflow.name);
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Export
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
@@ -284,6 +336,24 @@ export default function WorkflowListPage() {
       <WorkflowTemplateDialog
         open={showTemplateDialog}
         onOpenChange={setShowTemplateDialog}
+      />
+
+      <ImportWorkflowDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        onImported={(id) => {
+          setShowImport(false);
+          navigate(`/workflows/${id}/edit`);
+        }}
+      />
+
+      <AIGenerateDialog
+        kind="workflow"
+        open={showAI}
+        onOpenChange={setShowAI}
+        title="Generate a workflow"
+        description="Describe what you want to automate. It arrives as a draft using the templates, tags and segments you already have, so check it before activating."
+        onGenerated={(id) => navigate(`/workflows/${id}/edit`)}
       />
     </div>
   );

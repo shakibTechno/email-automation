@@ -103,7 +103,7 @@ product's features.\
 """
 
 
-def build_user_prompt(*, prompt: str, audience: str = '') -> str:
+def build_user_prompt(*, prompt: str, audience: str = '', organization=None) -> str:
     """The per-request half: what this particular page is for."""
     parts = [f'Create a landing page for:\n\n{prompt.strip()}']
     if audience.strip():

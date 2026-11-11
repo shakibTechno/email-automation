@@ -41,7 +41,12 @@ export interface UpdateAIConfigData {
 export type GenerationStatus = 'queued' | 'running' | 'succeeded' | 'failed';
 
 /** What a generation produces. Matches GenerationJob.KIND_CHOICES. */
-export type GenerationKind = 'landing_page' | 'form' | 'email_template' | 'campaign';
+export type GenerationKind =
+  | 'landing_page'
+  | 'form'
+  | 'email_template'
+  | 'campaign'
+  | 'workflow';
 
 export interface GenerationJob {
   id: string;
@@ -55,6 +60,7 @@ export interface GenerationJob {
   form: string | null;
   email_template: string | null;
   campaign: string | null;
+  workflow: string | null;
   error_message: string;
   /** True when the sanitizer removed something from the model's output. */
   was_sanitized: boolean;

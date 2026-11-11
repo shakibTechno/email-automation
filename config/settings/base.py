@@ -473,6 +473,14 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.workflows.tasks.process_date_triggers',
         'schedule': crontab(hour=0, minute=5),  # Daily at 00:05
     },
+    # Entering or leaving a dynamic segment is a change with no event behind
+    # it, so it has to be looked for. Every 15 minutes: fast enough to feel
+    # immediate, slow enough that re-evaluating every watched segment is not
+    # the biggest query in the system.
+    'sweep-segment-triggers': {
+        'task': 'apps.workflows.tasks.sweep_segment_triggers',
+        'schedule': 900.0,
+    },
     # Every 30s: the collector buffers in Redis and returns 204, so this is
     # what actually writes a page view. Redis here is also the Celery broker,
     # so a backlog is not just stale data.
