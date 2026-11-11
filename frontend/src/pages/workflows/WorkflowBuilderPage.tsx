@@ -301,6 +301,7 @@ export default function WorkflowBuilderPage() {
           <div className="w-80 border-l">
             <NodeConfigPanel
               node={selectedNode}
+              webhookToken={workflow?.webhook_token}
               onClose={() => setSelectedNode(null)}
               onUpdate={handleNodeUpdate}
               onDelete={handleNodeDelete}

@@ -4,12 +4,18 @@ import { Button } from '@/components/ui/button';
 import { WorkflowNodeType, TriggerNodeType, ActionNodeType } from '@/types/workflow';
 import { useNodeType } from '@/hooks/useNodeCatalog';
 import AutoConfigPanel from './AutoConfigPanel';
+import CreateDealConfigPanel from './CreateDealConfigPanel';
+import SwitchConfigPanel from './SwitchConfigPanel';
+import WebhookTriggerConfigPanel from './WebhookTriggerConfigPanel';
+import WaitUntilConfigPanel from './WaitUntilConfigPanel';
 import TriggerConfigPanel from './TriggerConfigPanel';
 import ActionConfigPanel from './ActionConfigPanel';
 import ConditionConfigPanel from './ConditionConfigPanel';
 
 interface NodeConfigPanelProps {
   node: Node;
+  /** The workflow's inbound URL token — only the webhook trigger uses it. */
+  webhookToken?: string;
   onClose: () => void;
   onUpdate: (nodeId: string, data: Record<string, unknown>) => void;
   onDelete: (nodeId: string) => void;
@@ -17,6 +23,7 @@ interface NodeConfigPanelProps {
 
 export default function NodeConfigPanel({
   node,
+  webhookToken,
   onClose,
   onUpdate,
   onDelete,
@@ -53,6 +60,52 @@ export default function NodeConfigPanel({
       );
     }
 
+    if (nodeType === 'trigger_webhook_received') {
+      return (
+        <WebhookTriggerConfigPanel
+          config={node.data.config || {}}
+          label={node.data.label}
+          webhookToken={webhookToken}
+          onChange={handleConfigChange}
+          onLabelChange={handleLabelChange}
+        />
+      );
+    }
+
+    if (nodeType === 'action_create_deal') {
+      return (
+        <CreateDealConfigPanel
+          config={node.data.config || {}}
+          label={node.data.label}
+          onChange={handleConfigChange}
+          onLabelChange={handleLabelChange}
+        />
+      );
+    }
+
+    // The nodes whose settings are a rule tree rather than a field list.
+    if (nodeType === 'action_wait_until') {
+      return (
+        <WaitUntilConfigPanel
+          config={node.data.config || {}}
+          label={node.data.label}
+          onChange={handleConfigChange}
+          onLabelChange={handleLabelChange}
+        />
+      );
+    }
+
+    if (nodeType === 'condition_switch') {
+      return (
+        <SwitchConfigPanel
+          config={node.data.config || {}}
+          label={node.data.label}
+          onChange={handleConfigChange}
+          onLabelChange={handleLabelChange}
+        />
+      );
+    }
+
     if (nodeType.startsWith('trigger_')) {
       return (
         <TriggerConfigPanel
@@ -77,7 +130,7 @@ export default function NodeConfigPanel({
       );
     }
 
-    if (nodeType.startsWith('condition_')) {
+    if (nodeType === 'condition_if_else' || nodeType.startsWith('condition_')) {
       return (
         <ConditionConfigPanel
           config={node.data.config || {}}

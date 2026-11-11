@@ -997,13 +997,11 @@ class WorkflowExecutionService:
         logger.info(f"Updated deal {deal.title}: {field} = {value}")
         return {'output': {'field': field, 'value': value}}
 
-    # Behavioural rule fields. Everything not listed here is a contact
-    # property and is handed to SegmentEvaluator, which already knows all the
-    # operators and all the types.
-    BEHAVIOUR_FIELDS = (
-        'event.email_opened', 'event.email_clicked', 'event.page_visited',
-        'event.form_submitted', 'in_segment', 'deal.in_stage',
-    )
+    # Behavioural rule fields, from the catalogue the builder also reads.
+    # Everything not listed there is a contact property and is handed to
+    # SegmentEvaluator, which already knows all the operators and all the
+    # types.
+    BEHAVIOUR_FIELDS = catalog.BEHAVIOUR_FIELD_NAMES
 
     @staticmethod
     def _rules_match(rules, logic, execution):

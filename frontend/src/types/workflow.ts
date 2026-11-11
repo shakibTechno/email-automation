@@ -139,6 +139,20 @@ export interface Workflow {
   canvas_data: CanvasData;
   goal_node_id: string;
   goal_description: string;
+  /** Whether meeting the goal ends the run wherever the contact has got to. */
+  exit_on_goal: boolean;
+  goal_rules: { rules?: ConditionRule[]; logic?: 'all' | 'any' };
+  /** How often one contact may go through: once | one_at_a_time | always. */
+  reentry: string;
+  reentry_cooldown_days: number;
+  entry_segment: string | null;
+  respect_quiet_hours: boolean;
+  send_window_start: string;
+  send_window_end: string;
+  /** 0 = Monday .. 6 = Sunday. Empty means every day. */
+  send_weekdays: number[];
+  /** The path segment for this workflow's inbound URL. Server-minted. */
+  webhook_token: string;
   contacts_entered: number;
   contacts_active: number;
   contacts_completed: number;
@@ -415,6 +429,24 @@ export interface NodeCatalogEntry {
   terminal: boolean;
   branches: string[];
   config_fields: NodeConfigField[];
+}
+
+/** A rule field the executor supports that a segment has no concept of. */
+export interface BehaviourRuleField {
+  field: string;
+  label: string;
+  type: string;
+  needs_value: boolean;
+  value_label?: string;
+  value_asset?: string;
+}
+
+export interface NodeCatalogResponse {
+  nodeTypes: NodeCatalogEntry[];
+  ruleFields: {
+    behaviour: BehaviourRuleField[];
+    behaviour_operators: { value: string; label: string }[];
+  };
 }
 
 export interface WorkflowImportReport {

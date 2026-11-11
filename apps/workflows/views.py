@@ -75,7 +75,13 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         """
         from . import catalog
 
-        return Response({'results': catalog.as_catalog()})
+        return Response({
+            'results': catalog.as_catalog(),
+            # What a condition can test. Served alongside the node types so
+            # the rule editor and the executor cannot disagree about which
+            # fields exist.
+            'rule_fields': catalog.rule_fields(),
+        })
 
     @action(detail=True, methods=['get'])
     def export(self, request, pk=None):

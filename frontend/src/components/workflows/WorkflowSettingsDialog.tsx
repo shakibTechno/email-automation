@@ -234,11 +234,11 @@ export default function WorkflowSettingsDialog({
 export const defaultWorkflowSettings = (
   workflow?: Partial<Workflow>,
 ): WorkflowSettings => ({
-  reentry: (workflow as any)?.reentry || 'one_at_a_time',
-  reentry_cooldown_days: (workflow as any)?.reentry_cooldown_days ?? 0,
-  entry_segment: (workflow as any)?.entry_segment ?? null,
-  respect_quiet_hours: Boolean((workflow as any)?.respect_quiet_hours),
-  send_window_start: (workflow as any)?.send_window_start || '09:00:00',
-  send_window_end: (workflow as any)?.send_window_end || '18:00:00',
-  send_weekdays: (workflow as any)?.send_weekdays || [],
+  reentry: workflow?.reentry || 'one_at_a_time',
+  reentry_cooldown_days: workflow?.reentry_cooldown_days ?? 0,
+  entry_segment: workflow?.entry_segment ?? null,
+  respect_quiet_hours: Boolean(workflow?.respect_quiet_hours),
+  send_window_start: workflow?.send_window_start || '09:00:00',
+  send_window_end: workflow?.send_window_end || '18:00:00',
+  send_weekdays: workflow?.send_weekdays || [],
 });

@@ -192,14 +192,39 @@ class SerialisationTests(SimpleTestCase):
 
     def test_a_custom_panel_is_only_claimed_where_one_exists(self):
         """
-        `ui: 'custom'` tells the builder a hand-written panel owns this node.
-        Claiming it for a node with no panel means an empty settings pane.
+        `ui: 'custom'` tells the builder a hand-written panel owns this node,
+        so claiming it for a node with no panel gives an empty settings pane.
+
+        Read out of NodeConfigPanel.tsx rather than listed here, because a
+        list here would be the second copy and would go stale in exactly the
+        way this test exists to catch. Two node types shipped marked custom
+        with no panel behind them; this is what would have caught it.
         """
-        custom = {s.type for s in catalog.NODE_SPECS if s.ui == 'custom'}
-        # The panels that exist, by what they cover.
-        covered = (
-            {t for t in custom if t.startswith('trigger_')}
-            | {t for t in custom if t.startswith('action_')}
-            | {t for t in custom if t.startswith('condition_')}
+        from pathlib import Path
+
+        panel = (
+            Path(__file__).resolve().parents[3]
+            / 'frontend' / 'src' / 'components' / 'workflows' / 'panels'
+            / 'NodeConfigPanel.tsx'
         )
-        self.assertEqual(custom, covered)
+        if not panel.exists():  # pragma: no cover - backend-only checkout
+            self.skipTest('frontend not present')
+
+        # Every panel, not just the router: a node type reaching
+        # ActionConfigPanel with no case in its switch renders nothing, so
+        # category routing alone proves nothing. The node type has to be
+        # named somewhere.
+        source = '\n'.join(
+            path.read_text(encoding='utf-8')
+            for path in sorted(panel.parent.glob('*.tsx'))
+        )
+        unhandled = [
+            spec.type for spec in catalog.NODE_SPECS
+            if spec.ui == 'custom' and f"'{spec.type}'" not in source
+        ]
+
+        self.assertEqual(
+            unhandled, [],
+            'These node types claim a custom settings panel and nothing in '
+            f'NodeConfigPanel.tsx renders one: {unhandled}',
+        )

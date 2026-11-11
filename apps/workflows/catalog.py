@@ -528,6 +528,70 @@ NODE_SPECS = (
     ),
 )
 
+
+# ──────────────────────────────────────────── rule fields the executor knows
+# What a condition can test *beyond* a contact's own properties.
+#
+# Contact properties are not listed here on purpose: they come from
+# apps/segments field definitions, which is what the executor actually
+# evaluates them against, so a workflow condition and a segment rule cannot
+# mean different things. These are the workflow-only ones -- things the
+# contact *did*, which a segment has no concept of.
+#
+# Declared here rather than in the executor and again in the builder, because
+# that pair is exactly how the node-type lists drifted.
+BEHAVIOUR_RULE_FIELDS = (
+    {
+        'field': 'event.email_opened',
+        'label': 'Opened an email in this workflow',
+        'type': 'behaviour',
+        'needs_value': False,
+    },
+    {
+        'field': 'event.email_clicked',
+        'label': 'Clicked an email in this workflow',
+        'type': 'behaviour',
+        'needs_value': False,
+    },
+    {
+        'field': 'event.page_visited',
+        'label': 'Visited a page',
+        'type': 'behaviour',
+        'needs_value': True,
+        'value_label': 'Path, e.g. /pricing or /blog/*',
+    },
+    {
+        'field': 'event.form_submitted',
+        'label': 'Submitted a form',
+        'type': 'behaviour',
+        'needs_value': True,
+        'value_asset': ASSET_FORM,
+        'value_label': 'Any form unless you choose one',
+    },
+    {
+        'field': 'in_segment',
+        'label': 'Is in a segment',
+        'type': 'behaviour',
+        'needs_value': True,
+        'value_asset': ASSET_SEGMENT,
+    },
+    {
+        'field': 'deal.in_stage',
+        'label': 'Has a deal in a stage',
+        'type': 'behaviour',
+        'needs_value': True,
+        'value_asset': ASSET_STAGE,
+    },
+)
+
+# Every behaviour rule answers yes or no, so these are the only two operators.
+BEHAVIOUR_OPERATORS = (
+    {'value': 'is_true', 'label': 'is true'},
+    {'value': 'is_false', 'label': 'is not true'},
+)
+
+BEHAVIOUR_FIELD_NAMES = tuple(f['field'] for f in BEHAVIOUR_RULE_FIELDS)
+
 # ───────────────────────────────────────────────────────────────── lookups
 
 BY_TYPE = {spec.type: spec for spec in NODE_SPECS}
@@ -567,6 +631,14 @@ def asset_fields_for(node_type):
 def branches_for(node_type):
     spec = BY_TYPE.get(node_type)
     return spec.branches if spec else ('default',)
+
+
+def rule_fields():
+    """Behaviour rule fields, as the rule editor consumes them."""
+    return {
+        'behaviour': [dict(field) for field in BEHAVIOUR_RULE_FIELDS],
+        'behaviour_operators': [dict(op) for op in BEHAVIOUR_OPERATORS],
+    }
 
 
 def as_catalog():

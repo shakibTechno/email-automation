@@ -13,7 +13,7 @@ import {
   WorkflowTemplateFilters,
   WorkflowAnalytics,
   WorkflowValidation,
-  NodeCatalogEntry,
+  NodeCatalogResponse,
   WorkflowImportReport,
 } from '@/types/workflow';
 import { PaginationParams } from '@/types/api';
@@ -35,10 +35,19 @@ export const workflowsApi = {
     };
   },
 
-  /** Every step the builder may offer, and its config shape. */
-  getNodeTypes: async (): Promise<NodeCatalogEntry[]> => {
+  /**
+   * Every step the builder may offer, plus what a condition can test.
+   *
+   * Both ride on one response so the palette, the config form and the rule
+   * editor cannot disagree with the executor about what exists.
+   */
+  getNodeCatalog: async (): Promise<NodeCatalogResponse> => {
     const response = await apiClient.get('/workflows/node-types');
-    return response.data.results ?? response.data;
+    const raw = response.data;
+    return {
+      nodeTypes: raw.results ?? raw,
+      ruleFields: raw.rule_fields ?? { behaviour: [], behaviour_operators: [] },
+    };
   },
 
   exportWorkflow: async (id: string): Promise<unknown> => {
