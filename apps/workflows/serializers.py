@@ -119,6 +119,39 @@ class WorkflowEdgeInputSerializer(serializers.Serializer):
     type = serializers.CharField(required=False, default='default')  # edge_type
 
 
+def _write_edges(workflow, edges_data, node_id_map):
+    """
+    Replace a workflow's connections.
+
+    Shared because create and update both do it, and because the update path
+    had this nested inside its `if nodes_data is not None` block -- so a save
+    that sent edges and not nodes dropped every connection on the floor
+    without saying anything.
+
+    A branch is identified by `source_handle`, which is where a switch node's
+    own path names live. `edge_type` is the narrow enumerated column, so
+    anything not in it is stored as 'named' rather than overflowing twenty
+    characters.
+    """
+    known_types = dict(WorkflowEdge.EDGE_TYPE_CHOICES)
+
+    for edge_data in edges_data:
+        source_node = node_id_map.get(edge_data.get('source'))
+        target_node = node_id_map.get(edge_data.get('target'))
+        if not (source_node and target_node):
+            continue
+
+        branch = edge_data.get('type') or 'default'
+        WorkflowEdge.objects.create(
+            workflow=workflow,
+            source_node=source_node,
+            target_node=target_node,
+            edge_type=branch if branch in known_types else 'named',
+            source_handle=(edge_data.get('sourceHandle') or 'default')[:50],
+            target_handle=(edge_data.get('targetHandle') or 'default')[:50],
+        )
+
+
 class WorkflowCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating a workflow with nodes and edges."""
     nodes = WorkflowNodeInputSerializer(many=True, required=False, default=list, write_only=True)
@@ -195,22 +228,7 @@ class WorkflowCreateSerializer(serializers.ModelSerializer):
                 node_id_map[react_flow_id] = node
 
         # Create edges using the node mapping
-        for edge_data in edges_data:
-            source_id = edge_data.get('source')
-            target_id = edge_data.get('target')
-
-            source_node = node_id_map.get(source_id)
-            target_node = node_id_map.get(target_id)
-
-            if source_node and target_node:
-                WorkflowEdge.objects.create(
-                    workflow=workflow,
-                    source_node=source_node,
-                    target_node=target_node,
-                    edge_type=edge_data.get('type', 'default'),
-                    source_handle=edge_data.get('sourceHandle', 'default'),
-                    target_handle=edge_data.get('targetHandle', 'default'),
-                )
+        _write_edges(workflow, edges_data, node_id_map)
 
         return workflow
 
@@ -292,24 +310,18 @@ class WorkflowUpdateSerializer(serializers.ModelSerializer):
                 if react_flow_id:
                     node_id_map[react_flow_id] = node
 
-            # Create new edges
             if edges_data is not None:
-                for edge_data in edges_data:
-                    source_id = edge_data.get('source')
-                    target_id = edge_data.get('target')
+                _write_edges(instance, edges_data, node_id_map)
 
-                    source_node = node_id_map.get(source_id)
-                    target_node = node_id_map.get(target_id)
-
-                    if source_node and target_node:
-                        WorkflowEdge.objects.create(
-                            workflow=instance,
-                            source_node=source_node,
-                            target_node=target_node,
-                            edge_type=edge_data.get('type', 'default'),
-                            source_handle=edge_data.get('sourceHandle', 'default'),
-                            target_handle=edge_data.get('targetHandle', 'default'),
-                        )
+        elif edges_data is not None:
+            # Connections changed but the steps did not. Deleting a connection
+            # is exactly this case, and it used to be discarded because this
+            # whole block sat inside `if nodes_data is not None`.
+            node_id_map = {
+                str(node.id): node for node in instance.nodes.all()
+            }
+            instance.edges.all().delete()
+            _write_edges(instance, edges_data, node_id_map)
 
         return instance
 

@@ -1,5 +1,6 @@
 import { useCallback, useRef, DragEvent } from 'react';
 import ReactFlow, {
+  ReactFlowProvider,
   Node,
   Edge,
   Controls,
@@ -17,6 +18,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import { nodeTypes } from './nodes';
+import { edgeTypes, EDGE_TYPE } from './edges';
 import { WorkflowNodeType } from '@/types/workflow';
 import { useNodeCatalog } from '@/hooks/useNodeCatalog';
 
@@ -32,7 +34,7 @@ interface WorkflowCanvasProps {
 let nodeIdCounter = 0;
 const getId = () => `node_${Date.now()}_${nodeIdCounter++}`;
 
-export default function WorkflowCanvas({
+function Canvas({
   nodes,
   edges,
   onNodesChange,
@@ -64,29 +66,17 @@ export default function WorkflowCanvas({
   // Handle new connections
   const handleConnect = useCallback(
     (params: Connection) => {
-      // Determine edge type based on source handle
-      const edgeType =
-        params.sourceHandle === 'true'
-          ? 'true'
-          : params.sourceHandle === 'false'
-          ? 'false'
-          : 'default';
+      // The handle the connection was dragged from *is* the branch: a
+      // condition's true/false, Wait Until's met/timeout, a switch's own
+      // named paths. Hardcoding true/false here is what limited it before.
+      const edgeType = params.sourceHandle || 'default';
 
       const newEdge = {
         ...params,
         id: `edge_${Date.now()}`,
-        type: 'smoothstep',
+        type: EDGE_TYPE,
         data: { edgeType },
         animated: edgeType !== 'default',
-        style: {
-          stroke:
-            edgeType === 'true'
-              ? '#22c55e'
-              : edgeType === 'false'
-              ? '#ef4444'
-              : '#94a3b8',
-          strokeWidth: 2,
-        },
       };
 
       const updatedEdges = addEdge(newEdge, edges);
@@ -164,16 +154,17 @@ export default function WorkflowCanvas({
         onDragOver={handleDragOver}
         onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        // React Flow binds Backspace alone by default, so Delete -- which is
+        // what people reach for -- did nothing.
+        deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
+        defaultEdgeOptions={{ type: EDGE_TYPE }}
         fitView
         snapToGrid
         snapGrid={[15, 15]}
         nodesDraggable={!readOnly}
         nodesConnectable={!readOnly}
         elementsSelectable={!readOnly}
-        defaultEdgeOptions={{
-          type: 'smoothstep',
-          style: { stroke: '#94a3b8', strokeWidth: 2 },
-        }}
         proOptions={{ hideAttribution: true }}
       >
         <Controls showInteractive={!readOnly} />
@@ -191,5 +182,18 @@ export default function WorkflowCanvas({
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
       </ReactFlow>
     </div>
+  );
+}
+
+/**
+ * The provider is what lets an edge reach the store to remove itself.
+ *
+ * Without it, DeletableEdge's useReactFlow throws as soon as an edge renders.
+ */
+export default function WorkflowCanvas(props: WorkflowCanvasProps) {
+  return (
+    <ReactFlowProvider>
+      <Canvas {...props} />
+    </ReactFlowProvider>
   );
 }

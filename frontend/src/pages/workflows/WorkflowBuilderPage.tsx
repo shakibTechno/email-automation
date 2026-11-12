@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Node, Edge } from 'reactflow';
 import WorkflowCanvas from '@/components/workflows/WorkflowCanvas';
 import WorkflowToolbar from '@/components/workflows/WorkflowToolbar';
+import { EDGE_TYPE } from '@/components/workflows/edges';
 import WorkflowSettingsDialog, {
   WorkflowSettings, defaultWorkflowSettings,
 } from '@/components/workflows/WorkflowSettingsDialog';
@@ -68,18 +69,12 @@ export default function WorkflowBuilderPage() {
         target: edge.target_node,
         sourceHandle: edge.source_handle,
         targetHandle: edge.target_handle,
-        type: 'smoothstep',
+        // No inline style: the edge colours itself from its branch, and an
+        // inline stroke overrides the stylesheet rule that shows an edge as
+        // selected -- which is why a selected connection looked unselected.
+        type: EDGE_TYPE,
         animated: edge.edge_type !== 'default',
         data: { edgeType: edge.edge_type },
-        style: {
-          stroke:
-            edge.edge_type === 'true'
-              ? '#22c55e'
-              : edge.edge_type === 'false'
-              ? '#ef4444'
-              : '#94a3b8',
-          strokeWidth: 2,
-        },
       }));
 
       setNodes(rfNodes);
