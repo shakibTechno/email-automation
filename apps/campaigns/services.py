@@ -16,10 +16,11 @@ class CampaignService:
     @staticmethod
     def calculate_recipients(campaign):
         """Return a queryset of Contact objects based on campaign's recipient settings."""
-        base_qs = Contact.objects.filter(
+        # Adds complained_at to what was already excluded; a spam complaint
+        # already clears is_subscribed, so this changes nothing in practice
+        # and means there is one definition rather than a near-copy.
+        base_qs = Contact.objects.mailable().filter(
             organization=campaign.organization,
-            is_subscribed=True,
-            bounced_at__isnull=True,
         )
 
         if campaign.recipient_type == 'by_tags' and campaign.recipient_tags.exists():

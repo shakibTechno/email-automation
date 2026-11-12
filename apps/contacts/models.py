@@ -18,6 +18,20 @@ class ContactManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
+    def mailable(self):
+        """
+        Contacts who may be sent marketing email.
+
+        The queryset form of Contact.email_suppressed, for the bulk paths
+        that pick recipients rather than checking one person. The two must
+        agree, which is what test_suppression.py pins.
+        """
+        return self.get_queryset().filter(
+            is_subscribed=True,
+            bounced_at__isnull=True,
+            complained_at__isnull=True,
+        )
+
 
 class Contact(TimeStampedModel, SoftDeleteModel):
     """
@@ -286,6 +300,34 @@ class Contact(TimeStampedModel, SoftDeleteModel):
         self.bounced_at = timezone.now()
         self.bounce_type = bounce_type
         self.save(update_fields=['bounced_at', 'bounce_type'])
+
+    @property
+    def email_suppressed(self):
+        """
+        Why this contact must not be sent marketing email, or None.
+
+        The one definition. There were three and they disagreed: campaigns
+        excluded unsubscribed *and* bounced contacts, sequences excluded only
+        the unsubscribed, and workflows excluded nobody at all -- so a
+        workflow would mail someone who had opted out, and a sequence would
+        keep mailing an address that does not exist.
+
+        A reason rather than a boolean, so the caller can say which rule
+        stopped it; "not sent" with no explanation is unanswerable.
+
+        Soft bounces are suppressed along with hard ones, matching what
+        campaigns already did. mark_bounced() argues a soft bounce is a full
+        mailbox that may recover and could reasonably be retried, but
+        relaxing that would *widen* who gets mail, which is not a change to
+        make quietly inside a bug fix.
+        """
+        if not self.is_subscribed:
+            return 'unsubscribed'
+        if self.complained_at:
+            return 'reported a message as spam'
+        if self.bounced_at:
+            return f'{self.bounce_type or "unknown"} bounce'
+        return None
 
     def update_activity(self):
         """Update the last activity timestamp."""

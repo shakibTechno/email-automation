@@ -110,10 +110,9 @@ class SequenceEnrollmentService:
     @staticmethod
     def enroll_contacts_bulk(sequence, contact_ids, enrolled_by=None):
         from apps.contacts.models import Contact
-        contacts = Contact.objects.filter(
+        contacts = Contact.objects.mailable().filter(
             id__in=contact_ids,
             organization=sequence.organization,
-            is_subscribed=True,
         )
         enrolled = 0
         errors = []
@@ -164,7 +163,9 @@ class SequenceEnrollmentService:
             return
 
         contact = enrollment.contact
-        if not contact.is_subscribed:
+        # Was `not contact.is_subscribed`, which let a hard-bounced address
+        # keep receiving every step of the sequence.
+        if contact.email_suppressed:
             enrollment.status = 'unsubscribed'
             enrollment.save(update_fields=['status'])
             return

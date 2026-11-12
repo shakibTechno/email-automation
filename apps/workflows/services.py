@@ -611,6 +611,19 @@ class WorkflowExecutionService:
         )
 
         contact = execution.contact
+
+        # Checked nothing before this, so a workflow would mail someone who
+        # had opted out. Skipped rather than raised: opting out is a normal
+        # thing for a contact to do, not an error, and a workflow may well
+        # have non-email steps after this one that should still run.
+        suppressed = contact.email_suppressed
+        if suppressed:
+            logger.info(
+                'Execution %s did not email %s: %s',
+                execution.id, contact.email, suppressed,
+            )
+            return {'output': {'email_sent': False, 'skipped': suppressed}}
+
         html_content = WorkflowExecutionService._render_template(template, contact)
         subject = subject_override or template.subject or 'No Subject'
 
