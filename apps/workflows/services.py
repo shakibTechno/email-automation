@@ -41,26 +41,20 @@ class WorkflowService:
         """
         errors = []
         nodes = list(workflow.nodes.all())
-        edges = list(workflow.edges.all())
 
         if not nodes:
             errors.append("Workflow must have at least one node.")
             return errors
 
-        # Check for at least one trigger
-        triggers = [n for n in nodes if n.is_trigger]
-        if not triggers:
-            errors.append("Workflow must have at least one trigger node.")
+        # Shape comes from one place, so this button and the warning shown on
+        # the workflow itself can never disagree. The check it replaced asked
+        # only whether a node had *an* incoming edge, which a disconnected
+        # island satisfies: every node in it has a neighbour, and none of them
+        # can be reached from the trigger.
+        from apps.workflows.reachability import problems as shape_problems
 
-        # Check that non-trigger nodes have incoming edges
-        node_ids = {str(n.id) for n in nodes}
-        targets_with_edges = {str(e.target_node_id) for e in edges}
-
-        for node in nodes:
-            if not node.is_trigger:
-                if str(node.id) not in targets_with_edges:
-                    label = node.label or node.get_node_type_display()
-                    errors.append(f"Node '{label}' has no incoming connections.")
+        for problem in shape_problems(workflow):
+            errors.append(problem['message'])
 
         # Validate node configurations
         for node in nodes:

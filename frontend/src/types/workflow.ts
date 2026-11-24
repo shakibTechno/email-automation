@@ -131,6 +131,14 @@ export interface CanvasData {
 }
 
 // Workflow
+/** Something wrong with the shape of the graph, not with a node's settings. */
+export interface WorkflowProblem {
+  code: 'no_trigger' | 'unreachable' | 'goal_unreachable';
+  message: string;
+  /** The nodes it concerns, so the canvas can point at them. */
+  node_ids: string[];
+}
+
 export interface Workflow {
   id: string;
   name: string;
@@ -159,6 +167,13 @@ export interface Workflow {
   contacts_goal_reached: number;
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
+  /**
+   * Steps the trigger cannot reach, found on every read and every save.
+   *
+   * A node nothing leads to never runs, and the contact's run just ends —
+   * status `completed`, no error. Empty when the graph is sound.
+   */
+  problems: WorkflowProblem[];
   activated_at: string | null;
   created_by: string;
   created_by_name: string;

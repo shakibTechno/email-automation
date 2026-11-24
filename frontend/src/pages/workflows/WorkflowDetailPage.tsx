@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import StatusBadge from '@/components/workflows/StatusBadge';
+import { WorkflowProblems } from '@/components/workflows/WorkflowProblems';
 import { ExecutionDetailDrawer } from '@/components/workflows/ExecutionDetailDrawer';
 import {
   useWorkflow,
@@ -164,6 +165,9 @@ export default function WorkflowDetailPage() {
           </Button>
         </div>
       </div>
+
+      {/* Above the numbers on purpose: the numbers look healthy either way. */}
+      <WorkflowProblems problems={workflow.problems ?? []} />
 
       {/* ── analytics ── */}
       <div className="flex items-center justify-between">

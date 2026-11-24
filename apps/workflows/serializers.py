@@ -67,6 +67,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
     nodes = WorkflowNodeSerializer(many=True, read_only=True)
     edges = WorkflowEdgeSerializer(many=True, read_only=True)
     created_by_name = serializers.SerializerMethodField()
+    problems = serializers.SerializerMethodField()
 
     class Meta:
         model = Workflow
@@ -79,7 +80,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
             'webhook_token',
             'contacts_entered', 'contacts_active', 'contacts_completed',
             'contacts_goal_reached',
-            'nodes', 'edges',
+            'nodes', 'edges', 'problems',
             'activated_at', 'created_by', 'created_by_name',
             'created_at', 'updated_at'
         ]
@@ -97,6 +98,18 @@ class WorkflowSerializer(serializers.ModelSerializer):
             return None
         name = f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
         return name or obj.created_by.email
+
+    def get_problems(self, obj):
+        """
+        Steps that cannot be reached, so the canvas can say so on sight.
+
+        Read from the nodes and edges already loaded here, and returned with
+        every save: a workflow whose goal has been disconnected looks exactly
+        like a healthy one until something tells you otherwise.
+        """
+        from apps.workflows.reachability import problems
+
+        return problems(obj)
 
 
 class WorkflowNodeInputSerializer(serializers.Serializer):
