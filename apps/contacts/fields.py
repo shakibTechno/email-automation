@@ -263,12 +263,52 @@ class CoercionError(ValueError):
     """A value that cannot be stored in the field it was mapped to."""
 
 
+_MAX_LENGTHS = {}
+
+
+def max_length(key):
+    """
+    The column's own limit, read from the model.
+
+    A length is a fact about the column, unlike `writable_by`, which is a
+    policy — so it is read rather than restated here. A number copied by hand
+    is a number that drifts, and this drift surfaced as a 500 from Postgres on
+    whatever a stranger typed into a public form: `country` holds an ISO alpha-2
+    code in two characters, and somebody typed their country's name.
+    """
+    if key not in _MAX_LENGTHS:
+        from django.core.exceptions import FieldDoesNotExist
+
+        from apps.contacts.models import Contact
+
+        try:
+            _MAX_LENGTHS[key] = Contact._meta.get_field(key).max_length
+        except FieldDoesNotExist:
+            _MAX_LENGTHS[key] = None
+    return _MAX_LENGTHS[key]
+
+
 def coerce(key, raw):
-    """Convert a raw (usually string) value to what the field stores."""
+    """
+    Convert a raw (usually string) value to what the field stores.
+
+    Raises CoercionError when the value cannot be stored — including when it is
+    simply too long for the column, which every caller has to be ready for,
+    since all three write channels take their values from outside.
+    """
     spec = CONTACT_FIELDS.get(key)
     if spec is None:
         return raw
-    return coerce_value(spec.type, raw, label=spec.label, options=spec.options)
+
+    value = coerce_value(spec.type, raw, label=spec.label, options=spec.options)
+
+    limit = max_length(key)
+    if limit and isinstance(value, str) and len(value) > limit:
+        raise CoercionError(
+            f'{spec.label} must be at most {limit} character'
+            f'{"" if limit == 1 else "s"}, got {len(value)}.'
+        )
+    return value
 
 
 def coerce_value(type_, raw, *, label='value', options=()):

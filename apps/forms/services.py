@@ -171,7 +171,19 @@ class FormSubmissionService:
                     target,
                 )
                 continue
-            standard[target] = contact_fields.coerce(target, value)
+
+            try:
+                standard[target] = contact_fields.coerce(target, value)
+            except contact_fields.CoercionError as exc:
+                # One bad answer must not cost the whole lead -- the same rule
+                # the custom fields below follow. The submission keeps every
+                # answer either way; only the contact column is left unset.
+                # Before this, a visitor typing "Bangladesh" into a field
+                # mapped to `country` (two characters, ISO alpha-2) took the
+                # whole submission down with a 500.
+                logger.warning(
+                    'Dropping a form answer mapped to %r: %s', target, exc,
+                )
 
         email = standard.get('email')
         if not email:

@@ -167,6 +167,49 @@ class ImportCoercionTests(TestCase):
         self.assertEqual(contact.custom_fields['tier'], 'gold')
 
 
+class ColumnLengthTests(TestCase):
+    """
+    A value that does not fit its column is refused here, not by Postgres.
+
+    Reaching the database with it raises DataError from inside the insert,
+    which every write channel turns into a 500 -- including the public form
+    endpoint, where the value came from a stranger. `country` is two characters
+    because it holds an ISO alpha-2 code, and a visitor typed a country name.
+    """
+
+    def test_a_value_too_long_for_its_column_is_refused(self):
+        with self.assertRaises(contact_fields.CoercionError) as caught:
+            contact_fields.coerce('country', 'Bangladesh')
+
+        message = str(caught.exception)
+        self.assertIn('Country', message)
+        self.assertIn('2', message)
+
+    def test_a_value_that_fits_passes_through(self):
+        self.assertEqual(contact_fields.coerce('country', 'BD'), 'BD')
+
+    def test_a_long_value_in_a_long_column_is_fine(self):
+        name = 'a' * 100
+        self.assertEqual(contact_fields.coerce('first_name', name), name)
+
+    def test_the_limit_is_read_from_the_model_not_restated(self):
+        """
+        Whatever the column says today. A number copied into the registry by
+        hand is a number that drifts away from the schema.
+        """
+        from apps.contacts.models import Contact as ContactModel
+
+        for key in ('country', 'first_name', 'city'):
+            with self.subTest(field=key):
+                self.assertEqual(
+                    contact_fields.max_length(key),
+                    ContactModel._meta.get_field(key).max_length,
+                )
+
+    def test_a_field_with_no_column_has_no_limit(self):
+        self.assertIsNone(contact_fields.max_length('not_a_column'))
+
+
 class ExportRestrictionTests(TestCase):
     """`getattr` with caller-supplied names reads more than it should."""
 

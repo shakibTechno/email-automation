@@ -66,6 +66,57 @@ class ContactCaptureTests(TestCase):
 
         self.assertEqual(contact.city, 'Dublin')
 
+    # ------------------------------------------------- answers that do not fit
+    def test_an_answer_too_long_for_its_column_does_not_cost_the_lead(self):
+        """
+        `country` holds an ISO alpha-2 code in two characters. A visitor typing
+        the name of their country used to reach Postgres as-is and return a 500
+        from a public endpoint — losing the enquiry over a field nobody needed.
+        """
+        email = self._field('Email', 'email', 0, 'email')
+        country = self._field('Country', 'country', 1)
+
+        contact = self._submit([
+            (email, 'ada@example.com'), (country, 'Bangladesh'),
+        ])
+
+        self.assertIsNotNone(contact)
+        self.assertEqual(contact.email, 'ada@example.com')
+        self.assertEqual(contact.country, '')
+
+    def test_a_value_that_fits_is_still_stored(self):
+        email = self._field('Email', 'email', 0, 'email')
+        country = self._field('Country', 'country', 1)
+
+        contact = self._submit([(email, 'ada@example.com'), (country, 'BD')])
+
+        self.assertEqual(contact.country, 'BD')
+
+    def test_the_submission_keeps_the_answer_the_contact_could_not(self):
+        """The lead typed it, so it is not thrown away — only the column is."""
+        email = self._field('Email', 'email', 0, 'email')
+        country = self._field('Country', 'country', 1)
+
+        submission = FormSubmissionService.process_submission(
+            self.form,
+            {str(email.id): 'ada@example.com', str(country.id): 'Bangladesh'},
+        )
+
+        answers = {row['label']: row['value'] for row in submission.data}
+        self.assertEqual(answers['Country'], 'Bangladesh')
+        self.assertEqual(submission.contact.email, 'ada@example.com')
+
+    def test_an_overlong_answer_on_an_existing_contact_leaves_it_alone(self):
+        email = self._field('Email', 'email', 0, 'email')
+        country = self._field('Country', 'country', 1)
+        self._submit([(email, 'ada@example.com'), (country, 'BD')])
+
+        contact = self._submit([
+            (email, 'ada@example.com'), (country, 'Bangladesh'),
+        ])
+
+        self.assertEqual(contact.country, 'BD')
+
     # --------------------------------------------------------------- custom
     def test_a_custom_mapping_lands_in_custom_fields(self):
         email = self._field('Email', 'email', 0, 'email')
