@@ -19,6 +19,7 @@ import {
   ListOrdered,
   ChevronDown,
   ShieldAlert,
+  CalendarDays,
 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -35,6 +36,7 @@ const navigation: NavGroup[] = [
     label: 'Workspace',
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Calendar', href: '/calendar', icon: CalendarDays },
       { name: 'Contacts', href: '/contacts', icon: Users },
       { name: 'Tags', href: '/contacts/tags', icon: Tags },
       { name: 'Segments', href: '/segments', icon: Filter },

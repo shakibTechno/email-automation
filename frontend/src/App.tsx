@@ -62,6 +62,7 @@ import {
 
 // Dashboard Page
 import { DashboardPage } from '@/pages/dashboard';
+import { CalendarPage } from '@/pages/calendar';
 
 // Analytics Pages
 import {
@@ -191,6 +192,7 @@ function App() {
           >
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
 
             {/* Contact routes */}
             <Route path="/contacts" element={<ContactListPage />} />
