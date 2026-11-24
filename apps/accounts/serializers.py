@@ -5,9 +5,28 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
 from django.utils import timezone
+from django.utils.text import slugify
 from datetime import timedelta
-from .models import User, Organization, PasswordResetToken, TeamInvitation, ActivityLog, EmailConfiguration
+from apps.core import access
+from .models import (
+    User, Organization, PasswordResetToken, TeamInvitation, ActivityLog,
+    EmailConfiguration, Role,
+)
 import secrets
+
+
+def role_display_name(organization_id, slug):
+    """
+    The label for a role slug: a built-in name, or the organization's own.
+
+    One lookup in one place, because the slug alone is what the database holds
+    and every list of members has to show something readable.
+    """
+    builtin = access.BUILTIN_ROLES.get(slug)
+    if builtin:
+        return builtin
+    role = Role.objects.filter(organization_id=organization_id, slug=slug).first()
+    return role.name if role else slug
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -32,12 +51,15 @@ class UserSerializer(serializers.ModelSerializer):
     """Serializer for User model."""
     organization = OrganizationSerializer(read_only=True)
     full_name = serializers.CharField(read_only=True)
+    permissions = serializers.SerializerMethodField()
+    role_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'full_name',
-            'organization', 'role', 'is_active', 'is_email_verified',
+            'organization', 'role', 'role_name', 'permissions',
+            'is_active', 'is_email_verified',
             # Platform staff, who have no organization and use the landlord
             # console instead of the tenant app. The frontend has no other way
             # to tell the two apart — `role` is organization-scoped.
@@ -49,6 +71,18 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'created_at', 'updated_at', 'last_login',
             'is_email_verified', 'is_staff',
         ]
+
+    def get_permissions(self, obj):
+        """
+        What this user may do, as permission codes.
+
+        Sent with the user so the frontend never re-derives access from the
+        role name, which is impossible anyway once roles are custom.
+        """
+        return sorted(access.permissions_for(obj))
+
+    def get_role_name(self, obj):
+        return role_display_name(obj.organization_id, obj.role)
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -290,33 +324,123 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 class TeamMemberSerializer(serializers.ModelSerializer):
     """Read-only serializer for team member listing."""
     full_name = serializers.CharField(read_only=True)
+    role_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'full_name',
-            'role', 'is_active', 'last_login', 'created_at',
+            'role', 'role_name', 'is_active', 'last_login', 'created_at',
         ]
         read_only_fields = fields
+
+    def get_role_name(self, obj):
+        return role_display_name(obj.organization_id, obj.role)
+
+
+class AssignableRoleField(serializers.CharField):
+    """
+    A role slug this organization can actually hand out.
+
+    Replaces a hardcoded ChoiceField: the valid set is the three assignable
+    built-ins plus the organization's own roles, so it can only be checked
+    against the organization in context. 'owner' is never assignable -- it
+    moves by transfer of ownership.
+    """
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('max_length', 50)
+        super().__init__(**kwargs)
+
+    def to_internal_value(self, data):
+        slug = super().to_internal_value(data)
+        organization = self.context.get('organization')
+        if slug in access.ASSIGNABLE_BUILTIN_ROLES:
+            return slug
+        if organization is not None and Role.objects.filter(
+            organization=organization, slug=slug
+        ).exists():
+            return slug
+        raise serializers.ValidationError(
+            f'"{slug}" is not a role in this organization.'
+        )
 
 
 class InviteMemberSerializer(serializers.Serializer):
     """Serializer for inviting a new team member."""
     email = serializers.EmailField()
-    role = serializers.ChoiceField(choices=[
-        ('admin', 'Admin'),
-        ('member', 'Member'),
-        ('viewer', 'Viewer'),
-    ])
+    role = AssignableRoleField()
 
 
 class ChangeRoleSerializer(serializers.Serializer):
     """Serializer for changing a member's role."""
-    role = serializers.ChoiceField(choices=[
-        ('admin', 'Admin'),
-        ('member', 'Member'),
-        ('viewer', 'Viewer'),
-    ])
+    role = AssignableRoleField()
+
+
+class RoleSerializer(serializers.ModelSerializer):
+    """A role an organization defined for itself."""
+    member_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Role
+        fields = ['id', 'name', 'slug', 'permissions', 'member_count', 'created_at']
+        read_only_fields = ['id', 'slug', 'member_count', 'created_at']
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError('A role needs a name.')
+        slug = slugify(value)[:50]
+        if not slug:
+            raise serializers.ValidationError(
+                'The name must contain a letter or a number.'
+            )
+        if slug in access.BUILTIN_ROLES:
+            raise serializers.ValidationError(
+                f'"{value}" is a built-in role. Choose another name.'
+            )
+        existing = Role.objects.filter(
+            organization=self.context['organization'], slug=slug
+        )
+        if self.instance is not None:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise serializers.ValidationError('A role with that name already exists.')
+        self._slug = slug
+        return value
+
+    def validate_permissions(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError('Permissions must be a list of codes.')
+        codes = sorted(set(value))
+        unknown = [code for code in codes if code not in access.ALL_PERMISSIONS]
+        if unknown:
+            raise serializers.ValidationError(
+                f'Unknown permissions: {", ".join(unknown)}.'
+            )
+
+        # No escalation: a role may not grant what its author does not hold.
+        # Without this an admin could mint a role carrying permissions they
+        # lack and then assign it to themselves.
+        granter = self.context['granter']
+        beyond = [code for code in codes if not access.has_permission(granter, code)]
+        if beyond:
+            raise serializers.ValidationError(
+                'You cannot grant permissions you do not hold yourself: '
+                f'{", ".join(beyond)}.'
+            )
+        return codes
+
+    def create(self, validated_data):
+        validated_data['organization'] = self.context['organization']
+        validated_data['slug'] = self._slug
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # The slug is what User.role stores, so a rename must not move it:
+        # every member of the role would silently lose their permissions.
+        validated_data.pop('slug', None)
+        return super().update(instance, validated_data)
 
 
 class AcceptInvitationSerializer(serializers.Serializer):
@@ -338,17 +462,21 @@ class AcceptInvitationSerializer(serializers.Serializer):
 class TeamInvitationSerializer(serializers.ModelSerializer):
     """Serializer for team invitation details."""
     invited_by_name = serializers.SerializerMethodField()
+    role_name = serializers.SerializerMethodField()
     email_sent = serializers.SerializerMethodField()
     accept_url = serializers.SerializerMethodField()
 
     class Meta:
         model = TeamInvitation
         fields = [
-            'id', 'email', 'role', 'status', 'invited_by_name',
+            'id', 'email', 'role', 'role_name', 'status', 'invited_by_name',
             'email_sent', 'email_sent_at', 'email_error', 'accept_url',
             'expires_at', 'created_at',
         ]
         read_only_fields = fields
+
+    def get_role_name(self, obj):
+        return role_display_name(obj.organization_id, obj.role)
 
     def get_email_sent(self, obj):
         return obj.email_sent_at is not None

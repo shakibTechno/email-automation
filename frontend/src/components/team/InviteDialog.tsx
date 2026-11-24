@@ -10,13 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { RoleSelect } from '@/components/team/RoleSelect';
 import { useInviteMember } from '@/hooks/useTeam';
 
 interface InviteDialogProps {
@@ -26,7 +20,7 @@ interface InviteDialogProps {
 
 export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'admin' | 'member' | 'viewer'>('member');
+  const [role, setRole] = useState('member');
   const inviteMember = useInviteMember();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -67,16 +61,7 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="role">Role</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin - Full access, manage team</SelectItem>
-                  <SelectItem value="member">Member - Create and edit content</SelectItem>
-                  <SelectItem value="viewer">Viewer - Read-only access</SelectItem>
-                </SelectContent>
-              </Select>
+              <RoleSelect id="role" value={role} onChange={setRole} />
             </div>
           </div>
           <DialogFooter>

@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import IsOrganizationMember, IsOrganizationAdmin
+from apps.core.permissions import HasResourcePermission, IsOrganizationMember, IsOrganizationAdmin
 from .models import SocialIntegration
 from .serializers import (
     AnalyticsIntegrationSerializer,
@@ -30,7 +30,9 @@ from .services import (
 
 class AnalyticsIntegrationListView(APIView):
     """List all analytics integrations for the current organization."""
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         integrations = AnalyticsIntegrationService.get_integrations(
@@ -84,7 +86,9 @@ class AnalyticsIntegrationDeleteView(APIView):
 
 class SocialIntegrationListView(APIView):
     """List all social integrations for the current organization."""
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         integrations = SocialIntegrationService.get_integrations(
@@ -169,7 +173,9 @@ class SocialIntegrationSyncView(APIView):
 
 class SyncHistoryView(APIView):
     """List sync history for a social integration."""
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request, pk):
         try:
@@ -262,7 +268,9 @@ class SocialIntegrationConnectView(APIView):
 
 class FieldMappingOptionsView(APIView):
     """Return available Contact fields for field mapping configuration."""
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         options = [

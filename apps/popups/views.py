@@ -8,7 +8,11 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.core.permissions import IsAdminForDestructiveActions, IsOrganizationMember
+from apps.core.permissions import (
+    HasResourcePermission,
+    IsAdminForDestructiveActions,
+    IsOrganizationMember,
+)
 
 from .models import Popup, PopupTemplate
 from .serializers import (
@@ -141,7 +145,9 @@ class PopupTemplateViewSet(mixins.ListModelMixin,
                            viewsets.GenericViewSet):
     """System templates plus this organization's own. Read-only."""
     serializer_class = PopupTemplateSerializer
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['category', 'popup_type']
     search_fields = ['name', 'description']

@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Users, Building2, Activity, TrendingUp, Mail, Sparkles, Globe, ListPlus,
-  Code2,
+  Code2, Shield,
 } from 'lucide-react';
 import { TeamTab } from './TeamTab';
+import { RolesTab } from './RolesTab';
 import { OrganizationTab } from './OrganizationTab';
 import { ActivityTab } from './ActivityTab';
 import { LeadScoringTab } from './LeadScoringTab';
@@ -47,6 +48,12 @@ export function SettingsPage() {
             Organization
           </TabsTrigger>
           {canManageTeam && (
+            <TabsTrigger value="roles" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Roles
+            </TabsTrigger>
+          )}
+          {canManageTeam && (
             <TabsTrigger value="activity" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
               Activity
@@ -88,6 +95,11 @@ export function SettingsPage() {
         <TabsContent value="organization" className="mt-6">
           <OrganizationTab />
         </TabsContent>
+        {canManageTeam && (
+          <TabsContent value="roles" className="mt-6">
+            <RolesTab />
+          </TabsContent>
+        )}
         {canManageTeam && (
           <TabsContent value="activity" className="mt-6">
             <ActivityTab />

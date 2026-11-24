@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import IsOrganizationMember, IsOrganizationAdmin
+from apps.core.permissions import HasResourcePermission, IsOrganizationMember, IsOrganizationAdmin
 from .models import Plan, PaymentMethod, Invoice, BillingEvent
 from .serializers import (
     PlanSerializer,
@@ -37,7 +37,9 @@ class PlanListView(APIView):
 
 class BillingOverviewView(APIView):
     """Get billing overview for current organization."""
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         overview = BillingService.get_billing_overview(request.user.organization)
@@ -52,7 +54,9 @@ class BillingOverviewView(APIView):
 
 class SubscriptionView(APIView):
     """Get current subscription details."""
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         from .models import Subscription
@@ -385,7 +389,9 @@ class AddPaymentMethodView(APIView):
 
 class InvoiceListView(APIView):
     """List invoices for current organization."""
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         invoices = Invoice.objects.filter(
@@ -409,7 +415,9 @@ class BillingEventListView(APIView):
 
 class UsageLimitCheckView(APIView):
     """Check usage limit for a specific resource."""
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         limit_type = request.query_params.get('type', 'contacts')

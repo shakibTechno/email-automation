@@ -6,6 +6,7 @@ import type {
   ChangeRoleData,
   AcceptInvitationData,
   TeamInvitation,
+  RoleFormData,
 } from '@/types/team';
 
 export const teamKeys = {
@@ -14,6 +15,8 @@ export const teamKeys = {
   invitations: () => [...teamKeys.all, 'invitations'] as const,
   activity: () => [...teamKeys.all, 'activity'] as const,
   organization: () => [...teamKeys.all, 'organization'] as const,
+  roles: () => [...teamKeys.all, 'roles'] as const,
+  permissionCatalog: () => [...teamKeys.all, 'permission-catalog'] as const,
 };
 
 export function useTeamMembers() {
@@ -42,6 +45,88 @@ export function useOrganizationSettings() {
     queryKey: teamKeys.organization(),
     queryFn: teamApi.getOrganizationSettings,
   });
+}
+
+export function useRoles() {
+  return useQuery({
+    queryKey: teamKeys.roles(),
+    queryFn: teamApi.getRoles,
+  });
+}
+
+export function usePermissionCatalog() {
+  return useQuery({
+    queryKey: teamKeys.permissionCatalog(),
+    queryFn: teamApi.getPermissionCatalog,
+    // The vocabulary only changes when the product does.
+    staleTime: Infinity,
+  });
+}
+
+export function useCreateRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: RoleFormData) => teamApi.createRole(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: teamKeys.roles() });
+      queryClient.invalidateQueries({ queryKey: teamKeys.activity() });
+      toast.success('Role created');
+    },
+    onError: (error: any) => {
+      toast.error(roleErrorMessage(error, 'Failed to create the role'));
+    },
+  });
+}
+
+export function useUpdateRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ roleId, data }: { roleId: string; data: RoleFormData }) =>
+      teamApi.updateRole(roleId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: teamKeys.roles() });
+      queryClient.invalidateQueries({ queryKey: teamKeys.members() });
+      queryClient.invalidateQueries({ queryKey: teamKeys.activity() });
+      // The caller's own access may have just changed.
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      toast.success('Role updated');
+    },
+    onError: (error: any) => {
+      toast.error(roleErrorMessage(error, 'Failed to update the role'));
+    },
+  });
+}
+
+export function useDeleteRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (roleId: string) => teamApi.deleteRole(roleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: teamKeys.roles() });
+      queryClient.invalidateQueries({ queryKey: teamKeys.activity() });
+      toast.success('Role deleted');
+    },
+    onError: (error: any) => {
+      toast.error(roleErrorMessage(error, 'Failed to delete the role'));
+    },
+  });
+}
+
+/**
+ * The server's reason, not a generic failure.
+ *
+ * Refusals here are things the user can act on - a name already taken, a
+ * permission they cannot grant, members still holding the role, a plan that
+ * does not include custom roles - and a toast saying "failed" hides all of it.
+ */
+function roleErrorMessage(error: any, fallback: string): string {
+  const details = error?.details;
+  if (details && typeof details === 'object') {
+    const first = Object.values(details)[0];
+    if (Array.isArray(first) && first.length) return String(first[0]);
+    if (typeof first === 'string') return first;
+  }
+  return error?.error || error?.message || fallback;
 }
 
 export function useInviteMember() {

@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
+from apps.core.access import ASSIGNABLE_BUILTIN_ROLES, BUILTIN_ROLES
 from apps.core.models import TimeStampedModel, SoftDeleteModel
 import secrets
 import uuid
@@ -158,12 +159,7 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel, SoftDeleteModel
     """
     Custom user model with email as the unique identifier.
     """
-    ROLE_CHOICES = [
-        ('owner', 'Owner'),
-        ('admin', 'Admin'),
-        ('member', 'Member'),
-        ('viewer', 'Viewer'),
-    ]
+    ROLE_CHOICES = list(BUILTIN_ROLES.items())
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True, db_index=True)
@@ -177,7 +173,11 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel, SoftDeleteModel
         null=True,
         blank=True
     )
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member')
+    # A built-in role slug or the slug of one of the organization's own Roles,
+    # in one namespace. No `choices`: the valid set is per-organization, so it
+    # is enforced where a role is assigned (the invite and change-role
+    # serializers) rather than by a column-wide list that custom roles fail.
+    role = models.CharField(max_length=50, default='member')
 
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -299,11 +299,7 @@ class TeamInvitation(TimeStampedModel):
     """
     Invitation to join an organization.
     """
-    ROLE_CHOICES = [
-        ('admin', 'Admin'),
-        ('member', 'Member'),
-        ('viewer', 'Viewer'),
-    ]
+    ROLE_CHOICES = [(slug, BUILTIN_ROLES[slug]) for slug in ASSIGNABLE_BUILTIN_ROLES]
 
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -319,7 +315,8 @@ class TeamInvitation(TimeStampedModel):
         related_name='invitations'
     )
     email = models.EmailField()
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member')
+    # See User.role: a built-in slug or one of the organization's own.
+    role = models.CharField(max_length=50, default='member')
     token = models.CharField(max_length=255, unique=True, db_index=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     invited_by = models.ForeignKey(
@@ -414,6 +411,11 @@ class ActivityLog(TimeStampedModel):
         ('member_joined', 'Member Joined'),
         ('member_removed', 'Member Removed'),
         ('role_changed', 'Role Changed'),
+        # Changes to a custom role's permissions are audited for the same
+        # reason the role changes above are: they move who can do what.
+        ('role_created', 'Role Created'),
+        ('role_updated', 'Role Updated'),
+        ('role_deleted', 'Role Deleted'),
         ('invitation_cancelled', 'Invitation Cancelled'),
         ('invitation_resent', 'Invitation Resent'),
         ('ownership_transferred', 'Ownership Transferred'),
@@ -449,3 +451,38 @@ class ActivityLog(TimeStampedModel):
 
     def __str__(self):
         return f"{self.action} by {self.user} at {self.created_at}"
+
+
+class Role(TimeStampedModel):
+    """
+    A set of permissions an organization defined for itself.
+
+    The four built-in roles are not rows here: they are presets in
+    apps/core/access.py, so there is nothing to seed per organization and no
+    backfill. `User.role` holds either a preset slug or this row's slug, which
+    is why both live in one namespace and `slug` may not collide with a
+    built-in.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='roles'
+    )
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=50)
+    # Permission codes from apps.core.access.ALL_PERMISSIONS. Validated on the
+    # way in; unknown codes simply grant nothing.
+    permissions = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        db_table = 'org_roles'
+        ordering = ['name']
+        unique_together = [('organization', 'slug')]
+
+    def __str__(self):
+        return f"{self.name} ({self.organization.name})"
+
+    @property
+    def member_count(self):
+        return self.organization.users.filter(role=self.slug, is_active=True).count()

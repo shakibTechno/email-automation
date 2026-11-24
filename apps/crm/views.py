@@ -9,7 +9,11 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 
-from apps.core.permissions import IsOrganizationMember, IsAdminForDestructiveActions
+from apps.core.permissions import (
+    HasResourcePermission,
+    IsOrganizationMember,
+    IsAdminForDestructiveActions,
+)
 from .models import Pipeline, Stage, Deal, DealContact, Activity, CRMTask, Company
 from .serializers import (
     PipelineListSerializer,
@@ -454,7 +458,9 @@ class CRMTaskViewSet(viewsets.ModelViewSet):
     Provides CRUD + complete action.
     """
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = CRMTaskFilter
     search_fields = ['title', 'description']

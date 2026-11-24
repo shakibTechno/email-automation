@@ -1,4 +1,61 @@
-export type UserRole = 'owner' | 'admin' | 'member' | 'viewer';
+/** The four roles every organization has. */
+export type BuiltInRole = 'owner' | 'admin' | 'member' | 'viewer';
+
+/**
+ * A role slug: one of the built-ins, or one the organization defined.
+ *
+ * Not a closed union any more - the set is per organization and lives in the
+ * database, so anything that needs a label reads `role_name` instead of
+ * mapping the slug.
+ */
+export type UserRole = string;
+
+/** A role the organization defined for itself. */
+export interface Role {
+  id: string;
+  name: string;
+  slug: string;
+  permissions: string[];
+  member_count: number;
+  created_at: string;
+}
+
+export interface RoleFormData {
+  name?: string;
+  permissions?: string[];
+}
+
+/** One permission a resource can grant, e.g. `campaigns.send`. */
+export interface PermissionVerb {
+  key: string;
+  label: string;
+  code: string;
+}
+
+export interface PermissionResource {
+  key: string;
+  label: string;
+  group: string;
+  verbs: PermissionVerb[];
+}
+
+export interface RolePreset {
+  slug: BuiltInRole;
+  name: string;
+  permissions: string[];
+  assignable: boolean;
+}
+
+/**
+ * The permission vocabulary, served by the API rather than declared here.
+ *
+ * The matrix the settings screen draws has to be the matrix the backend
+ * enforces; two copies of it would drift the first time a resource is added.
+ */
+export interface PermissionCatalog {
+  resources: PermissionResource[];
+  presets: RolePreset[];
+}
 
 export interface TeamMember {
   id: string;
@@ -7,6 +64,8 @@ export interface TeamMember {
   last_name: string;
   full_name: string;
   role: UserRole;
+  /** The role's display name - a built-in label or the organization's own. */
+  role_name: string;
   is_active: boolean;
   last_login: string | null;
   created_at: string;
@@ -16,6 +75,7 @@ export interface TeamInvitation {
   id: string;
   email: string;
   role: UserRole;
+  role_name: string;
   status: 'pending' | 'accepted' | 'expired' | 'cancelled';
   invited_by_name: string | null;
   /** False when the invitation exists but the email could not be sent. */
@@ -30,11 +90,11 @@ export interface TeamInvitation {
 
 export interface InviteMemberData {
   email: string;
-  role: 'admin' | 'member' | 'viewer';
+  role: UserRole;
 }
 
 export interface ChangeRoleData {
-  role: 'admin' | 'member' | 'viewer';
+  role: UserRole;
 }
 
 export interface AcceptInvitationData {

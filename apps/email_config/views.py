@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from rest_framework import viewsets
 
 from apps.core.permissions import (
+    HasResourcePermission,
     IsOrganizationMember,
     IsOrganizationAdmin,
     IsAdminForDestructiveActions,
@@ -36,7 +37,9 @@ class EmailConfigView(APIView):
     POST /api/v1/email-config/test/ — send test email
     POST /api/v1/email-config/resume/ — clear threshold pause flag
     """
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         config = EmailConfigService.get_or_create(request.user.organization)
@@ -55,7 +58,9 @@ class EmailConfigView(APIView):
 
 class EmailConfigTestView(APIView):
     """POST /api/v1/email-config/test/"""
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def post(self, request):
         to_email = request.data.get('to_email') or request.user.email
@@ -183,7 +188,9 @@ class PostalTenantView(APIView):
     Returns null when the organization has no tenant yet, which is the normal
     state until someone adds a sending domain.
     """
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         tenant = PostalProvisioningService.get_tenant(request.user.organization)

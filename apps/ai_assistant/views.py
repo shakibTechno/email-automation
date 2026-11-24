@@ -10,7 +10,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import IsOrganizationAdmin, IsOrganizationMember
+from apps.core.permissions import (
+    HasResourcePermission,
+    IsOrganizationAdmin,
+    IsOrganizationMember,
+)
 
 from .models import GenerationJob
 from .serializers import (
@@ -30,7 +34,9 @@ class AIConfigView(APIView):
 
     # An API key is a billing-bearing credential, so only admins may set one;
     # any member may read whether the feature is available to them.
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get_permissions(self):
         if self.request.method in ('PUT', 'PATCH'):
@@ -80,7 +86,13 @@ class GenerateView(APIView):
     kind needs no new view.
     """
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
+    # Using the assistant is not managing it: anyone who may see the AI
+    # connection may generate with it. Without this, POST would ask for
+    # `ai_assistant.manage` and only admins could use the feature.
+    permission_verb = 'view'
 
     VALID_KINDS = GenerationJob.GENERATABLE_KINDS
 
@@ -123,7 +135,9 @@ class GenerateView(APIView):
 class GenerationJobView(APIView):
     """Poll one generation job."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     @extend_schema(responses={200: GenerationJobSerializer})
     def get(self, request, job_id):

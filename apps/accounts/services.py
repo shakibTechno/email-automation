@@ -116,9 +116,11 @@ class TeamService:
         inviter_name = (
             (inviter.full_name or inviter.email) if inviter else organization.name
         )
-        # TeamInvitation has its own narrower ROLE_CHOICES (no 'owner'), which
-        # is the right source for a label on an invitation.
-        role_label = dict(TeamInvitation.ROLE_CHOICES).get(invitation.role, invitation.role)
+        # A built-in role's name or the organization's own label for a custom
+        # one -- the invitation stores only the slug.
+        from .serializers import role_display_name
+
+        role_label = role_display_name(invitation.organization_id, invitation.role)
 
         result = send_transactional_email(
             subject=f'{inviter_name} invited you to {organization.name}',

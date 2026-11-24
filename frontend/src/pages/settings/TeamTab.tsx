@@ -110,7 +110,7 @@ export function TeamTab() {
                       )}
                     </TableCell>
                     <TableCell>{member.email}</TableCell>
-                    <TableCell><RoleBadge role={member.role} /></TableCell>
+                    <TableCell><RoleBadge role={member.role} roleName={member.role_name} /></TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDate(member.last_login)}
                     </TableCell>
@@ -195,7 +195,7 @@ export function TeamTab() {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell><RoleBadge role={inv.role} /></TableCell>
+                      <TableCell><RoleBadge role={inv.role} roleName={inv.role_name} /></TableCell>
                       <TableCell className="text-muted-foreground">
                         {inv.invited_by_name || 'Unknown'}
                       </TableCell>

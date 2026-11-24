@@ -8,7 +8,11 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 
-from apps.core.permissions import IsOrganizationMember, IsAdminForDestructiveActions
+from apps.core.permissions import (
+    HasResourcePermission,
+    IsOrganizationMember,
+    IsAdminForDestructiveActions,
+)
 from .models import EmailSequence, SequenceStep, SequenceEnrollment, SequenceStepExecution
 from .serializers import (
     EmailSequenceListSerializer,
@@ -139,7 +143,9 @@ class EmailSequenceViewSet(viewsets.ModelViewSet):
 
 
 class SequenceStepViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
     serializer_class = SequenceStepSerializer
 
     def get_queryset(self):
@@ -184,7 +190,9 @@ class SequenceStepViewSet(viewsets.ModelViewSet):
 
 
 class SequenceEnrollmentViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
     serializer_class = SequenceEnrollmentSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = SequenceEnrollmentFilter

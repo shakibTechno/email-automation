@@ -2,6 +2,9 @@ import apiClient from './client';
 import type {
   TeamMember,
   TeamInvitation,
+  PermissionCatalog,
+  Role,
+  RoleFormData,
   InviteMemberData,
   ChangeRoleData,
   AcceptInvitationData,
@@ -31,6 +34,31 @@ export async function changeRole(memberId: string, data: ChangeRoleData): Promis
 export async function transferOwnership(newOwnerId: string): Promise<{ message: string; new_owner: TeamMember }> {
   const response = await apiClient.post(`${BASE_URL}/transfer-ownership`, { new_owner_id: newOwnerId });
   return response.data;
+}
+
+// Roles
+export async function getPermissionCatalog(): Promise<PermissionCatalog> {
+  const response = await apiClient.get<PermissionCatalog>(`${BASE_URL}/permissions`);
+  return response.data;
+}
+
+export async function getRoles(): Promise<Role[]> {
+  const response = await apiClient.get<Role[]>(`${BASE_URL}/roles`);
+  return response.data;
+}
+
+export async function createRole(data: RoleFormData): Promise<Role> {
+  const response = await apiClient.post<Role>(`${BASE_URL}/roles`, data);
+  return response.data;
+}
+
+export async function updateRole(roleId: string, data: RoleFormData): Promise<Role> {
+  const response = await apiClient.patch<Role>(`${BASE_URL}/roles/${roleId}`, data);
+  return response.data;
+}
+
+export async function deleteRole(roleId: string): Promise<void> {
+  await apiClient.delete(`${BASE_URL}/roles/${roleId}`);
 }
 
 // Invitations

@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 import logging
 
-from .permissions import IsOrganizationMember
+from .permissions import HasResourcePermission, IsOrganizationMember
 from .services import DashboardService
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 class DashboardView(APIView):
     """Dashboard API view for fetching all dashboard statistics."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         """
@@ -41,7 +43,9 @@ class DashboardView(APIView):
 class DashboardOverviewView(APIView):
     """Dashboard overview statistics."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         """Get overview statistics."""
@@ -53,7 +57,9 @@ class DashboardOverviewView(APIView):
 class DashboardCampaignStatsView(APIView):
     """Dashboard campaign statistics."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         """Get campaign statistics."""
@@ -66,7 +72,9 @@ class DashboardCampaignStatsView(APIView):
 class DashboardContactGrowthView(APIView):
     """Dashboard contact growth chart data."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         """Get contact growth data."""

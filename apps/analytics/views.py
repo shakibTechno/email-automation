@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import IsOrganizationMember
+from apps.core.permissions import HasResourcePermission, IsOrganizationMember
 from apps.campaigns.models import Campaign
 
 from .services import (
@@ -27,7 +27,9 @@ def _get_days(request):
 class AnalyticsOverviewView(APIView):
     """Aggregated overview stats with trends."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         org = request.user.organization
@@ -42,7 +44,9 @@ class AnalyticsOverviewView(APIView):
 class CampaignAnalyticsListView(APIView):
     """Campaign metrics table with summary."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         org = request.user.organization
@@ -56,7 +60,9 @@ class CampaignAnalyticsListView(APIView):
 class CampaignAnalyticsDetailView(APIView):
     """Single campaign detail analytics."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request, campaign_id):
         org = request.user.organization
@@ -77,7 +83,9 @@ class CampaignAnalyticsDetailView(APIView):
 class CampaignComparisonView(APIView):
     """Compare multiple campaigns side by side."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         org = request.user.organization
@@ -104,7 +112,9 @@ class CampaignComparisonView(APIView):
 class CampaignExportView(APIView):
     """Export campaign recipient data as CSV."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request, campaign_id):
         org = request.user.organization
@@ -129,7 +139,9 @@ class CampaignExportView(APIView):
 class ContactAnalyticsView(APIView):
     """Contact growth, engagement, and source analytics."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         org = request.user.organization
@@ -142,7 +154,9 @@ class ContactAnalyticsView(APIView):
 class FormAnalyticsView(APIView):
     """Form submission analytics."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         org = request.user.organization
@@ -155,7 +169,9 @@ class FormAnalyticsView(APIView):
 class LandingPageAnalyticsView(APIView):
     """Landing page view, referrer, and device analytics."""
 
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
 
     def get(self, request):
         org = request.user.organization

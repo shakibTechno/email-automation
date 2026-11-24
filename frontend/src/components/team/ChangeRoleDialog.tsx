@@ -9,13 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { RoleSelect } from '@/components/team/RoleSelect';
 import { useChangeRole } from '@/hooks/useTeam';
 import type { TeamMember } from '@/types/team';
 
@@ -26,8 +20,9 @@ interface ChangeRoleDialogProps {
 }
 
 export function ChangeRoleDialog({ open, onOpenChange, member }: ChangeRoleDialogProps) {
-  const [role, setRole] = useState<'admin' | 'member' | 'viewer'>(
-    (member?.role === 'owner' ? 'admin' : member?.role) as 'admin' | 'member' | 'viewer' || 'member'
+  // 'owner' is not assignable, so an owner opens the dialog on 'admin'.
+  const [role, setRole] = useState(
+    !member?.role || member.role === 'owner' ? 'admin' : member.role
   );
   const changeRole = useChangeRole();
 
@@ -52,16 +47,9 @@ export function ChangeRoleDialog({ open, onOpenChange, member }: ChangeRoleDialo
           </DialogHeader>
           <div className="py-4">
             <Label htmlFor="new-role">New role</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
-              <SelectTrigger className="mt-2">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="member">Member</SelectItem>
-                <SelectItem value="viewer">Viewer</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="mt-2">
+              <RoleSelect id="new-role" value={role} onChange={setRole} />
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

@@ -14,6 +14,9 @@ from .views import (
     TransferOwnershipView,
     ActivityLogView,
     OrganizationSettingsView,
+    PermissionCatalogView,
+    RoleListView,
+    RoleDetailView,
 )
 
 app_name = 'team'
@@ -23,6 +26,11 @@ urlpatterns = [
     path('members/', TeamMemberListView.as_view(), name='member-list'),
     path('members/<uuid:member_id>/', RemoveMemberView.as_view(), name='member-remove'),
     path('members/<uuid:member_id>/role/', ChangeRoleView.as_view(), name='member-role'),
+
+    # Roles and the permission vocabulary they are built from
+    path('permissions/', PermissionCatalogView.as_view(), name='permission-catalog'),
+    path('roles/', RoleListView.as_view(), name='role-list'),
+    path('roles/<uuid:role_id>/', RoleDetailView.as_view(), name='role-detail'),
 
     # Invitations
     path('invite/', InviteMemberView.as_view(), name='invite'),

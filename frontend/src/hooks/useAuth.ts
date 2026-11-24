@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -103,6 +104,15 @@ export const useAuth = () => {
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Fold the refetched profile back into the store. Without this the stored
+  // user is whatever login returned, so a role change or an edit to a custom
+  // role's permissions never reached the UI until the next sign-in.
+  useEffect(() => {
+    if (profile) {
+      useAuthStore.getState().updateUser(profile);
+    }
+  }, [profile]);
 
   return {
     user,

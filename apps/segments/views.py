@@ -9,7 +9,11 @@ from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 
-from apps.core.permissions import IsOrganizationMember, IsAdminForDestructiveActions
+from apps.core.permissions import (
+    HasResourcePermission,
+    IsOrganizationMember,
+    IsAdminForDestructiveActions,
+)
 from apps.contacts.models import Tag
 from .models import Segment, SegmentMembership
 from .serializers import (
@@ -245,7 +249,9 @@ class SegmentMembershipViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for viewing segment memberships (static segments only).
     """
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
+    ]
     serializer_class = SegmentMembershipSerializer
 
     def get_queryset(self):

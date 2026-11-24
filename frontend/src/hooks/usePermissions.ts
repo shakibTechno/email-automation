@@ -1,5 +1,5 @@
+import { useMemo } from 'react';
 import { useAuthStore } from '@/stores/authStore';
-import type { UserRole } from '@/types/team';
 import type { PlanType } from '@/types/billing';
 
 /**
@@ -27,17 +27,37 @@ export function planAtLeast(plan: string | undefined, minimum: PlanType): boolea
 export function usePermissions() {
   const user = useAuthStore((state) => state.user);
   const organization = useAuthStore((state) => state.organization);
-  const role = (user?.role as UserRole) || 'viewer';
   const plan = organization?.plan ?? 'free';
+  const role = user?.role ?? 'viewer';
+
+  const granted = useMemo(
+    () => new Set(user?.permissions ?? []),
+    [user?.permissions]
+  );
+
+  /**
+   * Whether this user holds a permission, e.g. can('campaigns.send').
+   *
+   * The codes come from the API with the user, because a role name no longer
+   * implies what it can do — a custom role is whatever set of codes its
+   * organization gave it. This only decides what the UI offers; the API
+   * enforces the same codes on every request.
+   */
+  const can = (code: string): boolean => {
+    // The owner is never locked out of their own organization.
+    if (role === 'owner') return true;
+    // A session persisted before permissions were sent, until the profile
+    // refetch lands. Falling back to the role name keeps the built-in roles
+    // working rather than showing an admin a read-only app for a moment.
+    if (user?.permissions === undefined) return role === 'admin';
+    return granted.has(code);
+  };
 
   return {
-    role,
+    can,
     isOwner: role === 'owner',
-    isAdmin: role === 'owner' || role === 'admin',
-    canCreate: role !== 'viewer',
-    canEdit: role !== 'viewer',
-    canDelete: role === 'owner' || role === 'admin',
-    canManageTeam: role === 'owner' || role === 'admin',
+    isAdmin: can('team.manage'),
+    canManageTeam: can('team.manage'),
     canTransferOwnership: role === 'owner',
     isProfessionalOrAbove: planAtLeast(plan, 'professional'),
     planAtLeast: (minimum: PlanType) => planAtLeast(plan, minimum),

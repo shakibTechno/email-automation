@@ -11,8 +11,14 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, OpenApiResponse
-from apps.core.permissions import IsOrganizationMember, IsOrganizationAdmin, IsOrganizationOwner
-from .models import TeamInvitation
+from apps.core import access
+from apps.core.permissions import (
+    HasResourcePermission,
+    IsOrganizationMember,
+    IsOrganizationAdmin,
+    IsOrganizationOwner,
+)
+from .models import Role, TeamInvitation
 from .services import AccountEmailService, TeamService, ActivityLogService
 from .serializers import (
     RegisterSerializer,
@@ -25,6 +31,7 @@ from .serializers import (
     TeamMemberSerializer,
     InviteMemberSerializer,
     ChangeRoleSerializer,
+    RoleSerializer,
     AcceptInvitationSerializer,
     TeamInvitationSerializer,
     ActivityLogSerializer,
@@ -355,7 +362,10 @@ class TokenRefreshView(TokenRefreshView):
 
 class TeamMemberListView(APIView):
     """List all team members in the organization."""
-    permission_classes = [permissions.IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        permissions.IsAuthenticated, IsOrganizationMember,
+        HasResourcePermission,
+    ]
 
     def get(self, request):
         members = TeamService.list_members(request.user.organization)
@@ -368,7 +378,10 @@ class InviteMemberView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsOrganizationAdmin]
 
     def post(self, request):
-        serializer = InviteMemberSerializer(data=request.data)
+        serializer = InviteMemberSerializer(
+            data=request.data,
+            context={'organization': request.user.organization},
+        )
         serializer.is_valid(raise_exception=True)
 
         try:
@@ -510,7 +523,10 @@ class ChangeRoleView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = ChangeRoleSerializer(data=request.data)
+        serializer = ChangeRoleSerializer(
+            data=request.data,
+            context={'organization': request.user.organization},
+        )
         serializer.is_valid(raise_exception=True)
 
         try:
@@ -567,20 +583,19 @@ class ActivityLogView(APIView):
 
 class OrganizationSettingsView(APIView):
     """View and update organization settings."""
-    permission_classes = [permissions.IsAuthenticated, IsOrganizationMember]
+    permission_classes = [
+        permissions.IsAuthenticated, IsOrganizationMember,
+        HasResourcePermission,
+    ]
 
     def get(self, request):
         serializer = OrganizationSerializer(request.user.organization)
         return Response(serializer.data)
 
     def patch(self, request):
-        # Only admin/owner can update
-        if request.user.role not in ('admin', 'owner'):
-            return Response(
-                {'error': 'You do not have permission to update organization settings.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
+        # Who may write here is decided by HasResourcePermission, which maps
+        # this PATCH to `team.manage`. The role check that used to sit here was
+        # a second source of truth for the same question.
         serializer = OrganizationUpdateSerializer(
             request.user.organization,
             data=request.data,
@@ -598,6 +613,143 @@ class OrganizationSettingsView(APIView):
 
         return Response(OrganizationSerializer(request.user.organization).data)
 
+
+class PermissionCatalogView(APIView):
+    """
+    The permission vocabulary: every resource, its verbs, and the presets.
+
+    Served rather than duplicated in the frontend, so the settings matrix can
+    never drift from what the backend enforces.
+    """
+    permission_classes = [
+        permissions.IsAuthenticated, IsOrganizationMember,
+        HasResourcePermission,
+    ]
+
+    def get(self, request):
+        return Response(access.catalog())
+
+
+class RoleListView(APIView):
+    """List the organization's own roles, or add one."""
+    permission_classes = [permissions.IsAuthenticated, IsOrganizationAdmin]
+
+    def get(self, request):
+        roles = Role.objects.filter(organization=request.user.organization)
+        return Response(RoleSerializer(roles, many=True).data)
+
+    def post(self, request):
+        gated = _custom_roles_gate(request.user.organization)
+        if gated is not None:
+            return gated
+
+        serializer = RoleSerializer(
+            data=request.data,
+            context={
+                'organization': request.user.organization,
+                'granter': request.user,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+        role = serializer.save()
+
+        ActivityLogService.log(
+            organization=request.user.organization,
+            user=request.user,
+            action='role_created',
+            details={'role': role.slug, 'permissions': role.permissions},
+        )
+        return Response(
+            RoleSerializer(role).data, status=status.HTTP_201_CREATED
+        )
+
+
+class RoleDetailView(APIView):
+    """Change or remove one of the organization's roles."""
+    permission_classes = [permissions.IsAuthenticated, IsOrganizationAdmin]
+
+    def _get_role(self, request, role_id):
+        return Role.objects.filter(
+            id=role_id, organization=request.user.organization
+        ).first()
+
+    def patch(self, request, role_id):
+        role = self._get_role(request, role_id)
+        if role is None:
+            return Response(
+                {'error': 'Role not found.'}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        gated = _custom_roles_gate(request.user.organization)
+        if gated is not None:
+            return gated
+
+        serializer = RoleSerializer(
+            role,
+            data=request.data,
+            partial=True,
+            context={
+                'organization': request.user.organization,
+                'granter': request.user,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+        role = serializer.save()
+
+        ActivityLogService.log(
+            organization=request.user.organization,
+            user=request.user,
+            action='role_updated',
+            details={'role': role.slug, 'permissions': role.permissions},
+        )
+        return Response(RoleSerializer(role).data)
+
+    def delete(self, request, role_id):
+        role = self._get_role(request, role_id)
+        if role is None:
+            return Response(
+                {'error': 'Role not found.'}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Deleting a role in use would leave its members holding a slug that
+        # resolves to no permissions -- locked out of everything without any
+        # visible reason. Move them first.
+        in_use = role.member_count
+        if in_use:
+            return Response(
+                {'error': (
+                    f'{in_use} member(s) still have this role. '
+                    'Give them another role first.'
+                )},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        slug = role.slug
+        role.delete()
+        ActivityLogService.log(
+            organization=request.user.organization,
+            user=request.user,
+            action='role_deleted',
+            details={'role': slug},
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def _custom_roles_gate(organization):
+    """A 403 response when the plan does not include custom roles, else None."""
+    if organization.plan_at_least(access.CUSTOM_ROLE_MIN_PLAN):
+        return None
+    return Response(
+        {
+            'error': (
+                'Custom roles are available on the '
+                f'{access.CUSTOM_ROLE_MIN_PLAN.title()} plan and above. '
+                'The built-in roles are available on every plan.'
+            ),
+            'upgrade_required': access.CUSTOM_ROLE_MIN_PLAN,
+        },
+        status=status.HTTP_403_FORBIDDEN,
+    )
 
 class EmailVerificationView(APIView):
     """

@@ -28,7 +28,17 @@ export interface User {
    */
   organization: Organization | null;
   /** Organization-scoped. Says nothing about platform access — see is_staff. */
-  role: 'owner' | 'admin' | 'member' | 'viewer';
+  role: string;
+  /** The role's display name, for showing who someone is. */
+  role_name?: string;
+  /**
+   * Every permission code this user holds, e.g. `campaigns.send`.
+   *
+   * Sent by the API because the role name no longer implies the access: a
+   * custom role is an arbitrary set of codes. Undefined only for a session
+   * persisted before this existed, until the profile refetch lands.
+   */
+  permissions?: string[];
   /** Platform operator. The only thing that grants the landlord console. */
   is_staff?: boolean;
   is_active?: boolean;
