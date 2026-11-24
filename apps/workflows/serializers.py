@@ -146,6 +146,11 @@ def _write_edges(workflow, edges_data, node_id_map):
     anything not in it is stored as 'named' rather than overflowing twenty
     characters.
     """
+    # Cleared here rather than by each caller: nodes now survive a save, so
+    # their edges survive with them, and a caller that forgot this would
+    # double every connection on the canvas.
+    workflow.edges.all().delete()
+
     known_types = dict(WorkflowEdge.EDGE_TYPE_CHOICES)
 
     for edge_data in edges_data:
@@ -301,27 +306,59 @@ class WorkflowUpdateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
-        # If nodes are provided, replace all nodes
+        # Nodes are matched by id and updated in place -- never deleted and
+        # recreated wholesale.
+        #
+        # They used to be. Every save minted new UUIDs for the whole canvas,
+        # and three things point at a node: an execution's step history
+        # (SET_NULL, so every past run turned into a list of "Deleted Node"),
+        # the segment watches (CASCADE, so they vanished), and, worst,
+        # `WorkflowExecution.current_node` (SET_NULL) -- which is where a
+        # contact waiting in a Wait step keeps its place. Resuming one with no
+        # current node does nothing at all, so moving a box on the canvas
+        # stranded every waiting contact as permanently "active".
         if nodes_data is not None:
-            # Delete existing nodes (edges will cascade)
-            instance.nodes.all().delete()
-
-            # Map React Flow IDs to database node objects
+            existing = {str(node.id): node for node in instance.nodes.all()}
             node_id_map = {}
+            kept = set()
 
-            # Create new nodes
             for node_data in nodes_data:
-                react_flow_id = node_data.pop('id', None)
-                node = WorkflowNode.objects.create(
-                    workflow=instance,
-                    node_type=node_data['node_type'],
-                    position_x=node_data.get('position_x', 0),
-                    position_y=node_data.get('position_y', 0),
-                    config=node_data.get('config', {}),
-                    label=node_data.get('label', ''),
-                )
-                if react_flow_id:
-                    node_id_map[react_flow_id] = node
+                client_id = str(node_data.pop('id', '') or '')
+                node = existing.get(client_id)
+
+                # A different type under the same id is a different step, and
+                # rewriting it in place would relabel the history of runs that
+                # went through the old one. Replace it instead.
+                if node is not None and node.node_type != node_data['node_type']:
+                    node = None
+
+                if node is None:
+                    node = WorkflowNode.objects.create(
+                        workflow=instance,
+                        node_type=node_data['node_type'],
+                        position_x=node_data.get('position_x', 0),
+                        position_y=node_data.get('position_y', 0),
+                        config=node_data.get('config', {}),
+                        label=node_data.get('label', ''),
+                    )
+                else:
+                    node.position_x = node_data.get('position_x', 0)
+                    node.position_y = node_data.get('position_y', 0)
+                    node.config = node_data.get('config', {})
+                    node.label = node_data.get('label', '')
+                    node.save(update_fields=[
+                        'position_x', 'position_y', 'config', 'label',
+                        'updated_at',
+                    ])
+                    kept.add(client_id)
+
+                if client_id:
+                    node_id_map[client_id] = node
+
+            # Only what the canvas no longer has.
+            for node_id, node in existing.items():
+                if node_id not in kept:
+                    node.delete()
 
             if edges_data is not None:
                 _write_edges(instance, edges_data, node_id_map)
@@ -333,7 +370,6 @@ class WorkflowUpdateSerializer(serializers.ModelSerializer):
             node_id_map = {
                 str(node.id): node for node in instance.nodes.all()
             }
-            instance.edges.all().delete()
             _write_edges(instance, edges_data, node_id_map)
 
         return instance
