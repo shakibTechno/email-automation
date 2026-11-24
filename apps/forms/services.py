@@ -200,17 +200,17 @@ class FormSubmissionService:
                 )
                 custom = {}
 
-        contact = Contact.objects.filter(
-            organization=organization, email=email
-        ).first()
-
-        if contact is None:
-            return Contact.objects.create(
-                organization=organization, source='form',
-                custom_fields=custom,
-                **{k: v for k, v in standard.items() if k != 'email'},
-                email=email,
-            )
+        # claim(), not filter-then-create: a contact that was deleted still
+        # holds this address as far as the unique index is concerned, and the
+        # insert it used to attempt took the whole submission down with it.
+        contact, created = Contact.objects.claim(
+            organization, email,
+            source='form',
+            custom_fields=custom,
+            **{k: v for k, v in standard.items() if k != 'email'},
+        )
+        if created:
+            return contact
 
         updated = []
         for key, value in standard.items():

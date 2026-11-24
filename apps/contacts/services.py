@@ -296,7 +296,14 @@ class CSVImportService:
                             self.organization, custom_data,
                         )
                     )
-                Contact.objects.create(**contact_data)
+                # claim(), because a row for this address may exist and be
+                # deleted -- the lookup above cannot see it but the unique
+                # index can, and the insert would fail the whole row.
+                email_value = contact_data.pop('email')
+                contact_data.pop('organization', None)
+                Contact.objects.claim(
+                    self.organization, email_value, **contact_data
+                )
                 self.imported_count += 1
 
         except CustomFieldError as e:

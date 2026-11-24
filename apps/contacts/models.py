@@ -18,6 +18,39 @@ class ContactManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
+    def claim(self, organization, email, **defaults):
+        """
+        The contact for this address, created or brought back. (contact, created)
+
+        This manager hides a soft-deleted contact; the unique index on
+        (organization, email) does not. So "is there already a contact for
+        this address?" had two answers, and every arrival path took the one
+        that let it try the insert anyway: a lead whose contact had been
+        deleted could not submit a form at all, because the database refused
+        the row and the public endpoint returned 500 with the enquiry lost.
+
+        `created` is False for a revived contact, so the caller applies its
+        updates to it the way it would to any contact it already had.
+
+        What is deliberately *not* restored is the subscription state.
+        Filling in a form is a reason to talk to someone again; it is not
+        their consent to undo an unsubscribe.
+        """
+        existing = self.model.all_objects.filter(
+            organization=organization, email=email
+        ).first()
+
+        if existing is None:
+            return self.create(
+                organization=organization, email=email, **defaults
+            ), True
+
+        if existing.deleted_at is not None:
+            existing.deleted_at = None
+            existing.save(update_fields=['deleted_at', 'updated_at'])
+
+        return existing, False
+
     def mailable(self):
         """
         Contacts who may be sent marketing email.

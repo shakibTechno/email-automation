@@ -117,9 +117,11 @@ def _find_or_create(workflow, payload, match_by, config):
         # webhook that supplied only an external id would make a dead row.
         return None, False
 
-    contact = Contact.objects.create(
-        organization=workflow.organization,
-        email=key.lower(),
+    # claim(): the lookup above skips deleted contacts, but the unique index
+    # on (organization, email) counts them, so a plain create would fail.
+    contact, _created = Contact.objects.claim(
+        workflow.organization,
+        key.lower(),
         first_name=str(payload.get('first_name') or '')[:100],
         last_name=str(payload.get('last_name') or '')[:100],
         source='integration',

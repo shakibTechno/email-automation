@@ -223,8 +223,11 @@ class ContactSerializer(ContactWriteMixin, serializers.ModelSerializer):
         request = self.context.get('request')
         organization = request.user.organization
 
-        # Check for existing contact with same email in organization
-        queryset = Contact.objects.filter(
+        # Check for existing contact with same email in organization.
+        # all_objects: a deleted contact still holds this address as far as
+        # the unique index is concerned, so hiding it here turned a clear
+        # refusal into an IntegrityError from inside the insert.
+        queryset = Contact.all_objects.filter(
             organization=organization,
             email=value
         )
@@ -303,7 +306,9 @@ class ContactCreateSerializer(ContactWriteMixin, serializers.ModelSerializer):
         request = self.context.get('request')
         organization = request.user.organization
 
-        if Contact.objects.filter(organization=organization, email=value).exists():
+        # all_objects: see the note above -- a deleted contact still owns the
+        # address, and creating over it fails in the database rather than here.
+        if Contact.all_objects.filter(organization=organization, email=value).exists():
             raise serializers.ValidationError(
                 "A contact with this email already exists in your organization."
             )
@@ -354,7 +359,7 @@ class ContactUpdateSerializer(ContactWriteMixin, serializers.ModelSerializer):
         request = self.context.get('request')
         organization = request.user.organization
 
-        queryset = Contact.objects.filter(organization=organization, email=value)
+        queryset = Contact.all_objects.filter(organization=organization, email=value)
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
 
