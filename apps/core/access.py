@@ -192,9 +192,9 @@ BUILTIN_ROLES = {
 # 'owner' is reached by transferring ownership, never by assignment.
 ASSIGNABLE_BUILTIN_ROLES = ('admin', 'member', 'viewer')
 
-# The plan from which an organization may define roles of its own. The four
-# presets are available on every plan.
-CUSTOM_ROLE_MIN_PLAN = 'business'
+# Roles are not a plan feature. Deciding who on your team may delete contacts
+# or send a campaign is how an account stays safe, so it is not something to
+# withhold from the plans that can least afford a mistake.
 
 
 def _preset(verbs):

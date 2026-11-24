@@ -54,7 +54,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       updateUser: (user) => {
-        set({ user });
+        // The organization rides along, because it was only ever written by
+        // setAuth: a plan change (or anything else about the org) stayed
+        // invisible until the next sign-in, which made every plan-gated
+        // feature look broken right after an upgrade.
+        set(user.organization ? { user, organization: user.organization } : { user });
       },
 
       setHasHydrated: (hasHydrated) => {

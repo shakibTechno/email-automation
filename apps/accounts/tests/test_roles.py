@@ -370,22 +370,34 @@ class RoleAssignmentTestCase(RoleTestCaseMixin, TestCase):
         self.assertEqual(response.data['role_name'], 'Editor')
 
 
-class CustomRolePlanGateTestCase(RoleTestCaseMixin, TestCase):
-    def test_defining_a_role_needs_the_business_plan(self):
-        self.organization.plan = 'starter'
-        self.organization.save(update_fields=['plan'])
+class RolesAreNotAPlanFeatureTestCase(RoleTestCaseMixin, TestCase):
+    """
+    Deciding who on your team may delete contacts or send a campaign is how an
+    account stays safe, so it is not withheld from any plan.
+    """
 
-        response = client_for(self.admin).post(ROLES_URL, {
-            'name': 'Editor', 'permissions': ['contacts.view'],
-        }, format='json')
-        self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.data['upgrade_required'], 'business')
-
-    def test_roles_defined_before_a_downgrade_keep_working(self):
-        role = self.make_role('Editor', ['contacts.view'])
-        user = self.member_with(role.slug)
+    def test_a_free_plan_can_define_and_use_a_role(self):
         self.organization.plan = 'free'
         self.organization.save(update_fields=['plan'])
 
+        created = client_for(self.admin).post(ROLES_URL, {
+            'name': 'Editor', 'permissions': ['contacts.view'],
+        }, format='json')
+        self.assertEqual(created.status_code, 201)
+
+        user = self.member_with(created.data['slug'])
         self.assertEqual(client_for(user).get(CONTACTS_URL).status_code, 200)
-        self.assertEqual(client_for(self.admin).get(ROLES_URL).status_code, 200)
+        self.assertEqual(client_for(user).get(CAMPAIGNS_URL).status_code, 403)
+
+    def test_a_free_plan_can_edit_and_delete_a_role(self):
+        self.organization.plan = 'free'
+        self.organization.save(update_fields=['plan'])
+        role = self.make_role('Editor', ['contacts.view'])
+
+        edited = client_for(self.admin).patch(f'{ROLES_URL}{role.id}/', {
+            'permissions': ['contacts.view', 'contacts.create'],
+        }, format='json')
+        self.assertEqual(edited.status_code, 200)
+
+        removed = client_for(self.admin).delete(f'{ROLES_URL}{role.id}/')
+        self.assertEqual(removed.status_code, 204)

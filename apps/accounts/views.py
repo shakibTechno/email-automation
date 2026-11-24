@@ -639,10 +639,6 @@ class RoleListView(APIView):
         return Response(RoleSerializer(roles, many=True).data)
 
     def post(self, request):
-        gated = _custom_roles_gate(request.user.organization)
-        if gated is not None:
-            return gated
-
         serializer = RoleSerializer(
             data=request.data,
             context={
@@ -679,10 +675,6 @@ class RoleDetailView(APIView):
             return Response(
                 {'error': 'Role not found.'}, status=status.HTTP_404_NOT_FOUND
             )
-
-        gated = _custom_roles_gate(request.user.organization)
-        if gated is not None:
-            return gated
 
         serializer = RoleSerializer(
             role,
@@ -733,23 +725,6 @@ class RoleDetailView(APIView):
             details={'role': slug},
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-def _custom_roles_gate(organization):
-    """A 403 response when the plan does not include custom roles, else None."""
-    if organization.plan_at_least(access.CUSTOM_ROLE_MIN_PLAN):
-        return None
-    return Response(
-        {
-            'error': (
-                'Custom roles are available on the '
-                f'{access.CUSTOM_ROLE_MIN_PLAN.title()} plan and above. '
-                'The built-in roles are available on every plan.'
-            ),
-            'upgrade_required': access.CUSTOM_ROLE_MIN_PLAN,
-        },
-        status=status.HTTP_403_FORBIDDEN,
-    )
 
 class EmailVerificationView(APIView):
     """

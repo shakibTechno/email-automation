@@ -30,9 +30,6 @@ import {
 import { usePermissions } from '@/hooks/usePermissions';
 import type { PermissionCatalog, Role } from '@/types/team';
 
-/** Mirrors CUSTOM_ROLE_MIN_PLAN on the server. */
-const CUSTOM_ROLE_MIN_PLAN = 'business';
-
 function groupResources(catalog: PermissionCatalog | undefined) {
   const groups = new Map<string, PermissionCatalog['resources']>();
   for (const resource of catalog?.resources ?? []) {
@@ -217,13 +214,12 @@ export function RolesTab() {
   const { data: catalog, isLoading: loadingCatalog } = usePermissionCatalog();
   const { data: roles, isLoading: loadingRoles } = useRoles();
   const deleteRole = useDeleteRole();
-  const { can, planAtLeast } = usePermissions();
+  const { can } = usePermissions();
 
   const [editing, setEditing] = useState<Role | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
 
-  const canUseCustomRoles = planAtLeast(CUSTOM_ROLE_MIN_PLAN);
   const grantable = useMemo(() => {
     const codes = new Set<string>();
     for (const resource of catalog?.resources ?? []) {
@@ -261,12 +257,10 @@ export function RolesTab() {
               they do not.
             </CardDescription>
           </div>
-          {canUseCustomRoles && (
-            <Button onClick={openNew} disabled={loadingCatalog}>
-              <Plus className="mr-2 h-4 w-4" />
-              New role
-            </Button>
-          )}
+          <Button onClick={openNew} disabled={loadingCatalog}>
+            <Plus className="mr-2 h-4 w-4" />
+            New role
+          </Button>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
@@ -300,9 +294,8 @@ export function RolesTab() {
               <p className="text-sm text-muted-foreground">Loading...</p>
             ) : (roles ?? []).length === 0 ? (
               <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                {canUseCustomRoles
-                  ? 'No roles of your own yet.'
-                  : `Custom roles are part of the ${CUSTOM_ROLE_MIN_PLAN} plan and above. The four built-in roles are available on every plan.`}
+                No roles of your own yet. Start from a built-in role above, or
+                add one with exactly the permissions you need.
               </p>
             ) : (
               <div className="space-y-2">
