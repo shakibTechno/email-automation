@@ -13,78 +13,37 @@ from rest_framework.views import APIView
 import logging
 
 from .calendar import MAX_RANGE_DAYS, CalendarService, resolve_range
-from .permissions import HasResourcePermission, IsOrganizationMember
+from .permissions import IsOrganizationMember
 from .services import DashboardService
 
 logger = logging.getLogger(__name__)
 
 
 class DashboardView(APIView):
-    """Dashboard API view for fetching all dashboard statistics."""
+    """
+    GET /api/v1/dashboard/?days=30
 
-    permission_classes = [
-        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
-    ]
+    Deliberately NOT gated by HasResourcePermission: this module is
+    `apps.core`, which the access registry maps to the `analytics` resource, so
+    the class would ask for `analytics.view` and hand anyone who can read a
+    chart the organization's billing state, its CRM work and its sending
+    health. DashboardService filters every block by the viewer's own
+    permission instead, and a viewer with none gets a page with nothing on it
+    rather than a 403.
+    """
 
-    def get(self, request):
-        """
-        Get dashboard data.
-
-        Query params:
-            days: Number of days to look back (default 30)
-        """
-        organization = request.user.organization
-        days = int(request.query_params.get('days', 30))
-
-        # Clamp days to reasonable range
-        days = max(7, min(days, 365))
-
-        data = DashboardService.get_dashboard_data(organization, days)
-        return Response(data)
-
-
-class DashboardOverviewView(APIView):
-    """Dashboard overview statistics."""
-
-    permission_classes = [
-        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
-    ]
+    permission_classes = [IsAuthenticated, IsOrganizationMember]
 
     def get(self, request):
-        """Get overview statistics."""
-        organization = request.user.organization
-        data = DashboardService.get_overview_stats(organization)
-        return Response(data)
+        try:
+            days = int(request.query_params.get('days', 30))
+        except (TypeError, ValueError):
+            days = 30
+        # The comparison window is the same length again, so a long period
+        # doubles the rows read. 90 days is what the UI offers.
+        days = max(1, min(days, 90))
 
-
-class DashboardCampaignStatsView(APIView):
-    """Dashboard campaign statistics."""
-
-    permission_classes = [
-        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
-    ]
-
-    def get(self, request):
-        """Get campaign statistics."""
-        organization = request.user.organization
-        days = int(request.query_params.get('days', 30))
-        data = DashboardService.get_campaign_stats(organization, days)
-        return Response(data)
-
-
-class DashboardContactGrowthView(APIView):
-    """Dashboard contact growth chart data."""
-
-    permission_classes = [
-        IsAuthenticated, IsOrganizationMember, HasResourcePermission,
-    ]
-
-    def get(self, request):
-        """Get contact growth data."""
-        organization = request.user.organization
-        days = int(request.query_params.get('days', 30))
-        data = DashboardService.get_contact_growth(organization, days)
-        return Response(data)
+        return Response(DashboardService.get_dashboard_data(request.user, days))
 
 
 class CalendarView(APIView):

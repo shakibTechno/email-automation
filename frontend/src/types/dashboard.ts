@@ -1,52 +1,61 @@
-export interface DashboardOverview {
-  contacts: {
-    total: number;
-  };
-  campaigns: {
-    total: number;
-    sent: number;
-  };
-  forms: {
-    total: number;
-    active: number;
-  };
-  landing_pages: {
-    total: number;
-    published: number;
-  };
+/** Severity of a dashboard alert. `action` is now; `soon` is this week. */
+export type AlertLevel = 'action' | 'soon';
+
+export interface DashboardAlert {
+  id: string;
+  level: AlertLevel;
+  title: string;
+  detail: string;
+  action: string;
+  url: string;
 }
 
-export interface ContactGrowthData {
-  date: string;
-  count: number;
+export interface AssignedItem {
+  id: string;
+  title: string;
+  /** ISO date or datetime; null when the work has no due date. */
+  due: string | null;
+  overdue: boolean;
+  today: boolean;
+  /** Assigned within the last day. */
+  is_new: boolean;
+  meta: string;
+  url: string;
 }
 
-export interface CampaignStats {
-  campaigns_sent: number;
-  emails_sent: number;
-  emails_delivered: number;
-  emails_opened: number;
-  emails_clicked: number;
-  open_rate: number;
-  click_rate: number;
+export interface AssignedToMe {
+  items: AssignedItem[];
+  new_count: number;
+  /** How many more are assigned beyond the ones listed. */
+  more: number;
 }
 
-export interface FormStats {
-  total_submissions: number;
-  submissions_by_day: {
-    date: string;
-    count: number;
-  }[];
+export interface UpcomingItem {
+  /** The calendar source: campaigns, sequences, activities, tasks, deals. */
+  kind: string;
+  label: string;
+  all_day: boolean;
+  time: string | null;
 }
 
-export interface LandingPageStats {
-  total_views: number;
-  unique_views: number;
-  views_by_day: {
-    date: string;
-    views: number;
-    unique_views: number;
-  }[];
+export interface UpcomingWeek {
+  days: { date: string; items: UpcomingItem[] }[];
+  total: number;
+  sources: { key: string; label: string; count: number }[];
+}
+
+export interface DashboardTile {
+  key: 'deliverability' | 'engagement' | 'audience' | 'conversion';
+  label: string;
+  value: number;
+  /** '%' or empty, for a plain count. */
+  unit: string;
+  /** Change against the previous period of the same length; null when there
+   *  is no earlier period to compare against. */
+  delta: number | null;
+  delta_unit: string;
+  sub: string;
+  spark?: number[];
 }
 
 export interface RecentCampaign {
@@ -64,21 +73,19 @@ export interface RecentSubmission {
   created_at: string;
 }
 
-export interface TopLandingPage {
-  id: string;
-  name: string;
-  slug: string;
-  view_count: number;
-  conversion_count: number;
-}
-
+/**
+ * The dashboard payload.
+ *
+ * A block the viewer's role cannot reach is **absent**, not empty — the same
+ * rule the calendar follows, so the page can tell "nothing to show" from
+ * "not yours to see".
+ */
 export interface DashboardData {
-  overview: DashboardOverview;
-  contact_growth: ContactGrowthData[];
-  campaign_stats: CampaignStats;
-  form_stats: FormStats;
-  landing_page_stats: LandingPageStats;
-  recent_campaigns: RecentCampaign[];
-  recent_submissions: RecentSubmission[];
-  top_landing_pages: TopLandingPage[];
+  days: number;
+  alerts: DashboardAlert[];
+  tiles: DashboardTile[];
+  upcoming: UpcomingWeek | null;
+  assigned?: AssignedToMe;
+  recent_campaigns?: RecentCampaign[];
+  recent_submissions?: RecentSubmission[];
 }

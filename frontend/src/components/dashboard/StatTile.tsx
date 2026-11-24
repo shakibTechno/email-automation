@@ -3,8 +3,11 @@ import { cn } from '@/lib/utils';
 interface StatTileProps {
   label: string;
   value: string | number;
-  /** Signed percentage. Direction colours the figure; omit when there is no comparison. */
+  /** Signed change. Direction colours the figure; omit when there is no comparison. */
   deltaValue?: number;
+  /** What the change is measured in. Percentage points and plain counts both
+   *  appear on this row, and labelling both '%' would be a lie. */
+  deltaSuffix?: string;
   deltaLabel?: string;
   /** A chart primitive from ./charts, or nothing for a bare figure. */
   chart?: React.ReactNode;
@@ -20,6 +23,7 @@ export const StatTile = ({
   label,
   value,
   deltaValue,
+  deltaSuffix = '%',
   deltaLabel,
   chart,
   className,
@@ -42,7 +46,8 @@ export const StatTile = ({
         {hasDelta && (
           <b className="font-semibold">
             {up ? '+' : ''}
-            {deltaValue!.toFixed(1)}%
+            {deltaValue!.toFixed(1)}
+            {deltaSuffix}
           </b>
         )}
         <span className={cn(hasDelta && 'text-subtle-foreground')}>{deltaLabel}</span>

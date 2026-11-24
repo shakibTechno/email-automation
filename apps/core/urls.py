@@ -14,9 +14,6 @@ urlpatterns = [
 
     # Dashboard
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
-    path('dashboard/overview/', views.DashboardOverviewView.as_view(), name='dashboard-overview'),
-    path('dashboard/campaigns/', views.DashboardCampaignStatsView.as_view(), name='dashboard-campaigns'),
-    path('dashboard/contacts/', views.DashboardContactGrowthView.as_view(), name='dashboard-contacts'),
 
     # Calendar
     path('calendar/', views.CalendarView.as_view(), name='calendar'),
